@@ -1,0 +1,67 @@
+# IDE/Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# C++ build artifacts
+build/
+out/
+*.o
+*.obj
+*.exe
+*.dll
+*.lib
+*.a
+*.so
+*.dylib
+*.pdb
+*.ilk
+*.exp
+
+# CMake
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+Makefile
+compile_commands.json
+
+# Visual Studio / MSBuild
+.vs/
+*.user
+*.suo
+
+# JUCE
+JuceLibraryCode/
+Builds/
+
+# Node (sync server)
+node_modules/
+dist/
+*.tsbuildinfo
+.npm
+.eslintcache
+coverage/
+
+# Environment
+.env
+.env.*.local
+
+# Logs
+*.log
+
+# Docker
+docker-compose.override.yml
+
+# Notes and scratch
+notes/
+
+# Claude code
+creds.json
+.claude/skills/owasp-scan/findings.json
+.github/drafts/
