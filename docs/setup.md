@@ -101,22 +101,30 @@ Decision is reversible at zero cost: full Visual Studio Community can be install
 
 | Item | Decision |
 |---|---|
-| Acquisition method | CMake `FetchContent` |
-| Version pinning policy | Pin to a specific release tag |
+| Acquisition method | CMake `find_package` |
+| Version pinning | Pinned tag cloned and installed in Dockerfile |
 | Exact version | TBD at integration time — check `https://github.com/juce-framework/JUCE/releases` for current stable |
-| Where JUCE lives | Inside `build/_deps/` (auto-fetched, gitignored) |
+| Where JUCE lives | Installed to `/usr/local` in the container image; installed to system prefix by developer on Windows |
 | Committed to repo | No |
 
 `CMakeLists.txt` shape:
 
 ```cmake
-include(FetchContent)
-FetchContent_Declare(
-  JUCE
-  GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-  GIT_TAG        <pin-at-integration-time>
-)
-FetchContent_MakeAvailable(JUCE)
+find_package(JUCE CONFIG REQUIRED)
+```
+
+The initial plan used CMake `FetchContent` to clone JUCE at configure time, which had the appeal of handling acquisition automatically on both the container and the Windows host with no extra setup. It was rejected after verification: `FetchContent` does not appear in JUCE's official CMake documentation, and no reliable third-party source documents it as a supported path. An integration method that cannot be verified against official documentation cannot be reasoned about when it breaks.
+
+### Container setup (Dockerfile — to be implemented)
+
+Clone JUCE at the pinned tag, configure, build, install, then remove source and build dirs to keep the image lean:
+
+```dockerfile
+RUN git clone --depth=1 --branch <version> https://github.com/juce-framework/JUCE.git /tmp/JUCE \
+    && cmake -S /tmp/JUCE -B /tmp/JUCE/build -G Ninja \
+    && cmake --build /tmp/JUCE/build \
+    && cmake --install /tmp/JUCE/build \
+    && rm -rf /tmp/JUCE
 ```
 
 ---
