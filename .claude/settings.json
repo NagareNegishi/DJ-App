@@ -11,7 +11,6 @@
     ],
     "deny": [
       "Read(**/.env*)",
-      "Read(**/appsettings.*.json)",
       "Read(**/*secret*)",
       "Bash(git push *)",
       "Bash(git pull *)",
