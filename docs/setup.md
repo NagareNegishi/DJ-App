@@ -127,6 +127,18 @@ RUN git clone --depth=1 --branch <version> https://github.com/juce-framework/JUC
     && rm -rf /tmp/JUCE
 ```
 
+### Windows developer setup
+
+One-time setup before the first build. Run from a Developer Command Prompt (Visual Studio Build Tools 2022):
+
+1. Clone JUCE at the same version tag used in the Dockerfile:
+   `git clone --depth=1 --branch <version> https://github.com/juce-framework/JUCE.git C:\JUCE`
+2. Configure: `cmake -S C:\JUCE -B C:\JUCE\build -G Ninja`
+3. Build: `cmake --build C:\JUCE\build`
+4. Install: `cmake --install C:\JUCE\build`
+
+CMake installs `JUCEConfig.cmake` to its default Windows prefix. `find_package(JUCE CONFIG REQUIRED)` in the project CMakeLists.txt finds it automatically from that point on. No path variable needed.
+
 ---
 
 ## Build System
@@ -136,6 +148,7 @@ RUN git clone --depth=1 --branch <version> https://github.com/juce-framework/JUC
 | Configuration | CMake |
 | Build executor (both platforms) | Ninja |
 | Minimum CMake version | TBD at integration time — driven by JUCE's requirement |
+| Build output directories | `client/build/linux/` (container), `client/build/windows/` (Windows host) — keeps artifacts separated per platform, both gitignored |
 
 ---
 
