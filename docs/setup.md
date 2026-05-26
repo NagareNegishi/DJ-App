@@ -57,13 +57,12 @@ dj-app/
 | In-container compiler | clang (gcc available as fallback via `build-essential`) |
 | Build executor | Ninja (installed via `apt install ninja-build`) |
 
-**JUCE Linux build dependencies — UNVERIFIED, verify against JUCE official docs before use.**
-
-Suggested list (to be confirmed):
+**JUCE Linux build dependencies — verified against [`docs/Linux Dependencies.md`](https://github.com/juce-framework/JUCE/blob/master/docs/Linux%20Dependencies.md) in the JUCE repo.**
 
 ```
 libasound2-dev
 libjack-jackd2-dev
+ladspa-sdk
 libcurl4-openssl-dev
 libfreetype-dev
 libfontconfig1-dev
@@ -79,7 +78,7 @@ libglu1-mesa-dev
 mesa-common-dev
 ```
 
-These are OS-level system libraries JUCE links against at compile time on Linux, not JUCE itself. Required in the container for compilation even though the GUI app runs on the Windows host. Exact list and package names need to be verified against JUCE's current Linux build documentation before writing the Dockerfile.
+These are OS-level system libraries JUCE links against at compile time on Linux, not JUCE itself. Required in the container for compilation even though the GUI app runs on the Windows host.
 
 ---
 
@@ -103,7 +102,7 @@ Decision is reversible at zero cost: full Visual Studio Community can be install
 |---|---|
 | Acquisition method | CMake `find_package` |
 | Version pinning | Pinned tag cloned and installed in Dockerfile |
-| Exact version | TBD at integration time — check `https://github.com/juce-framework/JUCE/releases` for current stable |
+| Exact version | 8.0.12 |
 | Where JUCE lives | Installed to `/usr/local` in the container image; installed to system prefix by developer on Windows |
 | Committed to repo | No |
 
@@ -115,13 +114,13 @@ find_package(JUCE CONFIG REQUIRED)
 
 The initial plan used CMake `FetchContent` to clone JUCE at configure time, which had the appeal of handling acquisition automatically on both the container and the Windows host with no extra setup. It was rejected after verification: `FetchContent` does not appear in JUCE's official CMake documentation, and no reliable third-party source documents it as a supported path. An integration method that cannot be verified against official documentation cannot be reasoned about when it breaks.
 
-### Container setup (Dockerfile — to be implemented)
+### Container setup (Dockerfile)
 
-Clone JUCE at the pinned tag, configure, build, install, then remove source and build dirs to keep the image lean:
+Clone JUCE at the pinned tag, configure with Release build type, build, install, then remove source and build dirs to keep the image lean:
 
 ```dockerfile
-RUN git clone --depth=1 --branch <version> https://github.com/juce-framework/JUCE.git /tmp/JUCE \
-    && cmake -S /tmp/JUCE -B /tmp/JUCE/build -G Ninja \
+RUN git clone --depth=1 --branch 8.0.12 https://github.com/juce-framework/JUCE.git /tmp/JUCE \
+    && cmake -S /tmp/JUCE -B /tmp/JUCE/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
     && cmake --build /tmp/JUCE/build \
     && cmake --install /tmp/JUCE/build \
     && rm -rf /tmp/JUCE
@@ -147,7 +146,7 @@ CMake installs `JUCEConfig.cmake` to its default Windows prefix. `find_package(J
 |---|---|
 | Configuration | CMake |
 | Build executor (both platforms) | Ninja |
-| Minimum CMake version | TBD at integration time — driven by JUCE's requirement |
+| Minimum CMake version | 3.28 (JUCE requires 3.22 minimum; container ships with 3.28) |
 | Build output directories | `client/build/linux/` (container), `client/build/windows/` (Windows host) — keeps artifacts separated per platform, both gitignored |
 
 ---
@@ -162,14 +161,10 @@ Out of scope for the next session:
 - Any audio code
 - Anything from the architecture build order beyond step 1
 
-JUCE integration via `FetchContent` may be added if time permits, but priority is a green container build first.
-
 ---
 
 ## Open Items for Integration Time
 
-- Exact JUCE version tag
-- Exact CMake minimum version (driven by JUCE)
 - `.gitignore` contents (standard C++/CMake/JUCE + `build/` + `.vs/`)
 - README content
 - Whether the Node.js devcontainer feature is added now or at sync-server time
