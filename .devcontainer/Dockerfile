@@ -27,8 +27,27 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Update the llvm-18 version number if the base image bumps LLVM.
 RUN ln -sf /usr/lib/llvm-18/bin/clang-scan-deps /usr/local/bin/clang-scan-deps
 
-# JUCE Linux build dependencies are NOT installed yet.
-# When JUCE is added, the dependency list in docs/setup.md needs to be verified against JUCE's official Linux build docs
+# JUCE Linux build dependencies.
+# https://github.com/juce-framework/JUCE/blob/master/docs/Linux%20Dependencies.md
+# Required in the container even though the GUI app runs on the host.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libasound2-dev \
+    libjack-jackd2-dev \
+    ladspa-sdk \
+    libcurl4-openssl-dev \
+    libfreetype-dev \
+    libfontconfig1-dev \
+    libx11-dev \
+    libxcomposite-dev \
+    libxcursor-dev \
+    libxext-dev \
+    libxinerama-dev \
+    libxrandr-dev \
+    libxrender-dev \
+    libwebkit2gtk-4.1-dev \
+    libglu1-mesa-dev \
+    mesa-common-dev \
+    && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Install the firewall script and grant the non-root vscode user
 COPY project-firewall.sh /usr/local/bin/project-firewall.sh
