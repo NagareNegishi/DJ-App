@@ -49,6 +49,17 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     mesa-common-dev \
     && apt-get clean && rm -rf /var/lib/apt/lists/*
 
+# Install JUCE 8.0.12 to /usr/local so find_package(JUCE CONFIG REQUIRED) resolves it.
+# Pinned to the same tag as client/CMakeLists.txt — bump both together when upgrading.
+# Reference: https://github.com/juce-framework/JUCE/blob/master/docs/CMake%20API.md
+# --depth=1: tagged commit only, skips full JUCE history.
+# Release build: install output only — no debug symbols needed.
+RUN git clone --depth=1 --branch 8.0.12 https://github.com/juce-framework/JUCE.git /tmp/JUCE \
+    && cmake -S /tmp/JUCE -B /tmp/JUCE/build -G Ninja -DCMAKE_BUILD_TYPE=Release \
+    && cmake --build /tmp/JUCE/build \
+    && cmake --install /tmp/JUCE/build \
+    && rm -rf /tmp/JUCE
+
 # Install the firewall script and grant the non-root vscode user
 COPY project-firewall.sh /usr/local/bin/project-firewall.sh
 RUN chmod +x /usr/local/bin/project-firewall.sh \
