@@ -9,6 +9,7 @@
 Thumbs.db
 
 # C++ build artifacts
+client/build/
 build/
 out/
 *.o
