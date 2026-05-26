@@ -40,12 +40,17 @@ target_sources(dj-app-client PRIVATE
     src/Main.cpp
 )
 
+# Direct module includes are preferred over JuceHeader.h
+# juce_generate_juce_header(dj-app-client)
+
 # Compile definitions consumed by JUCE headers.
 # Disabling these avoids needing extra platform SDKs for the prototype.
 # Flip to 1 (and add the corresponding NEEDS_* arg to juce_add_gui_app) when needed.
 target_compile_definitions(dj-app-client PRIVATE
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
+    JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:dj-app-client,JUCE_PRODUCT_NAME>"
+    JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:dj-app-client,JUCE_VERSION>"
 )
 
 # Link only what's needed for a window. Audio modules come later.
