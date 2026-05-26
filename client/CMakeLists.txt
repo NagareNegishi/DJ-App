@@ -1,3 +1,6 @@
+# Official reference:
+# https://github.com/juce-framework/JUCE/blob/8.0.12/examples/CMake/GuiApp/CMakeLists.txt
+
 # JUCE 8 requires CMake 3.22 minimum.
 # dev container(Ubuntu 24.04) shipd with 3.28. Bump when the container CMake bumps.
 cmake_minimum_required(VERSION 3.28)
@@ -18,16 +21,8 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # compiles under MSVC on Windows host and clang/gcc in the container.
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Fetch JUCE at configure time, pinned to a specific release tag.
-# Bump this tag manually to upgrade JUCE.
-include(FetchContent)
-FetchContent_Declare(
-    JUCE
-    GIT_REPOSITORY https://github.com/juce-framework/JUCE.git
-    GIT_TAG        8.0.12
-    GIT_SHALLOW    TRUE
-)
-FetchContent_MakeAvailable(JUCE)
+# JUCE must be installed before configuring (see docs/setup.md).
+find_package(JUCE CONFIG REQUIRED)
 
 # Define the GUI app target.
 # juce_add_gui_app wires up a normal CMake executable target plus JUCE-specific
@@ -37,6 +32,10 @@ juce_add_gui_app(dj-app-client
     COMPANY_NAME "DJ App Project"
 )
 
+# `target_sources` adds source files to a target.
+# Pass the target that needs the sources as the first argument,
+# then a visibility parameter for the sources which should normally be PRIVATE.
+# Finally, we supply a list of source files that will be built into the target.
 target_sources(dj-app-client PRIVATE
     src/Main.cpp
 )
