@@ -15,7 +15,7 @@ Note on ordering vs `docs/architecture.md`: the data model is built **before** r
 2. Create `.clang-format` at repo root (`08-conventions.md` contains the file body) and format the existing `client/src`.
 3. Verify/extend `.gitignore`: `client/build/`, `.vs/`, `client/assets/tracks/*` with `!manifest.example.json`, `node_modules/`.
 4. Create `.github/workflows/ci.yml` per `05-testing.md` (server job guarded until server exists).
-5. Adopt `docs/plan/CLAUDE.md`: copy its content over the root `CLAUDE.md`, then verify every command in its Commands section by running it (fix the doc where reality differs, e.g. the artefact path).
+5. Adopt the plan's `CLAUDE.md` (done — it now lives at the root `CLAUDE.md`; the pre-plan version is archived at `docs/CLAUDE-original.md`), then verify every command in its Commands section by running it (fix the doc where reality differs, e.g. the artefact path).
 6. Create `shared/protocol/PROTOCOL-VERSION` containing `1`.
 
 **Acceptance:** container build green; `ctest` runs 1 test green; CI green on push; `CLAUDE.md` commands verified by running each one.
