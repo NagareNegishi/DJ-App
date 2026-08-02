@@ -66,3 +66,20 @@ notes/
 creds.json
 .claude/skills/owasp-scan/findings.json
 .github/drafts/
+
+# Build-orchestration harness (agent-worktree.sh / agent-scope-jail.sh); all throwaway
+.agent-worktrees/
+.agent-scope/
+
+# Subagent prompt captures + deferred analysis; README and template stay tracked
+build-orchestration/prompt-log/*
+!build-orchestration/prompt-log/README.md
+!build-orchestration/prompt-log/_template.md
+
+# Escalation strike count + SubagentStop route-guard loop-guard — live scratch
+build-orchestration/strike-count.md
+build-orchestration/route-block-count
+
+# Session baton — session-start/session-end handoff; local per-session state.
+# The template stays tracked to hold the shape.
+docs/session/baton.md
