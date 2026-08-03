@@ -51,7 +51,10 @@ coverage/
 
 # Environment
 .env
-.env.*.local
+# Catch all dotenv variants (.env.local, .env.production, etc); the negation
+# below must stay directly after so a tracked template can't get swept up.
+.env.*
+!.env.example
 
 # Logs
 *.log
@@ -83,3 +86,14 @@ build-orchestration/route-block-count
 # Session baton — session-start/session-end handoff; local per-session state.
 # The template stays tracked to hold the shape.
 docs/session/baton.md
+
+# User-supplied audio tracks; example manifest stays tracked to hold the shape.
+client/assets/tracks/*
+!client/assets/tracks/manifest.example.json
+
+# Audio files anywhere in the repo (never commit, per project rule)
+*.wav
+*.mp3
+*.flac
+*.aiff
+*.ogg
