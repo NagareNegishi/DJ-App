@@ -23,10 +23,11 @@ Body (optional, after a blank line): explain **why**, not what — the diff show
 
 Breaking change: append `!` after the type/scope (`feat!:`) and add a `BREAKING CHANGE: <detail>` footer.
 
-## Commit boundaries — atomic
+## Commit boundaries — smallest atomic
 
-- One logical change per commit. A commit may span several files when they serve the same change; it must never bundle unrelated changes.
-- Don't wait for the whole task to finish — commit each coherent unit (a feature, a logic section, a fix) as it lands.
+- Make each commit the smallest change that builds and passes. Split separable parts apart; prefer more, smaller commits.
+- Span multiple files only when they serve one change. Never bundle unrelated changes.
+- Commit each unit the moment it lands; don't wait for the task to finish.
 
 ## Staging — explicit paths only
 
@@ -34,6 +35,8 @@ Breaking change: append `!` after the type/scope (`feat!:`) and add a `BREAKING 
 - Never `git add .`, `-A`, or `-u` — they defeat atomic boundaries and are blocked by policy.
 
 ## Issue references
+
+On the `claude` branch, add `Refs #4` to every commit unless a more specific number applies.
 
 Reference issues in a footer line: `Refs #<n>` (related) or `Closes #<n>` (this commit resolves it).
 
