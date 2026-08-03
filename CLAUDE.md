@@ -29,7 +29,7 @@ cmake --build client/build/linux
 ctest --test-dir client/build/linux --output-on-failure     # from M0
 
 # Client — run (GUI/audio meaningful on Windows host only; container run must not crash)
-./client/build/linux/DjAppClient_artefacts/dj-app-client    # verify artefact path on first build
+./client/build/linux/dj-app-client_artefacts/"DJ App"    # artefact dir = target name, binary = PRODUCT_NAME
 
 # Server (from M6)
 cd server && npm ci && npm test
