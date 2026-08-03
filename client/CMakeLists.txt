@@ -5,9 +5,11 @@
 # dev container(Ubuntu 24.04) shipd with 3.28. Bump when the container CMake bumps.
 cmake_minimum_required(VERSION 3.28)
 
+# JUCE's own CMake support asserts a C compiler is enabled (JUCEModuleSupport.cmake),
+# even though this project is C++-only; without it find_package(JUCE) fails to configure.
 project(DjAppClient
     VERSION 0.1.0
-    LANGUAGES CXX
+    LANGUAGES CXX C
 )
 
 # C++20 matches what JUCE 8 itself uses internally, minimises cross-compiler differences.
@@ -63,3 +65,57 @@ target_link_libraries(dj-app-client
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags
 )
+
+# Windows host may want to skip tests entirely (e.g. a quick GUI-only build).
+option(DJAPP_BUILD_TESTS "Build unit tests" ON)
+
+if(DJAPP_BUILD_TESTS)
+    # Glob rather than list explicitly: tests/ mirrors src/ and grows every
+    # milestone; CONFIGURE_DEPENDS re-runs the glob so new files are picked
+    # up without touching this file again.
+    file(GLOB DJAPP_TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp)
+
+    # Some checkouts (e.g. this implementer's worktree) intentionally have no
+    # tests/ sources yet. Skip target creation silently rather than fetching
+    # Catch2 and building an executable with nothing in it.
+    if(DJAPP_TEST_SOURCES)
+        include(FetchContent)
+
+        # Pinned tag, not a floating branch: keeps the test build reproducible
+        # and immune to upstream Catch2 changes landing mid-milestone.
+        FetchContent_Declare(
+            Catch2
+            GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+            GIT_TAG v3.8.1
+        )
+        FetchContent_MakeAvailable(Catch2)
+
+        add_executable(dj-app-tests ${DJAPP_TEST_SOURCES})
+
+        # Mirror the app target's curl/webview opt-out: juce_core defaults to
+        # JUCE_USE_CURL=1, which otherwise leaves undefined libcurl symbols at
+        # link time since nothing here links libcurl.
+        target_compile_definitions(dj-app-tests PRIVATE
+            JUCE_WEB_BROWSER=0
+            JUCE_USE_CURL=0
+        )
+
+        # Only the JUCE modules the tested pure-logic code needs
+        # (juce_data_structures brings in juce::var/JSON) — no GUI modules.
+        target_link_libraries(dj-app-tests
+            PRIVATE
+                Catch2::Catch2WithMain
+                juce::juce_core
+                juce::juce_audio_basics
+                juce::juce_data_structures
+            PUBLIC
+                juce::juce_recommended_config_flags
+                juce::juce_recommended_warning_flags
+        )
+
+        list(APPEND CMAKE_MODULE_PATH ${catch2_SOURCE_DIR}/extras)
+        include(Catch)
+        enable_testing()
+        catch_discover_tests(dj-app-tests)
+    endif()
+endif()
