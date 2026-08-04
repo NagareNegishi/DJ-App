@@ -40,6 +40,7 @@ juce_add_gui_app(dj-app-client
 # Finally, we supply a list of source files that will be built into the target.
 target_sources(dj-app-client PRIVATE
     src/Main.cpp
+    src/app/MainWindow.cpp
     src/app/MainComponent.cpp
 )
 
