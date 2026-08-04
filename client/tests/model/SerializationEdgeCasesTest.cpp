@@ -155,6 +155,60 @@ TEST_CASE("asFiniteNumber: floating-point extremes that are finite are accepted"
     }
 }
 
+TEST_CASE("asFiniteFloat: a double that is finite but overflows float range is rejected",
+          "[serialization][edge]")
+{
+    // gain/playbackRate/pitchOffsetSemitones are stored as float but validated
+    // from a JSON number via a double finiteness check first; a value finite
+    // as a double (e.g. 1e300) can narrow to +/-Infinity in the float, which
+    // must be a parse failure rather than silently producing a non-finite
+    // struct field.
+    SECTION("gain = 1e300 (finite as double, +Infinity as float) is rejected")
+    {
+        auto v = djapp::toVar(makeValidState());
+        auto* obj = v.getDynamicObject();
+        REQUIRE(obj != nullptr);
+        obj->setProperty("gain", juce::var(1e300));
+
+        auto result = djapp::fromVar<djapp::PlaybackState>(v);
+        REQUIRE_FALSE(isOk(result));
+    }
+
+    SECTION("playbackRate = -1e300 (finite as double, -Infinity as float) is rejected")
+    {
+        auto v = djapp::toVar(makeValidState());
+        auto* obj = v.getDynamicObject();
+        REQUIRE(obj != nullptr);
+        obj->setProperty("playbackRate", juce::var(-1e300));
+
+        auto result = djapp::fromVar<djapp::PlaybackState>(v);
+        REQUIRE_FALSE(isOk(result));
+    }
+
+    SECTION("pitchOffsetSemitones = 1e300 is rejected through StateDelta too")
+    {
+        auto v = djapp::toVar(makeValidDelta());
+        auto* obj = v.getDynamicObject();
+        REQUIRE(obj != nullptr);
+        obj->setProperty("pitchOffsetSemitones", juce::var(1e300));
+
+        auto result = djapp::fromVar<djapp::StateDelta>(v);
+        REQUIRE_FALSE(isOk(result));
+    }
+
+    SECTION("positionSeconds = 1e300 is unaffected (double field, not narrowed)")
+    {
+        auto v = djapp::toVar(makeValidState());
+        auto* obj = v.getDynamicObject();
+        REQUIRE(obj != nullptr);
+        obj->setProperty("positionSeconds", juce::var(1e300));
+
+        auto result = djapp::fromVar<djapp::PlaybackState>(v);
+        REQUIRE(isOk(result));
+        REQUIRE(unwrap(result).positionSeconds == 1e300);
+    }
+}
+
 TEST_CASE("Non-object juce::var values are rejected cleanly at top level", "[serialization][edge]")
 {
     SECTION("a JSON array is not an object")

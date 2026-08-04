@@ -48,6 +48,24 @@ bool asFiniteNumber(const juce::var& v, double& out)
     return true;
 }
 
+// Validates as a finite double, then narrows to float and re-checks finiteness:
+// a finite double outside float range (e.g. 1e300) narrows to +/-Infinity, so the
+// double-only finiteness check above isn't sufficient once the result is stored
+// in a float field.
+bool asFiniteFloat(const juce::var& v, float& out)
+{
+    double d = 0;
+    if (!asFiniteNumber(v, d))
+        return false;
+
+    const float f = static_cast<float>(d);
+    if (!std::isfinite(f))
+        return false;
+
+    out = f;
+    return true;
+}
+
 bool hasOnlyKnownKeys(const juce::DynamicObject& obj, std::initializer_list<const char*> allowed)
 {
     for (auto& prop : obj.getProperties())
@@ -206,26 +224,26 @@ Result<PlaybackState> fromVar<PlaybackState>(const juce::var& v)
 
     if (obj->hasProperty("gain"))
     {
-        double d = 0;
-        if (!asFiniteNumber(obj->getProperty("gain"), d))
+        float f = 0;
+        if (!asFiniteFloat(obj->getProperty("gain"), f))
             return makeFail<R>("gain must be a finite number");
-        state.gain = static_cast<float>(d);
+        state.gain = f;
     }
 
     if (obj->hasProperty("playbackRate"))
     {
-        double d = 0;
-        if (!asFiniteNumber(obj->getProperty("playbackRate"), d))
+        float f = 0;
+        if (!asFiniteFloat(obj->getProperty("playbackRate"), f))
             return makeFail<R>("playbackRate must be a finite number");
-        state.playbackRate = static_cast<float>(d);
+        state.playbackRate = f;
     }
 
     if (obj->hasProperty("pitchOffsetSemitones"))
     {
-        double d = 0;
-        if (!asFiniteNumber(obj->getProperty("pitchOffsetSemitones"), d))
+        float f = 0;
+        if (!asFiniteFloat(obj->getProperty("pitchOffsetSemitones"), f))
             return makeFail<R>("pitchOffsetSemitones must be a finite number");
-        state.pitchOffsetSemitones = static_cast<float>(d);
+        state.pitchOffsetSemitones = f;
     }
 
     if (obj->hasProperty("loop"))
@@ -304,26 +322,26 @@ Result<StateDelta> fromVar<StateDelta>(const juce::var& v)
 
     if (obj->hasProperty("gain"))
     {
-        double d = 0;
-        if (!asFiniteNumber(obj->getProperty("gain"), d))
+        float f = 0;
+        if (!asFiniteFloat(obj->getProperty("gain"), f))
             return makeFail<R>("gain must be a finite number");
-        delta.gain = static_cast<float>(d);
+        delta.gain = f;
     }
 
     if (obj->hasProperty("playbackRate"))
     {
-        double d = 0;
-        if (!asFiniteNumber(obj->getProperty("playbackRate"), d))
+        float f = 0;
+        if (!asFiniteFloat(obj->getProperty("playbackRate"), f))
             return makeFail<R>("playbackRate must be a finite number");
-        delta.playbackRate = static_cast<float>(d);
+        delta.playbackRate = f;
     }
 
     if (obj->hasProperty("pitchOffsetSemitones"))
     {
-        double d = 0;
-        if (!asFiniteNumber(obj->getProperty("pitchOffsetSemitones"), d))
+        float f = 0;
+        if (!asFiniteFloat(obj->getProperty("pitchOffsetSemitones"), f))
             return makeFail<R>("pitchOffsetSemitones must be a finite number");
-        delta.pitchOffsetSemitones = static_cast<float>(d);
+        delta.pitchOffsetSemitones = f;
     }
 
     if (obj->hasProperty("loop"))
