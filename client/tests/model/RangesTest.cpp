@@ -6,7 +6,9 @@
 //   gain                     [0.0, 2.0]
 //   playbackRate             [0.5, 2.0]
 //   pitchOffsetSemitones     [-12, 12]
-//   loop.inSeconds/outSeconds [0, 86400]  (clamped independently; no reordering)
+//   loop.inSeconds/outSeconds [0, 86400]  (clamped independently; if clamping
+//                              would leave inSeconds >= outSeconds, the whole
+//                              loop is cleared instead of kept degenerate)
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -66,14 +68,14 @@ TEST_CASE("Ranges: PlaybackState fields below minimum clamp to minimum", "[range
         REQUIRE(s.pitchOffsetSemitones == -12.0f);
     }
 
-    SECTION("loop.inSeconds and loop.outSeconds")
+    SECTION("loop.inSeconds below minimum, loop.outSeconds unaffected")
     {
         auto s = inRangeState();
-        s.loop = djapp::LoopPoints{-10.0, -20.0};
+        s.loop = djapp::LoopPoints{-10.0, 50.0};
         djapp::ranges::clamp(s);
         REQUIRE(s.loop.has_value());
         REQUIRE(s.loop->inSeconds == 0.0);
-        REQUIRE(s.loop->outSeconds == 0.0);
+        REQUIRE(s.loop->outSeconds == 50.0);
     }
 }
 
@@ -111,13 +113,13 @@ TEST_CASE("Ranges: PlaybackState fields above maximum clamp to maximum", "[range
         REQUIRE(s.pitchOffsetSemitones == 12.0f);
     }
 
-    SECTION("loop.inSeconds and loop.outSeconds")
+    SECTION("loop.outSeconds above maximum, loop.inSeconds unaffected")
     {
         auto s = inRangeState();
-        s.loop = djapp::LoopPoints{90000.0, 100000.0};
+        s.loop = djapp::LoopPoints{50.0, 999999.0};
         djapp::ranges::clamp(s);
         REQUIRE(s.loop.has_value());
-        REQUIRE(s.loop->inSeconds == 86400.0);
+        REQUIRE(s.loop->inSeconds == 50.0);
         REQUIRE(s.loop->outSeconds == 86400.0);
     }
 }
@@ -193,16 +195,22 @@ TEST_CASE("Ranges: PlaybackState values exactly at a boundary are left unchanged
 
     SECTION("loop.inSeconds/outSeconds at min (0) and max (86400)")
     {
+        // Each endpoint tested at its own boundary while the other stays a
+        // distinct in-range value, so the result remains a valid (in < out)
+        // loop rather than collapsing (a collapsed loop is its own test case,
+        // see the "cleared instead of kept degenerate" TEST_CASE below).
         auto sMin = inRangeState();
-        sMin.loop = djapp::LoopPoints{0.0, 0.0};
+        sMin.loop = djapp::LoopPoints{0.0, 50.0};
         djapp::ranges::clamp(sMin);
+        REQUIRE(sMin.loop.has_value());
         REQUIRE(sMin.loop->inSeconds == 0.0);
-        REQUIRE(sMin.loop->outSeconds == 0.0);
+        REQUIRE(sMin.loop->outSeconds == 50.0);
 
         auto sMax = inRangeState();
-        sMax.loop = djapp::LoopPoints{86400.0, 86400.0};
+        sMax.loop = djapp::LoopPoints{50.0, 86400.0};
         djapp::ranges::clamp(sMax);
-        REQUIRE(sMax.loop->inSeconds == 86400.0);
+        REQUIRE(sMax.loop.has_value());
+        REQUIRE(sMax.loop->inSeconds == 50.0);
         REQUIRE(sMax.loop->outSeconds == 86400.0);
     }
 }
@@ -316,29 +324,68 @@ TEST_CASE("Ranges: clamp(StateDelta&) with loop outer-present/inner-absent (expl
     REQUIRE_FALSE(d.loop->has_value());
 }
 
-TEST_CASE("Ranges: loop.inSeconds and loop.outSeconds clamp independently without reordering", "[ranges]")
+TEST_CASE("Ranges: loop endpoints clamp independently when the result stays a valid (in < out) loop", "[ranges]")
 {
-    SECTION("PlaybackState.loop: outSeconds clamps below inSeconds, no reorder/rejection")
+    SECTION("PlaybackState.loop: inSeconds in range, outSeconds clamps down but stays above inSeconds")
     {
         auto s = inRangeState();
-        s.loop = djapp::LoopPoints{50000.0, -10.0}; // inSeconds in-range, outSeconds below min
+        s.loop = djapp::LoopPoints{50000.0, 999999.0}; // outSeconds clamps to 86400, still > inSeconds
         djapp::ranges::clamp(s);
 
         REQUIRE(s.loop.has_value());
         REQUIRE(s.loop->inSeconds == 50000.0);
-        REQUIRE(s.loop->outSeconds == 0.0);
+        REQUIRE(s.loop->outSeconds == 86400.0);
     }
 
-    SECTION("StateDelta.loop: same independent clamp, no reorder/rejection")
+    SECTION("StateDelta.loop: same independent clamp, stays valid")
     {
         djapp::StateDelta d;
         d.deck = djapp::DeckId::A;
-        d.loop = std::optional<djapp::LoopPoints>(djapp::LoopPoints{50000.0, -10.0});
+        d.loop = std::optional<djapp::LoopPoints>(djapp::LoopPoints{50000.0, 999999.0});
         djapp::ranges::clamp(d);
 
         REQUIRE(d.loop.has_value());
         REQUIRE(d.loop->has_value());
         REQUIRE((*d.loop)->inSeconds == 50000.0);
-        REQUIRE((*d.loop)->outSeconds == 0.0);
+        REQUIRE((*d.loop)->outSeconds == 86400.0);
+    }
+}
+
+TEST_CASE("Ranges: a loop that would clamp to inSeconds >= outSeconds is cleared instead of kept degenerate", "[ranges]")
+{
+    SECTION("PlaybackState.loop: both endpoints clamp to the same minimum -> cleared")
+    {
+        auto s = inRangeState();
+        s.loop = djapp::LoopPoints{-10.0, -20.0}; // both clamp to 0.0
+        djapp::ranges::clamp(s);
+        REQUIRE_FALSE(s.loop.has_value());
+    }
+
+    SECTION("PlaybackState.loop: both endpoints clamp to the same maximum -> cleared")
+    {
+        auto s = inRangeState();
+        s.loop = djapp::LoopPoints{90000.0, 100000.0}; // both clamp to 86400.0
+        djapp::ranges::clamp(s);
+        REQUIRE_FALSE(s.loop.has_value());
+    }
+
+    SECTION("PlaybackState.loop: inSeconds in range, outSeconds clamps below it -> cleared")
+    {
+        auto s = inRangeState();
+        s.loop = djapp::LoopPoints{50000.0, -10.0}; // outSeconds clamps to 0.0, now < inSeconds
+        djapp::ranges::clamp(s);
+        REQUIRE_FALSE(s.loop.has_value());
+    }
+
+    SECTION("StateDelta.loop: collapse clears the inner optional, leaving the outer engaged "
+            "(an explicit \"clear the loop\" delta, not a dropped field)")
+    {
+        djapp::StateDelta d;
+        d.deck = djapp::DeckId::A;
+        d.loop = std::optional<djapp::LoopPoints>(djapp::LoopPoints{90000.0, 100000.0});
+        djapp::ranges::clamp(d);
+
+        REQUIRE(d.loop.has_value());        // outer still present
+        REQUIRE_FALSE(d.loop->has_value()); // inner cleared
     }
 }

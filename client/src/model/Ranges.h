@@ -41,7 +41,11 @@ inline void clamp(PlaybackState& state)
     state.pitchOffsetSemitones =
         std::clamp(state.pitchOffsetSemitones, pitchOffsetSemitonesMin, pitchOffsetSemitonesMax);
     if (state.loop.has_value())
+    {
         clamp(*state.loop);
+        if (state.loop->inSeconds >= state.loop->outSeconds)
+            state.loop = std::nullopt;
+    }
 }
 
 inline void clamp(StateDelta& delta)
@@ -56,7 +60,11 @@ inline void clamp(StateDelta& delta)
         delta.pitchOffsetSemitones =
             std::clamp(*delta.pitchOffsetSemitones, pitchOffsetSemitonesMin, pitchOffsetSemitonesMax);
     if (delta.loop.has_value() && delta.loop->has_value())
+    {
         clamp(**delta.loop);
+        if ((*delta.loop)->inSeconds >= (*delta.loop)->outSeconds)
+            *delta.loop = std::nullopt;
+    }
 }
 
 } // namespace djapp::ranges
