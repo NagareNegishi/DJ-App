@@ -66,6 +66,55 @@ bool asFiniteFloat(const juce::var& v, float& out)
     return true;
 }
 
+// Returns the object's DynamicObject if `v` is a JSON object, nullptr otherwise.
+// Callers produce their own ("expected an object") failure on nullptr since the
+// error message and Result<T> type differ per call site.
+const juce::DynamicObject* requireObject(const juce::var& v)
+{
+    if (!v.isObject())
+        return nullptr;
+    return v.getDynamicObject();
+}
+
+// Shared per-field value parsers used by both fromVar<PlaybackState> and
+// fromVar<StateDelta>: each call site still does its own hasProperty(...) presence
+// check and assigns the result directly (PlaybackState) or into a std::optional
+// (StateDelta) — assignment already works identically either way.
+Result<bool> parseBool(const juce::var& v)
+{
+    if (!v.isBool())
+        return makeFail<bool>("playing must be a boolean");
+    return makeOk<bool>(static_cast<bool>(v));
+}
+
+Result<double> parseFinite(const juce::var& v, const char* field)
+{
+    double d = 0;
+    if (!asFiniteNumber(v, d))
+        return makeFail<double>(juce::String(field) + " must be a finite number");
+    return makeOk<double>(d);
+}
+
+Result<float> parseFiniteFloat(const juce::var& v, const char* field)
+{
+    float f = 0;
+    if (!asFiniteFloat(v, f))
+        return makeFail<float>(juce::String(field) + " must be a finite number");
+    return makeOk<float>(f);
+}
+
+Result<juce::String> parseTrackId(const juce::var& v)
+{
+    if (v.isVoid())
+        return makeOk<juce::String>(juce::String());
+    if (!v.isString())
+        return makeFail<juce::String>("trackId must be a string or null");
+    auto s = v.toString();
+    if (!isValidTrackId(s))
+        return makeFail<juce::String>("invalid trackId");
+    return makeOk<juce::String>(s);
+}
+
 bool hasOnlyKnownKeys(const juce::DynamicObject& obj, std::initializer_list<const char*> allowed)
 {
     for (auto& prop : obj.getProperties())
@@ -176,10 +225,7 @@ Result<PlaybackState> fromVar<PlaybackState>(const juce::var& v)
 {
     using R = PlaybackState;
 
-    if (!v.isObject())
-        return makeFail<R>("expected an object");
-
-    auto* obj = v.getDynamicObject();
+    auto* obj = requireObject(v);
     if (obj == nullptr)
         return makeFail<R>("expected an object");
 
@@ -192,58 +238,50 @@ Result<PlaybackState> fromVar<PlaybackState>(const juce::var& v)
 
     if (obj->hasProperty("trackId"))
     {
-        const auto& tv = obj->getProperty("trackId");
-        if (tv.isVoid())
-            state.trackId = {};
-        else if (tv.isString())
-        {
-            auto s = tv.toString();
-            if (!isValidTrackId(s))
-                return makeFail<R>("invalid trackId");
-            state.trackId = s;
-        }
-        else
-            return makeFail<R>("trackId must be a string or null");
+        auto r = parseTrackId(obj->getProperty("trackId"));
+        if (!r)
+            return makeFail<R>(r.error);
+        state.trackId = *r;
     }
 
     if (obj->hasProperty("playing"))
     {
-        const auto& pv = obj->getProperty("playing");
-        if (!pv.isBool())
-            return makeFail<R>("playing must be a boolean");
-        state.playing = static_cast<bool>(pv);
+        auto r = parseBool(obj->getProperty("playing"));
+        if (!r)
+            return makeFail<R>(r.error);
+        state.playing = *r;
     }
 
     if (obj->hasProperty("positionSeconds"))
     {
-        double d = 0;
-        if (!asFiniteNumber(obj->getProperty("positionSeconds"), d))
-            return makeFail<R>("positionSeconds must be a finite number");
-        state.positionSeconds = d;
+        auto r = parseFinite(obj->getProperty("positionSeconds"), "positionSeconds");
+        if (!r)
+            return makeFail<R>(r.error);
+        state.positionSeconds = *r;
     }
 
     if (obj->hasProperty("gain"))
     {
-        float f = 0;
-        if (!asFiniteFloat(obj->getProperty("gain"), f))
-            return makeFail<R>("gain must be a finite number");
-        state.gain = f;
+        auto r = parseFiniteFloat(obj->getProperty("gain"), "gain");
+        if (!r)
+            return makeFail<R>(r.error);
+        state.gain = *r;
     }
 
     if (obj->hasProperty("playbackRate"))
     {
-        float f = 0;
-        if (!asFiniteFloat(obj->getProperty("playbackRate"), f))
-            return makeFail<R>("playbackRate must be a finite number");
-        state.playbackRate = f;
+        auto r = parseFiniteFloat(obj->getProperty("playbackRate"), "playbackRate");
+        if (!r)
+            return makeFail<R>(r.error);
+        state.playbackRate = *r;
     }
 
     if (obj->hasProperty("pitchOffsetSemitones"))
     {
-        float f = 0;
-        if (!asFiniteFloat(obj->getProperty("pitchOffsetSemitones"), f))
-            return makeFail<R>("pitchOffsetSemitones must be a finite number");
-        state.pitchOffsetSemitones = f;
+        auto r = parseFiniteFloat(obj->getProperty("pitchOffsetSemitones"), "pitchOffsetSemitones");
+        if (!r)
+            return makeFail<R>(r.error);
+        state.pitchOffsetSemitones = *r;
     }
 
     if (obj->hasProperty("loop"))
@@ -262,10 +300,7 @@ Result<StateDelta> fromVar<StateDelta>(const juce::var& v)
 {
     using R = StateDelta;
 
-    if (!v.isObject())
-        return makeFail<R>("expected an object");
-
-    auto* obj = v.getDynamicObject();
+    auto* obj = requireObject(v);
     if (obj == nullptr)
         return makeFail<R>("expected an object");
 
@@ -290,58 +325,50 @@ Result<StateDelta> fromVar<StateDelta>(const juce::var& v)
 
     if (obj->hasProperty("trackId"))
     {
-        const auto& tv = obj->getProperty("trackId");
-        if (tv.isVoid())
-            delta.trackId = juce::String();
-        else if (tv.isString())
-        {
-            auto s = tv.toString();
-            if (!isValidTrackId(s))
-                return makeFail<R>("invalid trackId");
-            delta.trackId = s;
-        }
-        else
-            return makeFail<R>("trackId must be a string or null");
+        auto r = parseTrackId(obj->getProperty("trackId"));
+        if (!r)
+            return makeFail<R>(r.error);
+        delta.trackId = *r;
     }
 
     if (obj->hasProperty("playing"))
     {
-        const auto& pv = obj->getProperty("playing");
-        if (!pv.isBool())
-            return makeFail<R>("playing must be a boolean");
-        delta.playing = static_cast<bool>(pv);
+        auto r = parseBool(obj->getProperty("playing"));
+        if (!r)
+            return makeFail<R>(r.error);
+        delta.playing = *r;
     }
 
     if (obj->hasProperty("positionSeconds"))
     {
-        double d = 0;
-        if (!asFiniteNumber(obj->getProperty("positionSeconds"), d))
-            return makeFail<R>("positionSeconds must be a finite number");
-        delta.positionSeconds = d;
+        auto r = parseFinite(obj->getProperty("positionSeconds"), "positionSeconds");
+        if (!r)
+            return makeFail<R>(r.error);
+        delta.positionSeconds = *r;
     }
 
     if (obj->hasProperty("gain"))
     {
-        float f = 0;
-        if (!asFiniteFloat(obj->getProperty("gain"), f))
-            return makeFail<R>("gain must be a finite number");
-        delta.gain = f;
+        auto r = parseFiniteFloat(obj->getProperty("gain"), "gain");
+        if (!r)
+            return makeFail<R>(r.error);
+        delta.gain = *r;
     }
 
     if (obj->hasProperty("playbackRate"))
     {
-        float f = 0;
-        if (!asFiniteFloat(obj->getProperty("playbackRate"), f))
-            return makeFail<R>("playbackRate must be a finite number");
-        delta.playbackRate = f;
+        auto r = parseFiniteFloat(obj->getProperty("playbackRate"), "playbackRate");
+        if (!r)
+            return makeFail<R>(r.error);
+        delta.playbackRate = *r;
     }
 
     if (obj->hasProperty("pitchOffsetSemitones"))
     {
-        float f = 0;
-        if (!asFiniteFloat(obj->getProperty("pitchOffsetSemitones"), f))
-            return makeFail<R>("pitchOffsetSemitones must be a finite number");
-        delta.pitchOffsetSemitones = f;
+        auto r = parseFiniteFloat(obj->getProperty("pitchOffsetSemitones"), "pitchOffsetSemitones");
+        if (!r)
+            return makeFail<R>(r.error);
+        delta.pitchOffsetSemitones = *r;
     }
 
     if (obj->hasProperty("loop"))
