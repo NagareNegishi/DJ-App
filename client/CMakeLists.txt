@@ -94,6 +94,10 @@ if(DJAPP_BUILD_TESTS)
 
         add_executable(dj-app-tests ${DJAPP_TEST_SOURCES})
 
+        # model/ is pure logic (no GUI modules) and lives outside tests/, so it
+        # isn't picked up by the tests/*.cpp glob above; add it explicitly.
+        target_sources(dj-app-tests PRIVATE src/model/Serialization.cpp)
+
         # Mirror the app target's curl/webview opt-out: juce_core defaults to
         # JUCE_USE_CURL=1, which otherwise leaves undefined libcurl symbols at
         # link time since nothing here links libcurl.
