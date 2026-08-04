@@ -73,9 +73,9 @@ option(DJAPP_BUILD_TESTS "Build unit tests" ON)
 
 if(DJAPP_BUILD_TESTS)
     # Glob rather than list explicitly: tests/ mirrors src/ and grows every
-    # milestone; CONFIGURE_DEPENDS re-runs the glob so new files are picked
-    # up without touching this file again.
-    file(GLOB DJAPP_TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp)
+    # milestone, now including subdirectories (e.g. tests/model/); CONFIGURE_DEPENDS
+    # re-runs the glob so new files are picked up without touching this file again.
+    file(GLOB_RECURSE DJAPP_TEST_SOURCES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/tests/*.cpp)
 
     # Some checkouts (e.g. this implementer's worktree) intentionally have no
     # tests/ sources yet. Skip target creation silently rather than fetching
@@ -97,6 +97,9 @@ if(DJAPP_BUILD_TESTS)
         # model/ is pure logic (no GUI modules) and lives outside tests/, so it
         # isn't picked up by the tests/*.cpp glob above; add it explicitly.
         target_sources(dj-app-tests PRIVATE src/model/Serialization.cpp)
+
+        # tests/ includes headers like "model/Types.h" relative to src/.
+        target_include_directories(dj-app-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
 
         # Mirror the app target's curl/webview opt-out: juce_core defaults to
         # JUCE_USE_CURL=1, which otherwise leaves undefined libcurl symbols at
