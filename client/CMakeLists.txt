@@ -79,6 +79,7 @@ target_sources(dj-app-client PRIVATE
     src/Main.cpp
     src/app/MainWindow.cpp
     src/app/MainComponent.cpp
+    src/ui/TrackListComponent.cpp
 )
 
 # Direct module includes are preferred over JuceHeader.h
