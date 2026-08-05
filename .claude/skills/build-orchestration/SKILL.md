@@ -24,13 +24,12 @@ Create `build-orchestration/strike-count.md` empty, overwriting any existing fil
 
 Reconcile three inputs; none alone is authoritative:
 
-- The feature plan under `docs/plans/<feature>/` (especially `impl.md`).
-- `docs/progress.md` for where work left off.
+- The binding spec under `docs/plan/` (start at `README.md`; milestones in `07-milestones.md`).
+- `docs/plan/PROGRESS.md` for where work left off.
 - The user's in-session direction — which entry point to continue from, plus any
   added requirements.
 
-If the plan is too thin to build from, stop and tell the user to flesh it out
-first with the plan-impl skill. If no entry point is stated, ask the user for it.
+If no entry point is stated, ask the user for it.
 Cut the work into units. A unit pairs a disjoint file set with a written spec —
 what to build for that unit, reconciled from the inputs above.
 

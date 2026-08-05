@@ -128,7 +128,7 @@ RUN git clone --depth=1 --branch 8.0.12 https://github.com/juce-framework/JUCE.g
 
 ### Windows developer setup
 
-One-time setup before the first build. Run from a Developer Command Prompt (Visual Studio Build Tools 2022):
+One-time setup before the first build. Run from a Developer Command Prompt (Visual Studio Build Tools 2022), **opened via "Run as administrator"** — step 4 writes to `C:\Program Files\JUCE` (CMake's default install prefix for JUCE's own `project(JUCE ...)` name), which a standard, non-elevated prompt cannot write to:
 
 1. Clone JUCE at the same version tag used in the Dockerfile:
    `git clone --depth=1 --branch <version> https://github.com/juce-framework/JUCE.git C:\JUCE`
@@ -136,7 +136,7 @@ One-time setup before the first build. Run from a Developer Command Prompt (Visu
 3. Build: `cmake --build C:\JUCE\build`
 4. Install: `cmake --install C:\JUCE\build`
 
-CMake installs `JUCEConfig.cmake` to its default Windows prefix. `find_package(JUCE CONFIG REQUIRED)` in the project CMakeLists.txt finds it automatically from that point on. No path variable needed.
+CMake installs `JUCEConfig.cmake` to its default Windows prefix (`C:\Program Files\JUCE`). `find_package(JUCE CONFIG REQUIRED)` in the project CMakeLists.txt finds it automatically from that point on — confirmed against CMake's own `find_package` Config-mode search rules, which check `Program Files\<PackageName>*` by default. No path variable needed. Elevation is only required for step 4 above; every later `cmake -S client ...` configure/build only reads from that install and needs no elevation.
 
 ---
 
