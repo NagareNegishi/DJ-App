@@ -18,3 +18,13 @@ that adds the line (see `git log`).
   path-escaping/symlinked file, missing file, oversized/corrupt decode) each skip
   with a distinct log line, confirmed via a headless run — app never crashes. No host
   checklist for M2. No deviations recorded.
+- 2026-08-06 · **M3 — AudioEngine (single deck)** · container green: `client/build/linux`
+  builds clean, `ctest` 87/87 (`BufferPlaybackSource` offline-render suite added).
+  Host checklist (`checklists/M3-host.md`) confirmed on Windows (VS Build Tools 2026):
+  load/play/pause/seek/gain/rate all audible and correct, rate 0.5x/2.0x pitch-shifts
+  as expected, end-of-track self-stops, clean window close. Two bugs found and fixed
+  during the host pass: `1db3762` removed a Windows-broken test setup (a literal
+  backslash in a filename is a path separator there, not a character); `73075b9`
+  fixed the dev-UI's Play/Pause handler getting stuck after a natural end-of-track
+  stop instead of restarting. `Debug` artefact-subfolder deviation from M1 confirmed
+  still present, no new deviations.
