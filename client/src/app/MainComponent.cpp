@@ -85,6 +85,13 @@ void MainComponent::togglePlayPause()
     }
     else
     {
+        // isPlaying() can go false on its own at end-of-track, holding position at the
+        // end (AudioEngine contract) — restart from 0 rather than resuming there and
+        // immediately re-stopping.
+        if (loadedTrackDurationSeconds_ > 0.0 &&
+            engineA_.getCurrentPosition() >= loadedTrackDurationSeconds_ - 0.05)
+            engineA_.seek(0.0);
+
         engineA_.play();
         playPauseButton_.setButtonText("Pause");
     }
