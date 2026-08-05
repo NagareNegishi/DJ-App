@@ -203,8 +203,8 @@ std::shared_ptr<const LoadedAudio> LocalFileRepository::getAudioBuffer(const juc
         const auto totalSamples = reader->lengthInSamples * numChannels;
         if (reader->lengthInSamples <= 0 || totalSamples > maxDecodedSampleCount)
         {
-            juce::Logger::writeToLog("LocalFileRepository: getAudioBuffer: \"" + id
-                                      + "\" exceeds decode size limit or is empty");
+            juce::Logger::writeToLog("LocalFileRepository: getAudioBuffer: \"" + id +
+                                     "\" exceeds decode size limit or is empty");
             return nullptr;
         }
 
@@ -218,8 +218,8 @@ std::shared_ptr<const LoadedAudio> LocalFileRepository::getAudioBuffer(const juc
     }
     catch (const std::exception& e)
     {
-        juce::Logger::writeToLog(juce::String("LocalFileRepository: getAudioBuffer: exception decoding \"") + id
-                                  + "\": " + e.what());
+        juce::Logger::writeToLog(juce::String("LocalFileRepository: getAudioBuffer: exception decoding \"") + id +
+                                 "\": " + e.what());
         return nullptr;
     }
 }

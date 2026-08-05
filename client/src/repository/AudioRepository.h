@@ -25,7 +25,7 @@ struct LoadedAudio
 
 class AudioRepository
 {
-public:
+  public:
     virtual ~AudioRepository() = default;
     virtual std::vector<TrackMetadata> listAvailableTracks() = 0;
     virtual std::optional<TrackMetadata> getTrackMetadata(const juce::String& id) = 0;

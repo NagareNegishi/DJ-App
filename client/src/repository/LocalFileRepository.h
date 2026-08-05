@@ -14,14 +14,14 @@ namespace djapp
 
 class LocalFileRepository : public AudioRepository
 {
-public:
+  public:
     explicit LocalFileRepository(juce::File rootDir);
 
     std::vector<TrackMetadata> listAvailableTracks() override;
     std::optional<TrackMetadata> getTrackMetadata(const juce::String& id) override;
     std::shared_ptr<const LoadedAudio> getAudioBuffer(const juce::String& id) override;
 
-private:
+  private:
     void loadManifest();
     std::optional<TrackMetadata> parseEntry(const juce::var& entry);
 

@@ -13,20 +13,20 @@ namespace djapp
 
 class TrackListComponent : public juce::Component, private juce::ListBoxModel
 {
-public:
+  public:
     TrackListComponent();
 
     void setTracks(std::vector<TrackMetadata> newTracks);
 
     void resized() override;
 
-private:
+  private:
     int getNumRows() override;
     void paintListBoxItem(int rowNumber, juce::Graphics& g, int width, int height, bool rowIsSelected) override;
     void listBoxItemClicked(int row, const juce::MouseEvent& event) override;
     void listBoxItemDoubleClicked(int row, const juce::MouseEvent& event) override;
 
-    juce::ListBox listBox_{ "TrackList", this };
+    juce::ListBox listBox_{"TrackList", this};
     std::vector<TrackMetadata> tracks_;
 };
 

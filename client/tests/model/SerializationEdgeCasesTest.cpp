@@ -33,14 +33,12 @@
 namespace
 {
 
-template <typename R>
-bool isOk(const R& r)
+template <typename R> bool isOk(const R& r)
 {
     return static_cast<bool>(r);
 }
 
-template <typename R>
-auto unwrap(const R& r)
+template <typename R> auto unwrap(const R& r)
 {
     return *r;
 }
@@ -155,8 +153,7 @@ TEST_CASE("asFiniteNumber: floating-point extremes that are finite are accepted"
     }
 }
 
-TEST_CASE("asFiniteFloat: a double that is finite but overflows float range is rejected",
-          "[serialization][edge]")
+TEST_CASE("asFiniteFloat: a double that is finite but overflows float range is rejected", "[serialization][edge]")
 {
     // gain/playbackRate/pitchOffsetSemitones are stored as float but validated
     // from a JSON number via a double finiteness check first; a value finite
@@ -295,7 +292,8 @@ TEST_CASE("trackId charset boundary characters", "[serialization][edge]")
         auto v = djapp::toVar(makeValidState());
         auto* obj = v.getDynamicObject();
         REQUIRE(obj != nullptr);
-        obj->setProperty("trackId", juce::String::charToString(static_cast<juce::juce_wchar>(0x00E9))); // 'e' with acute
+        obj->setProperty("trackId",
+                         juce::String::charToString(static_cast<juce::juce_wchar>(0x00E9))); // 'e' with acute
 
         auto result = djapp::fromVar<djapp::PlaybackState>(v);
         REQUIRE_FALSE(isOk(result));

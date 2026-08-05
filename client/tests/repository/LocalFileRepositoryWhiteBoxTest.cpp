@@ -26,7 +26,8 @@
 
 #include <memory>
 
-namespace {
+namespace
+{
 
 juce::File makeUniqueTempDir(const juce::String& prefix)
 {
@@ -37,7 +38,7 @@ juce::File makeUniqueTempDir(const juce::String& prefix)
 
 struct TempDirFixture
 {
-    juce::File dir{ makeUniqueTempDir("djapp_repo_wb_test_") };
+    juce::File dir{makeUniqueTempDir("djapp_repo_wb_test_")};
     ~TempDirFixture() { dir.deleteRecursively(); }
 };
 
@@ -47,7 +48,7 @@ void writeManifest(const juce::File& rootDir, const juce::String& jsonText)
 }
 
 juce::File writeTestWav(const juce::File& dir, const juce::String& fileName, int numChannels, int numSamples,
-                         double sampleRate)
+                        double sampleRate)
 {
     juce::File wavFile = dir.getChildFile(fileName);
     juce::WavAudioFormat wavFormat;
@@ -93,8 +94,9 @@ void writeLE16(juce::MemoryOutputStream& out, juce::uint16 v)
 // juce_WavAudioFormat.cpp's "data" chunk handling), not from the stream's
 // actual remaining length, so this reader-visible lengthInSamples can be made
 // arbitrarily large without writing gigabytes of real audio to disk.
-juce::File writeHeaderOnlyWavClaiming(const juce::File& dir, const juce::String& fileName, juce::uint32 declaredDataBytes,
-                                       int numChannels = 1, juce::uint32 sampleRate = 44100, int bitsPerSample = 16)
+juce::File writeHeaderOnlyWavClaiming(const juce::File& dir, const juce::String& fileName,
+                                      juce::uint32 declaredDataBytes, int numChannels = 1,
+                                      juce::uint32 sampleRate = 44100, int bitsPerSample = 16)
 {
     juce::File wavFile = dir.getChildFile(fileName);
     juce::MemoryOutputStream header;
@@ -142,8 +144,7 @@ TEST_CASE("LocalFileRepository getAudioBuffer rejects a decode exactly one sampl
     REQUIRE(repo.getAudioBuffer("huge") == nullptr);
 }
 
-TEST_CASE("LocalFileRepository getAudioBuffer accepts a decode exactly at the size bound",
-          "[repository][whitebox]")
+TEST_CASE("LocalFileRepository getAudioBuffer accepts a decode exactly at the size bound", "[repository][whitebox]")
 {
     TempDirFixture fx;
     constexpr juce::int64 atBound = 345600000LL;
@@ -215,8 +216,7 @@ TEST_CASE("LocalFileRepository rejects a manifest id containing a character outs
     REQUIRE_FALSE(repo.getTrackMetadata("bad@id").has_value());
 }
 
-TEST_CASE("LocalFileRepository rejects a manifest entry whose file name is an empty string",
-          "[repository][whitebox]")
+TEST_CASE("LocalFileRepository rejects a manifest entry whose file name is an empty string", "[repository][whitebox]")
 {
     TempDirFixture fx;
     writeManifest(fx.dir, R"({ "tracks": [ { "id": "emptyfile", "title": "T", "file": "" } ] })");
@@ -226,8 +226,7 @@ TEST_CASE("LocalFileRepository rejects a manifest entry whose file name is an em
     REQUIRE_FALSE(repo.getTrackMetadata("emptyfile").has_value());
 }
 
-TEST_CASE("LocalFileRepository rejects a symlink even when its target lives inside rootDir",
-          "[repository][whitebox]")
+TEST_CASE("LocalFileRepository rejects a symlink even when its target lives inside rootDir", "[repository][whitebox]")
 {
     TempDirFixture fx;
     // The black-box suite only exercises a symlink escaping rootDir (where rejection
@@ -261,8 +260,7 @@ TEST_CASE("LocalFileRepository ignores non-positive bpm values", "[repository][w
 
     SECTION("bpm of zero")
     {
-        writeManifest(fx.dir,
-                      R"({ "tracks": [ { "id": "t1", "title": "T", "file": "track.wav", "bpm": 0 } ] })");
+        writeManifest(fx.dir, R"({ "tracks": [ { "id": "t1", "title": "T", "file": "track.wav", "bpm": 0 } ] })");
         djapp::LocalFileRepository repo(fx.dir);
         auto meta = repo.getTrackMetadata("t1");
         REQUIRE(meta.has_value());
@@ -271,8 +269,7 @@ TEST_CASE("LocalFileRepository ignores non-positive bpm values", "[repository][w
 
     SECTION("negative bpm")
     {
-        writeManifest(fx.dir,
-                      R"({ "tracks": [ { "id": "t2", "title": "T", "file": "track.wav", "bpm": -128 } ] })");
+        writeManifest(fx.dir, R"({ "tracks": [ { "id": "t2", "title": "T", "file": "track.wav", "bpm": -128 } ] })");
         djapp::LocalFileRepository repo(fx.dir);
         auto meta = repo.getTrackMetadata("t2");
         REQUIRE(meta.has_value());
@@ -280,13 +277,11 @@ TEST_CASE("LocalFileRepository ignores non-positive bpm values", "[repository][w
     }
 }
 
-TEST_CASE("LocalFileRepository ignores a bpm value given as the wrong JSON type",
-          "[repository][whitebox]")
+TEST_CASE("LocalFileRepository ignores a bpm value given as the wrong JSON type", "[repository][whitebox]")
 {
     TempDirFixture fx;
     writeTestWav(fx.dir, "track.wav", 1, 4410, 44100.0);
-    writeManifest(fx.dir,
-                  R"({ "tracks": [ { "id": "t3", "title": "T", "file": "track.wav", "bpm": "120" } ] })");
+    writeManifest(fx.dir, R"({ "tracks": [ { "id": "t3", "title": "T", "file": "track.wav", "bpm": "120" } ] })");
 
     djapp::LocalFileRepository repo(fx.dir);
     // A string bpm fails the isDouble()/isInt()/isInt64() type check; the entry

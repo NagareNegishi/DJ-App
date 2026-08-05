@@ -4,9 +4,10 @@ namespace djapp
 {
 
 MainWindow::MainWindow(const juce::String& name)
-    : DocumentWindow(name, juce::Desktop::getInstance().getDefaultLookAndFeel().findColour(
-                               juce::ResizableWindow::backgroundColourId),
-                      DocumentWindow::allButtons)
+    : DocumentWindow(
+          name,
+          juce::Desktop::getInstance().getDefaultLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId),
+          DocumentWindow::allButtons)
 {
     setUsingNativeTitleBar(true);
     setContentOwned(new MainComponent(), true);

@@ -13,7 +13,7 @@ namespace djapp
 
 struct TrackMetadata
 {
-    juce::String id;            // ^[A-Za-z0-9._-]{1,64}$
+    juce::String id; // ^[A-Za-z0-9._-]{1,64}$
     juce::String title;
     juce::String fileName;      // plain filename, no path separators
     double durationSeconds = 0; // filled after decode; manifest value optional
@@ -69,9 +69,8 @@ struct StateDelta
 
     bool empty() const
     {
-        return !trackId.has_value() && !playing.has_value() && !positionSeconds.has_value()
-               && !gain.has_value() && !playbackRate.has_value() && !pitchOffsetSemitones.has_value()
-               && !loop.has_value();
+        return !trackId.has_value() && !playing.has_value() && !positionSeconds.has_value() && !gain.has_value() &&
+               !playbackRate.has_value() && !pitchOffsetSemitones.has_value() && !loop.has_value();
     }
 };
 

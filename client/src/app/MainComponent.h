@@ -13,12 +13,12 @@ namespace djapp
 
 class MainComponent : public juce::Component
 {
-public:
+  public:
     MainComponent();
 
     void resized() override;
 
-private:
+  private:
     LocalFileRepository repository_;
     TrackListComponent trackList_;
 };

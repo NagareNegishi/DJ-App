@@ -14,10 +14,11 @@
 
 #include <optional>
 
-#include "model/Types.h"
 #include "model/Ranges.h"
+#include "model/Types.h"
 
-namespace {
+namespace
+{
 
 djapp::PlaybackState inRangeState()
 {
@@ -313,7 +314,9 @@ TEST_CASE("Ranges: clamp(StateDelta&) leaves an absent field absent, not materia
     REQUIRE_FALSE(d.loop.has_value());
 }
 
-TEST_CASE("Ranges: clamp(StateDelta&) with loop outer-present/inner-absent (explicit clear) is left as a clear, not fabricated", "[ranges]")
+TEST_CASE("Ranges: clamp(StateDelta&) with loop outer-present/inner-absent (explicit clear) is left as a clear, not "
+          "fabricated",
+          "[ranges]")
 {
     djapp::StateDelta d;
     d.deck = djapp::DeckId::A;
@@ -351,7 +354,8 @@ TEST_CASE("Ranges: loop endpoints clamp independently when the result stays a va
     }
 }
 
-TEST_CASE("Ranges: a loop that would clamp to inSeconds >= outSeconds is cleared instead of kept degenerate", "[ranges]")
+TEST_CASE("Ranges: a loop that would clamp to inSeconds >= outSeconds is cleared instead of kept degenerate",
+          "[ranges]")
 {
     SECTION("PlaybackState.loop: both endpoints clamp to the same minimum -> cleared")
     {

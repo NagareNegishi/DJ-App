@@ -3,38 +3,23 @@
 
 class DjAppApplication : public juce::JUCEApplication
 {
-public:
-    const juce::String getApplicationName() override
-    {
-        return "DJ App";
-    }
+  public:
+    const juce::String getApplicationName() override { return "DJ App"; }
 
-    const juce::String getApplicationVersion() override
-    {
-        return "0.1.0";
-    }
+    const juce::String getApplicationVersion() override { return "0.1.0"; }
 
-    bool moreThanOneInstanceAllowed() override
-    {
-        return true;
-    }
+    bool moreThanOneInstanceAllowed() override { return true; }
 
     void initialise(const juce::String&) override
     {
         mainWindow = std::make_unique<djapp::MainWindow>(getApplicationName());
     }
 
-    void shutdown() override
-    {
-        mainWindow.reset();
-    }
+    void shutdown() override { mainWindow.reset(); }
 
-    void systemRequestedQuit() override
-    {
-        quit();
-    }
+    void systemRequestedQuit() override { quit(); }
 
-private:
+  private:
     std::unique_ptr<djapp::MainWindow> mainWindow;
 };
 

@@ -32,16 +32,21 @@
 #include <limits>
 #include <optional>
 
-#include "model/Types.h"
 #include "model/Serialization.h"
+#include "model/Types.h"
 
-namespace {
+namespace
+{
 
-template <typename R>
-bool isOk(const R& r) { return static_cast<bool>(r); }
+template <typename R> bool isOk(const R& r)
+{
+    return static_cast<bool>(r);
+}
 
-template <typename R>
-auto unwrap(const R& r) { return *r; }
+template <typename R> auto unwrap(const R& r)
+{
+    return *r;
+}
 
 djapp::PlaybackState makeValidState(bool withLoop)
 {
@@ -536,7 +541,8 @@ TEST_CASE("Serialization: StateDelta.loop ordering is rejected", "[serialization
     }
 }
 
-TEST_CASE("Serialization: a failing parse reports failure and nothing more is asserted about its contents", "[serialization]")
+TEST_CASE("Serialization: a failing parse reports failure and nothing more is asserted about its contents",
+          "[serialization]")
 {
     auto v = djapp::toVar(makeValidState(true));
     auto* obj = v.getDynamicObject();

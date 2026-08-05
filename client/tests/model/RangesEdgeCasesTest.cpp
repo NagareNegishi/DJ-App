@@ -127,7 +127,7 @@ TEST_CASE("Ranges: -0.0 compares equal to the 0.0 lower bound and is left unchan
 
 TEST_CASE("Ranges: clamp(LoopPoints&) is usable directly, not only via PlaybackState/StateDelta", "[ranges][edge]")
 {
-    djapp::LoopPoints loop{ -5.0, 999999.0 };
+    djapp::LoopPoints loop{-5.0, 999999.0};
     djapp::ranges::clamp(loop);
     REQUIRE(loop.inSeconds == djapp::ranges::loopSecondsMin);
     REQUIRE(loop.outSeconds == djapp::ranges::loopSecondsMax);

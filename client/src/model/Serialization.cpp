@@ -7,16 +7,14 @@ namespace djapp
 namespace
 {
 
-template <typename T>
-Result<T> makeOk(T value)
+template <typename T> Result<T> makeOk(T value)
 {
-    return Result<T>{ true, std::move(value), {} };
+    return Result<T>{true, std::move(value), {}};
 }
 
-template <typename T>
-Result<T> makeFail(juce::String message)
+template <typename T> Result<T> makeFail(juce::String message)
 {
-    return Result<T>{ false, T{}, std::move(message) };
+    return Result<T>{false, T{}, std::move(message)};
 }
 
 bool isValidTrackId(const juce::String& s)
@@ -153,7 +151,7 @@ Result<std::optional<LoopPoints>> parseLoopValue(const juce::var& v)
     if (obj == nullptr)
         return makeFail<R>("loop must be an object or null");
 
-    if (!hasOnlyKnownKeys(*obj, { "inSeconds", "outSeconds" }))
+    if (!hasOnlyKnownKeys(*obj, {"inSeconds", "outSeconds"}))
         return makeFail<R>("loop has unknown field");
 
     if (!obj->hasProperty("inSeconds") || !obj->hasProperty("outSeconds"))
@@ -220,8 +218,7 @@ juce::var toVar(const StateDelta& delta)
     return juce::var(obj.get());
 }
 
-template <>
-Result<PlaybackState> fromVar<PlaybackState>(const juce::var& v)
+template <> Result<PlaybackState> fromVar<PlaybackState>(const juce::var& v)
 {
     using R = PlaybackState;
 
@@ -229,9 +226,8 @@ Result<PlaybackState> fromVar<PlaybackState>(const juce::var& v)
     if (obj == nullptr)
         return makeFail<R>("expected an object");
 
-    if (!hasOnlyKnownKeys(*obj,
-                           { "trackId", "playing", "positionSeconds", "gain", "playbackRate",
-                             "pitchOffsetSemitones", "loop" }))
+    if (!hasOnlyKnownKeys(
+            *obj, {"trackId", "playing", "positionSeconds", "gain", "playbackRate", "pitchOffsetSemitones", "loop"}))
         return makeFail<R>("unknown field in PlaybackState");
 
     PlaybackState state;
@@ -295,8 +291,7 @@ Result<PlaybackState> fromVar<PlaybackState>(const juce::var& v)
     return makeOk<R>(state);
 }
 
-template <>
-Result<StateDelta> fromVar<StateDelta>(const juce::var& v)
+template <> Result<StateDelta> fromVar<StateDelta>(const juce::var& v)
 {
     using R = StateDelta;
 
@@ -304,9 +299,8 @@ Result<StateDelta> fromVar<StateDelta>(const juce::var& v)
     if (obj == nullptr)
         return makeFail<R>("expected an object");
 
-    if (!hasOnlyKnownKeys(*obj,
-                           { "deck", "trackId", "playing", "positionSeconds", "gain", "playbackRate",
-                             "pitchOffsetSemitones", "loop" }))
+    if (!hasOnlyKnownKeys(*obj, {"deck", "trackId", "playing", "positionSeconds", "gain", "playbackRate",
+                                 "pitchOffsetSemitones", "loop"}))
         return makeFail<R>("unknown field in StateDelta");
 
     if (!obj->hasProperty("deck"))

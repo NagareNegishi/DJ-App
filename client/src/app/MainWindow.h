@@ -12,7 +12,7 @@ namespace djapp
 
 class MainWindow : public juce::DocumentWindow
 {
-public:
+  public:
     MainWindow(const juce::String& name);
 
     void closeButtonPressed() override;

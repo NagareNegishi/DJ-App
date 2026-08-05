@@ -19,8 +19,7 @@ namespace djapp
 // Success carries a value; failure carries a human-readable reason and a
 // default-constructed value. Never partially filled — `value` is either fully
 // valid (ok == true) or unused (ok == false).
-template <typename T>
-struct Result
+template <typename T> struct Result
 {
     bool ok = false;
     T value{};
@@ -35,13 +34,10 @@ juce::var toVar(const StateDelta& delta);
 
 // Only PlaybackState and StateDelta are supported; no generic definition is
 // provided, so instantiating fromVar<T>() for any other T fails to link.
-template <typename T>
-Result<T> fromVar(const juce::var& v);
+template <typename T> Result<T> fromVar(const juce::var& v);
 
-template <>
-Result<PlaybackState> fromVar<PlaybackState>(const juce::var& v);
+template <> Result<PlaybackState> fromVar<PlaybackState>(const juce::var& v);
 
-template <>
-Result<StateDelta> fromVar<StateDelta>(const juce::var& v);
+template <> Result<StateDelta> fromVar<StateDelta>(const juce::var& v);
 
 } // namespace djapp
