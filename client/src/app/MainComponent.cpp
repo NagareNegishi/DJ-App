@@ -16,15 +16,21 @@ juce::File tracksRootDir()
 
 } // namespace
 
-MainComponent::MainComponent() : repository_(tracksRootDir())
+MainComponent::MainComponent()
+    : repository_(tracksRootDir()), engineAdapterA_(stateManager_, DeckId::A, engineA_, repository_),
+      syncPublisher_(stateManager_, transport_)
 {
     addAndMakeVisible(trackList_);
     trackList_.setTracks(repository_.listAvailableTracks());
 
     deviceHub_.addSource(engineA_.source());
 
-    // M4 replaces: this whole block wires dev controls straight to engineA_;
-    // delete it once StateManager/StateDelta routing exists.
+    stateManager_.addListener([this](const StateDelta& applied, const PlaybackState& newState, DeltaSource) {
+        if (applied.deck != DeckId::A)
+            return;
+        playPauseButton_.setButtonText(newState.playing ? "Pause" : "Play");
+    });
+
     addAndMakeVisible(loadButton_);
     loadButton_.onClick = [this] { loadSelected(); };
 
@@ -36,7 +42,12 @@ MainComponent::MainComponent() : repository_(tracksRootDir())
     seekSlider_.setRange(0.0, 0.0);
     seekSlider_.setSliderStyle(juce::Slider::LinearHorizontal);
     seekSlider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20);
-    seekSlider_.onDragEnd = [this] { engineA_.seek(seekSlider_.getValue()); };
+    seekSlider_.onDragEnd = [this] {
+        StateDelta delta;
+        delta.deck = DeckId::A;
+        delta.positionSeconds = seekSlider_.getValue();
+        stateManager_.applyDelta(delta, DeltaSource::local);
+    };
 
     addAndMakeVisible(gainLabel_);
     addAndMakeVisible(gainSlider_);
@@ -44,7 +55,12 @@ MainComponent::MainComponent() : repository_(tracksRootDir())
     gainSlider_.setValue(1.0);
     gainSlider_.setSliderStyle(juce::Slider::LinearHorizontal);
     gainSlider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20);
-    gainSlider_.onValueChange = [this] { engineA_.setGain((float)gainSlider_.getValue()); };
+    gainSlider_.onValueChange = [this] {
+        StateDelta delta;
+        delta.deck = DeckId::A;
+        delta.gain = (float) gainSlider_.getValue();
+        stateManager_.applyDelta(delta, DeltaSource::local);
+    };
 
     addAndMakeVisible(rateLabel_);
     addAndMakeVisible(rateSlider_);
@@ -52,7 +68,12 @@ MainComponent::MainComponent() : repository_(tracksRootDir())
     rateSlider_.setValue(1.0);
     rateSlider_.setSliderStyle(juce::Slider::LinearHorizontal);
     rateSlider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20);
-    rateSlider_.onValueChange = [this] { engineA_.setPlaybackRate((float)rateSlider_.getValue()); };
+    rateSlider_.onValueChange = [this] {
+        StateDelta delta;
+        delta.deck = DeckId::A;
+        delta.playbackRate = (float) rateSlider_.getValue();
+        stateManager_.applyDelta(delta, DeltaSource::local);
+    };
 
     setSize(800, 600);
 }
@@ -63,38 +84,55 @@ void MainComponent::loadSelected()
     if (!selected.has_value())
         return;
 
-    const auto buffer = repository_.getAudioBuffer(selected->id);
-    if (buffer == nullptr)
-    {
-        juce::Logger::writeToLog("MainComponent: failed to load audio for track \"" + selected->id + "\"");
-        return;
-    }
-
-    engineA_.load(buffer);
     loadedTrackDurationSeconds_ = selected->durationSeconds;
     seekSlider_.setRange(0.0, loadedTrackDurationSeconds_);
-    playPauseButton_.setButtonText("Play");
+
+    StateDelta delta;
+    delta.deck = DeckId::A;
+    delta.trackId = selected->id;
+    delta.playing = false; // a fresh load always starts stopped, matching the old dev-UI's
+                            // explicit setButtonText("Play") after load
+    stateManager_.applyDelta(delta, DeltaSource::local);
 }
 
 void MainComponent::togglePlayPause()
 {
-    if (engineA_.isPlaying())
+    const bool currentlyPlaying = stateManager_.getState(DeckId::A).playing;
+
+    StateDelta delta;
+    delta.deck = DeckId::A;
+
+    if (currentlyPlaying)
     {
-        engineA_.pause();
-        playPauseButton_.setButtonText("Play");
+        delta.playing = false;
     }
     else
     {
-        // isPlaying() can go false on its own at end-of-track, holding position at the
-        // end (AudioEngine contract) — restart from 0 rather than resuming there and
-        // immediately re-stopping.
-        if (loadedTrackDurationSeconds_ > 0.0 &&
-            engineA_.getCurrentPosition() >= loadedTrackDurationSeconds_ - 0.05)
-            engineA_.seek(0.0);
+        // EngineAdapter is write-only (state -> engine); nothing feeds the engine's
+        // actual playback state back into StateManager until M7's PositionClock. So
+        // StateManager's own stored positionSeconds is stale while playing — it only
+        // reflects the last explicit seek/load, not where the engine has actually
+        // gotten to. Peeking at the engine directly here (dev-UI only, not a general
+        // state read) gives the true resume point instead of relying on
+        // StateManager's position-injection fallback, which would resume from that
+        // stale value.
+        double resumePosition = engineA_.getCurrentPosition();
 
-        engineA_.play();
-        playPauseButton_.setButtonText("Pause");
+        // If AudioEngine stopped itself at end-of-track (see its isPlaying() contract
+        // comment), StateManager's `playing` flag doesn't know that yet, and resuming
+        // at that same position would immediately stop again — the exact bug fixed in
+        // 73075b9 for the M3 dev UI. Restart from 0 in that case instead.
+        if (loadedTrackDurationSeconds_ > 0.0 && !engineA_.isPlaying() &&
+            resumePosition >= loadedTrackDurationSeconds_ - 0.05)
+        {
+            resumePosition = 0.0;
+        }
+
+        delta.positionSeconds = resumePosition;
+        delta.playing = true;
     }
+
+    stateManager_.applyDelta(delta, DeltaSource::local);
 }
 
 void MainComponent::resized()
