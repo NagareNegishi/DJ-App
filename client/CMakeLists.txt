@@ -43,6 +43,8 @@ find_package(JUCE CONFIG REQUIRED)
 add_library(dj-app-core STATIC
     src/model/Serialization.cpp
     src/repository/LocalFileRepository.cpp
+    src/engine/BufferPlaybackSource.cpp
+    src/engine/JuceAudioEngine.cpp
 )
 
 target_include_directories(dj-app-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
@@ -80,6 +82,7 @@ target_sources(dj-app-client PRIVATE
     src/app/MainWindow.cpp
     src/app/MainComponent.cpp
     src/ui/TrackListComponent.cpp
+    src/engine/AudioDeviceHub.cpp
 )
 
 # Direct module includes are preferred over JuceHeader.h
@@ -101,6 +104,7 @@ target_link_libraries(dj-app-client
     PRIVATE
         dj-app-core
         juce::juce_gui_basics
+        juce::juce_audio_devices
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags
