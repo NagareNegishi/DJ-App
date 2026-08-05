@@ -62,6 +62,33 @@ Each entry: date, what the plan said, what was done instead, why.
   search path, so `find_package(JUCE CONFIG REQUIRED)` still finds it. No
   action taken.
 
+## 2026-08-05 — `CI / format` blocked merges before M5, ahead of plan
+
+- **Plan said**: `.github/workflows/ci.yml`'s `format` job comment states it is
+  "non-blocking until M5 ... once the client/tests suite is established and
+  formatting is enforced," relying on `continue-on-error: true` to keep it
+  informational only.
+- **Actual**: `continue-on-error: true` only keeps the *workflow run's* overall
+  conclusion green; it does not change the individual `CI / format (pull_request)`
+  check's own reported conclusion. Branch protection on `main` evaluates that
+  check directly, so a failing `format` job blocked merges regardless of
+  `continue-on-error` — the comment's assumption doesn't hold once branch
+  protection requires the check. On top of that, the codebase (`client/src`
+  included, not just `client/tests`) was not actually clang-format-clean —
+  it had apparently never been run through the current `.clang-format` config.
+- **Change**: Reformatted all of `client/src` and `client/tests` with
+  clang-format 18.1.8 (the devcontainer's firewall blocks the Ubuntu package
+  archive, so the binary came from a GitHub release of
+  `muttleyxd/clang-tools-static-binaries` — same 18.1.x line CI's
+  `apt-get install clang-format` resolves to). Build and full `ctest` suite
+  (59/59) still pass after the reformat.
+- **Why**: Since the tooling gap turned out to be solvable, fixing the
+  formatting outright was better than leaving the debt for M5 — it directly
+  unblocks the merge instead of requiring a branch-protection change, and
+  formatting enforcement was always going to happen eventually. M5 can still
+  be the point where `continue-on-error` is removed for real; the codebase is
+  now actually compliant ahead of that.
+
 ## 2026-08-05 — Windows artefact path nests a `Debug` subfolder
 
 - **Plan said**: `docs/plan/checklists/M1-host.md` (step 4) states the
