@@ -26,6 +26,42 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 # JUCE must be installed before configuring (see docs/setup.md).
 find_package(JUCE CONFIG REQUIRED)
 
+# Pure-logic core (model/, repository/, and future engine|state|sync/ non-GUI
+# sources): compiled once here; dj-app-client and dj-app-tests both link it,
+# so a new milestone's testable source is added in exactly one place.
+#
+# STATIC, not OBJECT: dj-app-client also links juce::juce_gui_basics directly,
+# which (like dj-app-core's own juce_data_structures link) transitively pulls
+# in juce_events — and JUCE's CMake support adds each such module's unity-build
+# .cpp as a private source of *every* target that links it. An OBJECT library's
+# objects are unconditionally force-linked into consumers, so dj-app-core's own
+# private compile of juce_events.cpp collided with dj-app-client's own copy at
+# link time ("multiple definition"). A real STATIC archive is pulled lazily —
+# the linker only extracts a member to resolve an otherwise-unsatisfied symbol
+# — so dj-app-client's own copy (linked first, directly) already satisfies
+# those symbols and the archive's duplicate member is never extracted.
+add_library(dj-app-core STATIC
+    src/model/Serialization.cpp
+    src/repository/LocalFileRepository.cpp
+)
+
+target_include_directories(dj-app-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+target_compile_definitions(dj-app-core PUBLIC
+    JUCE_WEB_BROWSER=0
+    JUCE_USE_CURL=0
+    CLIENT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+)
+
+target_link_libraries(dj-app-core PUBLIC
+    juce::juce_core
+    juce::juce_audio_basics
+    juce::juce_audio_formats
+    juce::juce_data_structures
+    juce::juce_recommended_config_flags
+    juce::juce_recommended_warning_flags
+)
+
 # Define the GUI app target.
 # juce_add_gui_app wires up a normal CMake executable target plus JUCE-specific
 # build steps (resource compilation, platform-specific bundling on macOS, etc.).
@@ -49,20 +85,20 @@ target_sources(dj-app-client PRIVATE
 # juce_generate_juce_header(dj-app-client)
 
 # Compile definitions consumed by JUCE headers.
-# Disabling these avoids needing extra platform SDKs for the prototype.
-# Flip to 1 (and add the corresponding NEEDS_* arg to juce_add_gui_app) when needed.
+# JUCE_APPLICATION_NAME_STRING/JUCE_APPLICATION_VERSION_STRING are app-specific;
+# JUCE_WEB_BROWSER/JUCE_USE_CURL/CLIENT_SOURCE_DIR and the src/ include dir
+# come from dj-app-core (linked below) as PUBLIC usage requirements.
 target_compile_definitions(dj-app-client PRIVATE
-    JUCE_WEB_BROWSER=0
-    JUCE_USE_CURL=0
     JUCE_APPLICATION_NAME_STRING="$<TARGET_PROPERTY:dj-app-client,JUCE_PRODUCT_NAME>"
     JUCE_APPLICATION_VERSION_STRING="$<TARGET_PROPERTY:dj-app-client,JUCE_VERSION>"
 )
 
-# Link only what's needed for a window. Audio modules come later.
+# Link the shared pure-logic core, plus the GUI module it doesn't provide.
 # The PUBLIC interface targets apply JUCE's recommended compiler flags
 # (warnings, optimisation hints) to our target.
 target_link_libraries(dj-app-client
     PRIVATE
+        dj-app-core
         juce::juce_gui_basics
     PUBLIC
         juce::juce_recommended_config_flags
@@ -95,29 +131,16 @@ if(DJAPP_BUILD_TESTS)
 
         add_executable(dj-app-tests ${DJAPP_TEST_SOURCES})
 
-        # model/ is pure logic (no GUI modules) and lives outside tests/, so it
-        # isn't picked up by the tests/*.cpp glob above; add it explicitly.
-        target_sources(dj-app-tests PRIVATE src/model/Serialization.cpp)
-
-        # tests/ includes headers like "model/Types.h" relative to src/.
-        target_include_directories(dj-app-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src)
-
-        # Mirror the app target's curl/webview opt-out: juce_core defaults to
-        # JUCE_USE_CURL=1, which otherwise leaves undefined libcurl symbols at
-        # link time since nothing here links libcurl.
-        target_compile_definitions(dj-app-tests PRIVATE
-            JUCE_WEB_BROWSER=0
-            JUCE_USE_CURL=0
-        )
-
-        # Only the JUCE modules the tested pure-logic code needs
-        # (juce_data_structures brings in juce::var/JSON) — no GUI modules.
+        # model/ and repository/ pure-logic sources come from dj-app-core,
+        # which also supplies the src/ include dir, JUCE_WEB_BROWSER/
+        # JUCE_USE_CURL/CLIENT_SOURCE_DIR, and the JUCE modules that logic
+        # needs (juce_data_structures for juce::var/JSON; juce_audio_formats
+        # for AudioFormatManager/AudioFormatReader) as PUBLIC usage
+        # requirements — no GUI modules.
         target_link_libraries(dj-app-tests
             PRIVATE
+                dj-app-core
                 Catch2::Catch2WithMain
-                juce::juce_core
-                juce::juce_audio_basics
-                juce::juce_data_structures
             PUBLIC
                 juce::juce_recommended_config_flags
                 juce::juce_recommended_warning_flags
