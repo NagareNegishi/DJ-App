@@ -32,6 +32,7 @@ find_package(JUCE CONFIG REQUIRED)
 juce_add_gui_app(dj-app-client
     PRODUCT_NAME "DJ App"
     COMPANY_NAME "DJ App Project"
+    BUNDLE_ID "com.djappproject.dj-app-client"
 )
 
 # `target_sources` adds source files to a target.
