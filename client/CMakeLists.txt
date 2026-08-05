@@ -45,6 +45,8 @@ add_library(dj-app-core STATIC
     src/repository/LocalFileRepository.cpp
     src/engine/BufferPlaybackSource.cpp
     src/engine/JuceAudioEngine.cpp
+    src/engine/EngineAdapter.cpp
+    src/state/StateManager.cpp
 )
 
 target_include_directories(dj-app-core PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
