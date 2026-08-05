@@ -101,18 +101,16 @@ jobs:
       - name: Run client tests
         run: ctest --test-dir client/build/linux --output-on-failure
 
-  # Style check, non-blocking until M5 (docs/plan/05-testing.md CI section)
-  # once the client/tests suite is established and formatting is enforced.
+  # Style check (docs/plan/05-testing.md CI section).
   format:
     runs-on: ubuntu-24.04
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
       - name: Install clang-format
         run: |
           sudo apt-get update
-          sudo apt-get install -y clang-format
+          sudo apt-get install -y clang-format-18
 
       - name: Check formatting
         run: |
@@ -126,4 +124,4 @@ jobs:
             echo "No C++ source files found to format-check."
             exit 0
           fi
-          clang-format --dry-run --Werror $files
+          clang-format-18 --dry-run --Werror $files
