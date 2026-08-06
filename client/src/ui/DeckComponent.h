@@ -2,9 +2,12 @@
 
 // ui/ — DeckComponent: one deck's transport, level, and loop controls. Reads
 // StateManager for display, writes back through StateManager::applyDelta for
-// each user gesture except Loop In, which only records a local pending point
-// until Loop Out completes it; never touches engine/ directly (the composition
-// root owns the one exception, the resume-position provider injected here).
+// each user gesture; Loop In usually only records a local pending point until
+// Loop Out completes it, but re-arming over an already-active loop also
+// applies a synced clear (and cancelling that re-arm a synced restore) — see
+// onLoopInClicked/cancelPendingLoopIn. Never touches engine/ directly (the
+// composition root owns the one exception, the resume-position provider
+// injected here).
 // Animates its own playhead between StateManager notifications by
 // extrapolating from a locally held anchor — see rebaseAnchorAndRefresh and
 // currentDisplayPositionSeconds — since state/PositionClock doesn't exist
@@ -40,6 +43,7 @@ class DeckComponent : public juce::Component, private juce::Timer
     void onLoopOutClicked();
     void onLoopClearClicked();
     void resetPendingLoopIn();
+    void cancelPendingLoopIn();
 
     StateManager& stateManager_;
     DeckId deck_;
@@ -61,6 +65,9 @@ class DeckComponent : public juce::Component, private juce::Timer
     std::optional<LoopPoints> anchorLoop_;
 
     std::optional<double> pendingLoopInSeconds_; // local-only capture, not synced until Loop Out completes it
+    std::optional<LoopPoints> stashedLoopOnArm_; // the loop that was active when
+        // the current arm gesture began, if any — restored on Cancel or on a
+        // rejected Loop Out; discarded once Loop Out actually commits a new loop
 
     juce::Label titleLabel_;
     juce::TextButton playPauseButton_{"Play"};
