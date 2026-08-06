@@ -1,4 +1,5 @@
 #include "DeckComponent.h"
+#include "model/LoopWrap.h"
 #include <cmath>
 
 namespace djapp
@@ -127,13 +128,8 @@ double DeckComponent::currentDisplayPositionSeconds() const
         position += elapsedSeconds * anchorRate_;
     }
 
-    if (anchorLoop_.has_value() && anchorLoop_->outSeconds > anchorLoop_->inSeconds && position >= anchorLoop_->outSeconds)
-    {
-        const double loopLength = anchorLoop_->outSeconds - anchorLoop_->inSeconds;
-        // Same fmod wrap BufferPlaybackSource::getNextAudioBlock uses, so the
-        // displayed playhead loops in step with what's audible.
-        position = anchorLoop_->inSeconds + std::fmod(position - anchorLoop_->inSeconds, loopLength);
-    }
+    if (anchorLoop_.has_value())
+        position = wrapPositionWithinRange(position, anchorLoop_->inSeconds, anchorLoop_->outSeconds);
 
     return position;
 }
@@ -205,7 +201,28 @@ void DeckComponent::togglePlayPause()
 
 void DeckComponent::onLoopInClicked()
 {
+    if (pendingLoopInSeconds_.has_value())
+    {
+        cancelPendingLoopIn();
+        return;
+    }
+
+    // Capture before touching state below: clearing an active loop doesn't
+    // move the playhead (currentDisplayPositionSeconds() returns the same
+    // wrapped value immediately before and after), so capturing first gives
+    // an identical result without depending on the clear's re-entrant
+    // notification having already run.
     pendingLoopInSeconds_ = currentDisplayPositionSeconds();
+
+    stashedLoopOnArm_ = stateManager_.getState(deck_).loop;
+    if (stashedLoopOnArm_.has_value())
+    {
+        StateDelta clearDelta;
+        clearDelta.deck = deck_;
+        clearDelta.loop = std::optional<LoopPoints>{std::nullopt};
+        stateManager_.applyDelta(clearDelta, DeltaSource::local);
+    }
+
     loopInButton_.setButtonText("Cancel Loop In");
     loopOutButton_.setEnabled(!stateManager_.getState(deck_).trackId.isEmpty());
 }
@@ -230,9 +247,17 @@ void DeckComponent::onLoopOutClicked()
     {
         juce::Logger::writeToLog("DeckComponent: Loop Out at or before Loop In on deck " + toString(deck_) +
                                  ", ignoring");
+        if (stashedLoopOnArm_.has_value())
+        {
+            StateDelta restoreDelta;
+            restoreDelta.deck = deck_;
+            restoreDelta.loop = stashedLoopOnArm_;
+            stateManager_.applyDelta(restoreDelta, DeltaSource::local);
+        }
     }
 
     resetPendingLoopIn();
+    stashedLoopOnArm_.reset();
 }
 
 void DeckComponent::onLoopClearClicked()
@@ -250,6 +275,19 @@ void DeckComponent::resetPendingLoopIn()
     pendingLoopInSeconds_.reset();
     loopInButton_.setButtonText("Loop In");
     loopOutButton_.setEnabled(false);
+}
+
+void DeckComponent::cancelPendingLoopIn()
+{
+    if (stashedLoopOnArm_.has_value())
+    {
+        StateDelta restoreDelta;
+        restoreDelta.deck = deck_;
+        restoreDelta.loop = stashedLoopOnArm_;
+        stateManager_.applyDelta(restoreDelta, DeltaSource::local);
+    }
+    resetPendingLoopIn(); // existing helper: clears pendingLoopInSeconds_, resets loopInButton_ text, disables loopOutButton_
+    stashedLoopOnArm_.reset();
 }
 
 void DeckComponent::resized()
