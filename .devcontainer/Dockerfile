@@ -2,9 +2,11 @@
 # Already includes: build-essential, cmake, clang, gcc, gdb, lldb, llvm, vcpkg.
 FROM mcr.microsoft.com/devcontainers/cpp:1-ubuntu-24.04
 
-# Install Ninja, clang-tools-18, and firewall tools.
+# Install Ninja, clang-tools-18, clang-format-18, and firewall tools.
 # - ninja-build: the CMake generator.
 # - clang-tools-18: provides clang-scan-deps-18
+# - clang-format-18: matches CI's format check; installed here (build time) since
+#   the runtime firewall blocks archive.ubuntu.com
 # "apt-get" update Fetches the latest package lists from Debian/Ubuntu repositories
 # "apt-get install" Installs the packages. "-y" auto-confirms prompts. "--no-install-recommends" tells apt to install only what's strictly required
 # "apt-get clean" Once installed, the original package files serve no purpose inside the image.
@@ -12,6 +14,7 @@ FROM mcr.microsoft.com/devcontainers/cpp:1-ubuntu-24.04
 RUN apt-get update && apt-get install -y --no-install-recommends \
     ninja-build \
     clang-tools-18 \
+    clang-format-18 \
     iptables \
     ipset \
     iproute2 \
