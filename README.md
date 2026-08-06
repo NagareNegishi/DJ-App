@@ -18,7 +18,9 @@ Under active development, built milestone by milestone per
 - **M0 — Project scaffolding**: done
 - **M1 — Walking skeleton + domain model**: done (JUCE window opens on Windows and Linux)
 - **M2 — AudioRepository**: done (app lists real local tracks from a manifest)
-- **M3 — AudioEngine (single deck)**: in progress — loads a track and plays it audibly on the Windows host via temporary dev-UI controls
+- **M3 — AudioEngine (single deck)**: done (loads a track and plays it audibly on the Windows host via temporary dev-UI controls)
+- **M4 — StateManager**: done (dev-UI controls now route through `StateManager.applyDelta`; engine and sync are subscribers)
+- **M5 — Single-deck UI**: done (real `DeckComponent` replaces the dev UI: load/play/pause/seek/gain/rate, loop capture and wrap, all confirmed on the Windows host)
 
 See [`docs/plan/PROGRESS.md`](docs/plan/PROGRESS.md) for the full log. Multi-user
 sync (the core feature) lands at M7.
@@ -28,7 +30,7 @@ sync (the core feature) lands at M7.
 Development happens inside a Dev Container ([`.devcontainer/`](.devcontainer/)):
 editing, compilation, and all automated tests run there. Real audio playback and
 GUI interaction require a real sound device, so those are verified on a Windows
-host (MSVC via VS Build Tools 2022) using the manual checklists in
+host (MSVC via VS Build Tools) using the manual checklists in
 [`docs/plan/checklists/`](docs/plan/checklists/). In short: **the container
 builds and tests the code; the Windows host runs the audio app.**
 
@@ -51,8 +53,8 @@ ctest --test-dir client/build/linux --output-on-failure
 
 The server (`npm ci && npm test`, `npm start`) comes online at M6.
 
-On the Windows host, from a VS Build Tools Developer Command Prompt, the same
-CMake commands work with `-B client/build/windows`.
+On the Windows host, from the x64 Native Tools Command Prompt for VS Build Tools,
+the same CMake commands work with `-B client/build/windows`.
 
 ## Documentation map
 

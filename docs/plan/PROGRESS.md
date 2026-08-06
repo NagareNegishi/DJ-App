@@ -28,3 +28,36 @@ that adds the line (see `git log`).
   fixed the dev-UI's Play/Pause handler getting stuck after a natural end-of-track
   stop instead of restarting. `Debug` artefact-subfolder deviation from M1 confirmed
   still present, no new deviations.
+- 2026-08-06 · **M4 — StateManager** · container green: `client/build/linux` builds
+  clean, `ctest` 134/134 (`StateManager`, `EngineAdapter`, `SyncTransport`/
+  `NullTransport`, `SyncPublisher` suites added; a whitebox pass added 14 more,
+  including a regression test for a real re-entrancy bug). Host checklist
+  (`checklists/M3-host.md`, re-run per M4's acceptance criteria — "behavior on host
+  identical to M3") confirmed on Windows: load/play/pause/seek/gain/rate all correct,
+  no regressions from routing the dev UI through `StateManager.applyDelta`. Two bugs
+  found and fixed during the review pass, both inside `b0d6d38`/`de7d41a`: a
+  stale-position bug on resume-after-pause (`StateManager`'s stored-position
+  injection goes stale once `PositionClock` starts advancing playback, so
+  `MainComponent::togglePlayPause` now supplies live engine position on resume
+  instead of relying on injection), and a segfault in
+  `StateManager::applyDelta`'s notification loop when a listener unsubscribes
+  itself mid-notification (fixed by walking listener tokens via fresh lookups
+  instead of holding a `std::map` iterator across a callback). `Debug`
+  artefact-subfolder deviation from M1 reconfirmed present; host checklists
+  corrected to specify the x64 Native Tools Command Prompt (plain "Developer
+  Command Prompt" defaults to 32-bit detection). No new deviations.
+- 2026-08-07 · **M5 — Single-deck UI** · container green: `client/build/linux`
+  builds clean, `ctest` 153/153 (`EngineAdapter` self-stop and `LoopWrap`
+  regression suites added, 19 new tests). Host checklist
+  (`checklists/M5-host.md`) confirmed on Windows, all 15 steps pass: real
+  `DeckComponent` load/play/pause/seek/gain/rate correct, disabled-state
+  gating correct, loop capture/wrap/clear correct, clean window close. Two
+  bugs found on an earlier pass this session and fixed before the final
+  confirmed run: a self-stop label desync (`playing` state going stale after
+  the engine stopped itself, `33803bb`) and a loop-arm ratchet that could
+  only narrow on re-arm, never widen or relocate (`67db4a7`, plus a
+  track-change edge case caught in review, `d76259a`). Checklist step 12
+  corrected: capturing a zero-length loop can't be reproduced at human speed
+  while playing (position races the click), so the step now specifies doing
+  it while paused. `Debug` artefact-subfolder deviation from M1 reconfirmed
+  present. No new deviations.

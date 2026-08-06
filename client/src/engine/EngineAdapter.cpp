@@ -53,7 +53,28 @@ void EngineAdapter::handleDelta(const StateDelta& applied, const PlaybackState& 
         engine_.setLoop(*applied.loop);
 
     if (applied.playing.has_value())
+    {
         *applied.playing ? engine_.play() : engine_.pause();
+        *applied.playing ? startTimerHz(10) : stopTimer();
+    }
+}
+
+void EngineAdapter::timerCallback()
+{
+    checkForSelfStop();
+}
+
+void EngineAdapter::checkForSelfStop()
+{
+    if (stateManager_.getState(deck_).playing && !engine_.isPlaying())
+    {
+        StateDelta delta;
+        delta.deck = deck_;
+        delta.playing = false; // no positionSeconds: mirrors DeckComponent's own
+                               // manual-pause delta, freezing the displayed
+                               // position rather than resetting it
+        stateManager_.applyDelta(delta, DeltaSource::local);
+    }
 }
 
 } // namespace djapp

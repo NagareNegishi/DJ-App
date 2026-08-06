@@ -1,11 +1,12 @@
 #pragma once
 
 // app/ — composition root. MainComponent owns repository/engine/state/sync
-// wiring, growing as later milestones land. At M4 it owns the AudioRepository,
+// wiring, growing as later milestones land. At M5 it owns the AudioRepository,
 // the TrackListComponent that lists what it finds, one deck's worth of engine
-// wiring, a dev UI that drives StateManager (never the engine directly), and
-// the sync stack (NullTransport + SyncPublisher) -- wired but inert until M7
-// gives it a real transport and something to call setConnected/setRole.
+// wiring, a DeckComponent that renders and drives that deck's StateManager
+// state (never the engine directly), and the sync stack (NullTransport +
+// SyncPublisher) -- wired but inert until M7 gives it a real transport and
+// something to call setConnected/setRole.
 
 #include "engine/AudioDeviceHub.h"
 #include "engine/EngineAdapter.h"
@@ -14,6 +15,7 @@
 #include "state/StateManager.h"
 #include "sync/NullTransport.h"
 #include "sync/SyncPublisher.h"
+#include "ui/DeckComponent.h"
 #include "ui/TrackListComponent.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 
@@ -28,8 +30,7 @@ class MainComponent : public juce::Component
     void resized() override;
 
   private:
-    void loadSelected();
-    void togglePlayPause();
+    double computeResumePositionSeconds();
 
     LocalFileRepository repository_;
     TrackListComponent trackList_;
@@ -42,15 +43,7 @@ class MainComponent : public juce::Component
     NullTransport transport_;
     SyncPublisher syncPublisher_;
 
-    juce::TextButton loadButton_{"Load Selected"};
-    juce::TextButton playPauseButton_{"Play"};
-    juce::Label seekLabel_{{}, "Seek"};
-    juce::Slider seekSlider_;
-    juce::Label gainLabel_{{}, "Gain"};
-    juce::Slider gainSlider_;
-    juce::Label rateLabel_{{}, "Rate"};
-    juce::Slider rateSlider_;
-    double loadedTrackDurationSeconds_ = 0;
+    DeckComponent deckA_;
 };
 
 } // namespace djapp

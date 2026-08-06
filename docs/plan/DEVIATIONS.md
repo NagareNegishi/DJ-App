@@ -109,3 +109,34 @@ Each entry: date, what the plan said, what was done instead, why.
   path is again where the artefact lands on this host. Consistent enough
   across two independent builds that `M3-host.md` now states it as the
   expected path rather than a "try both" fallback.
+
+## 2026-08-07 — `CI / format` failed again: apt's `clang-format-18` isn't pinned to 18.1.8
+
+- **Plan said**: The 2026-08-05 deviation above assumed installing the
+  `clang-format-18` apt package in both the devcontainer `Dockerfile` and
+  `.github/workflows/ci.yml` keeps the two in sync, since both resolve the
+  same package name from the same Ubuntu 24.04 archive.
+- **Actual**: `clang-format-18` only pins the major version. `apt-get
+  install clang-format-18` currently resolves to `1:18.1.3-1ubuntu1` from
+  `noble-updates` — not the `18.1.8` binary (from a
+  `muttleyxd/clang-tools-static-binaries` GitHub release) that was actually
+  used to reformat the tree on 2026-08-05. Point releases of clang-format
+  can and do change formatting decisions, so files clean under 18.1.8 fail
+  `--dry-run --Werror` under 18.1.3 (comment-alignment and line-break
+  cases, e.g. `client/src/engine/EngineAdapter.cpp`,
+  `client/src/ui/DeckComponent.h`, `client/tests/engine/EngineAdapterTest.cpp`).
+  Devcontainer and CI agree with each other (both apt-installed, same
+  archive) — the drift is against the previously-reformatted files, not
+  between container and CI.
+- **Change**: Reformatted the flagged files with the apt-installed
+  `clang-format-18` (`18.1.3-1ubuntu1`). Also pinned the exact package
+  version (`clang-format-18=1:18.1.3-1ubuntu1`) in both
+  `.devcontainer/Dockerfile` and `.github/workflows/ci.yml`, replacing
+  the bare `clang-format-18` major-version-only install that caused this
+  drift.
+- **Why**: Bare `clang-format-18` let devcontainer and CI silently drift
+  to whatever point release the Ubuntu archive has on a given day. An
+  exact pin is a two-line change and fails loudly (`apt-get install`
+  error) instead of silently reformatting differently, so if this exact
+  `.deb` is ever superseded out of the archive pool, bump the pin in
+  both files, reformat, and record it here.

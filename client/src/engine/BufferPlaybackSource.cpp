@@ -1,4 +1,5 @@
 #include "BufferPlaybackSource.h"
+#include "model/LoopWrap.h"
 #include <algorithm>
 #include <array>
 #include <cmath>
@@ -183,14 +184,8 @@ void BufferPlaybackSource::getNextAudioBlock(const juce::AudioSourceChannelInfo&
 
     for (; sample < bufferToFill.numSamples; ++sample)
     {
-        if (loop.active && loop.outSamples > loop.inSamples && pos >= loop.outSamples)
-        {
-            const double loopLength = loop.outSamples - loop.inSamples;
-            // fmod (not a hard reset to loop.inSamples) deliberately preserves
-            // the fractional overshoot past outSamples, so interpolation stays
-            // smooth across the loop seam.
-            pos = loop.inSamples + std::fmod(pos - loop.inSamples, loopLength);
-        }
+        if (loop.active)
+            pos = wrapPositionWithinRange(pos, loop.inSamples, loop.outSamples);
 
         // -1: linear interpolation below reads src[index0] and src[index0 + 1],
         // so the last renderable head position is numSourceFrames - 2 — the
