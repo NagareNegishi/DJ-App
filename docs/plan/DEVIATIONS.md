@@ -105,3 +105,7 @@ Each entry: date, what the plan said, what was done instead, why.
   CMake helpers append `$<CONFIG>` to the output directory regardless of
   generator. Flagging as a deviation per the checklist's own instruction
   rather than silently substituting the path.
+- **Update (2026-08-06, M3 host checklist)**: Reconfirmed — the `Debug`
+  path is again where the artefact lands on this host. Consistent enough
+  across two independent builds that `M3-host.md` now states it as the
+  expected path rather than a "try both" fallback.

@@ -44,7 +44,9 @@ plays audio — the container only proves it compiles.
 3. Build: `cmake --build client/build/windows`
    - Expected: `dj-app-client` and `dj-app-tests` both build clean, no
      errors. Warnings are worth flagging back but not blocking.
-4. Run the client artefact: `client\build\windows\dj-app-client_artefacts\DJ App.exe`
+4. Run the client artefact: `"client\build\windows\dj-app-client_artefacts\DJ App.exe"`
+   (quote the path — `cmd.exe` splits on the space in `DJ App.exe`
+   otherwise)
    - This path is not a guess: both platforms configure with `-G Ninja`
      (single-config), and the container's actual artefact dir
      (`client/build/linux/dj-app-client_artefacts/DJ App`, verified against

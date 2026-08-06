@@ -100,19 +100,19 @@ built without the FLAC/OggVorbis/MP3 compile flags — checked against
      this doc — counts drift as tests are added. If you want a reference,
      ask me for the container's current count at the time you run this
      (87 as of 2026-08-06; re-verify, don't trust a stale number here).
-4. Find and run the client artefact. The exact output path has an
-   unresolved quirk (`DEVIATIONS.md`, 2026-08-05): JUCE nested an extra
-   `Debug` folder here on this host during M1 even though Ninja is
-   single-config, and it wasn't root-caused. Try, in order:
+4. Find and run the client artefact:
    ```
-   client\build\windows\dj-app-client_artefacts\Debug\DJ App.exe
+   "client\build\windows\dj-app-client_artefacts\Debug\DJ App.exe"
    ```
-   If that path doesn't exist, try:
+   (Quote the path — `cmd.exe` splits on the space in `DJ App.exe`
+   otherwise.) This `Debug` subfolder is a known quirk on this host
+   (`DEVIATIONS.md`, 2026-08-05): JUCE nests it even though Ninja is
+   single-config, not yet root-caused, but confirmed consistent across both
+   the M1 and M3 host runs. If it's ever missing, fall back to:
    ```
-   client\build\windows\dj-app-client_artefacts\DJ App.exe
+   "client\build\windows\dj-app-client_artefacts\DJ App.exe"
    ```
-   Whichever one actually exists, tell me which — that confirms or updates
-   the still-open deviation.
+   and tell me — that would mean the quirk resolved or changed.
    - Expected: the window opens with the M2 track list on one side (showing
      "Demo One" from the manifest you just created) and the M3 dev-UI
      controls (Load Selected, Play/Pause, Seek, Gain, Rate) on the other —
