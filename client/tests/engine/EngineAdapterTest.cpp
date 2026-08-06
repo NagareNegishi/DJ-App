@@ -1,5 +1,6 @@
 #include <catch2/catch_test_macros.hpp>
 
+#include <cstddef>
 #include <map>
 #include <memory>
 #include <optional>
@@ -51,11 +52,19 @@ class FakeAudioEngine final : public AudioEngine
         lastLoop = loop;
     }
 
-    void play() override { calls.push_back("play"); }
-    void pause() override { calls.push_back("pause"); }
+    void play() override
+    {
+        calls.push_back("play");
+        playing = true;
+    }
+    void pause() override
+    {
+        calls.push_back("pause");
+        playing = false;
+    }
 
     double getCurrentPosition() const override { return 0.0; }
-    bool isPlaying() const override { return false; }
+    bool isPlaying() const override { return playing; }
 
     std::vector<std::string> calls;
     std::shared_ptr<const LoadedAudio> lastLoadedAudio;
@@ -64,6 +73,9 @@ class FakeAudioEngine final : public AudioEngine
     float lastPlaybackRate = 0.0f;
     bool setLoopCalled = false;
     std::optional<LoopPoints> lastLoop;
+    // Public so tests can flip it directly to simulate the audio thread's own
+    // self-stop, which happens without a pause() call.
+    bool playing = false;
 };
 
 class FakeAudioRepository final : public AudioRepository
@@ -344,6 +356,248 @@ TEST_CASE("EngineAdapter re-resolves trackId through the repository on every del
     REQUIRE(engine.calls.size() == 2);
     CHECK(engine.calls[0] == "load");
     CHECK(engine.calls[1] == "load");
+}
+
+TEST_CASE("EngineAdapter checkForSelfStop makes no correction while the engine is still playing",
+          "[engine][EngineAdapter]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    StateDelta delta = makeDelta(DeckId::A);
+    delta.playing = true;
+    manager.applyDelta(delta, DeltaSource::local);
+    REQUIRE(engine.playing);
+
+    const std::size_t callsBeforeCheck = engine.calls.size();
+    adapter.checkForSelfStop();
+
+    CHECK(engine.calls.size() == callsBeforeCheck);
+    CHECK(manager.getState(DeckId::A).playing);
+}
+
+TEST_CASE("EngineAdapter checkForSelfStop clears state.playing and re-invokes pause() when the "
+          "engine stopped itself",
+          "[engine][EngineAdapter]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    StateDelta delta = makeDelta(DeckId::A);
+    delta.playing = true;
+    manager.applyDelta(delta, DeltaSource::local);
+    REQUIRE(engine.playing);
+
+    // Flip the fake's flag directly rather than calling pause(): production
+    // self-stop happens on the audio thread, which this test can't and
+    // shouldn't spin up.
+    engine.playing = false;
+
+    adapter.checkForSelfStop();
+
+    CHECK_FALSE(manager.getState(DeckId::A).playing);
+    CHECK(engine.calls.back() == "pause");
+}
+
+TEST_CASE("EngineAdapter checkForSelfStop is a no-op for a deck that was never playing",
+          "[engine][EngineAdapter]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    adapter.checkForSelfStop();
+
+    CHECK(engine.calls.empty());
+    CHECK_FALSE(manager.getState(DeckId::A).playing);
+}
+
+// --- Additional white-box cases for the self-stop correction. ---
+
+TEST_CASE("EngineAdapter checkForSelfStop's corrective delta freezes positionSeconds rather than "
+          "resetting it, per the design's no-positionSeconds decision",
+          "[engine][EngineAdapter][whitebox]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    StateDelta delta = makeDelta(DeckId::A);
+    delta.playing = true;
+    delta.positionSeconds = 42.0;
+    manager.applyDelta(delta, DeltaSource::local);
+    REQUIRE(manager.getState(DeckId::A).positionSeconds == 42.0);
+
+    engine.playing = false; // simulate the audio thread's own self-stop
+    adapter.checkForSelfStop();
+
+    CHECK_FALSE(manager.getState(DeckId::A).playing);
+    // Not reset to 0 and not re-derived from the engine: last known position stands.
+    CHECK(manager.getState(DeckId::A).positionSeconds == 42.0);
+}
+
+TEST_CASE("EngineAdapter checkForSelfStop is idempotent: a second call after the corrective delta "
+          "has already landed adds no further engine calls",
+          "[engine][EngineAdapter][whitebox]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    StateDelta delta = makeDelta(DeckId::A);
+    delta.playing = true;
+    manager.applyDelta(delta, DeltaSource::local);
+
+    engine.playing = false;
+    adapter.checkForSelfStop();
+    REQUIRE(engine.calls.back() == "pause");
+    const std::size_t callsAfterFirstCorrection = engine.calls.size();
+
+    // engine.playing is still false (nothing plays it back true), so state.playing
+    // is also already false: the mismatch condition no longer holds.
+    adapter.checkForSelfStop();
+    adapter.checkForSelfStop();
+
+    CHECK(engine.calls.size() == callsAfterFirstCorrection);
+    CHECK_FALSE(manager.getState(DeckId::A).playing);
+}
+
+TEST_CASE("EngineAdapter runs through two independent play/self-stop cycles, correcting each one",
+          "[engine][EngineAdapter][whitebox]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    StateDelta playDelta = makeDelta(DeckId::A);
+    playDelta.playing = true;
+
+    manager.applyDelta(playDelta, DeltaSource::local);
+    REQUIRE(engine.playing);
+    engine.playing = false; // first self-stop
+    adapter.checkForSelfStop();
+    CHECK_FALSE(manager.getState(DeckId::A).playing);
+
+    manager.applyDelta(playDelta, DeltaSource::local); // user hits Play again
+    REQUIRE(engine.playing);
+    REQUIRE(manager.getState(DeckId::A).playing);
+    engine.playing = false; // second self-stop
+    adapter.checkForSelfStop();
+    CHECK_FALSE(manager.getState(DeckId::A).playing);
+
+    // Each bare playDelta also carries an injected "seek" (StateManager's local
+    // playing:true position-injection rule, since playDelta has no explicit
+    // positionSeconds), interleaved ahead of the "play" it accompanies.
+    REQUIRE(engine.calls.size() == 6);
+    CHECK(engine.calls[0] == "seek");
+    CHECK(engine.calls[1] == "play");
+    CHECK(engine.calls[2] == "pause");
+    CHECK(engine.calls[3] == "seek");
+    CHECK(engine.calls[4] == "play");
+    CHECK(engine.calls[5] == "pause");
+}
+
+TEST_CASE("EngineAdapter checkForSelfStop only ever touches its own deck's state and engine, "
+          "leaving a sibling adapter on the other deck untouched",
+          "[engine][EngineAdapter][whitebox]")
+{
+    StateManager manager;
+    FakeAudioEngine engineA;
+    FakeAudioEngine engineB;
+    FakeAudioRepository repository;
+    EngineAdapter adapterA(manager, DeckId::A, engineA, repository);
+    EngineAdapter adapterB(manager, DeckId::B, engineB, repository);
+
+    StateDelta playA = makeDelta(DeckId::A);
+    playA.playing = true;
+    StateDelta playB = makeDelta(DeckId::B);
+    playB.playing = true;
+    manager.applyDelta(playA, DeltaSource::local);
+    manager.applyDelta(playB, DeltaSource::local);
+
+    engineA.playing = false; // only deck A's engine self-stopped
+    const std::size_t engineBCallsBefore = engineB.calls.size();
+
+    adapterA.checkForSelfStop();
+
+    CHECK_FALSE(manager.getState(DeckId::A).playing);
+    CHECK(manager.getState(DeckId::B).playing); // untouched
+    CHECK(engineB.calls.size() == engineBCallsBefore);
+    CHECK(engineB.playing);
+}
+
+TEST_CASE("EngineAdapter checkForSelfStop corrects a remotely-applied playing:true the same way, "
+          "and the corrective delta itself always carries DeltaSource::local",
+          "[engine][EngineAdapter][whitebox]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    std::vector<DeltaSource> observedSources;
+    manager.addListener(
+        [&](const StateDelta&, const PlaybackState&, DeltaSource source) { observedSources.push_back(source); });
+
+    StateDelta delta = makeDelta(DeckId::A);
+    delta.playing = true;
+    delta.positionSeconds = 5.0; // remote deltas carrying playing:true must supply position themselves
+    manager.applyDelta(delta, DeltaSource::remote);
+    REQUIRE(engine.playing);
+
+    engine.playing = false;
+    adapter.checkForSelfStop();
+
+    CHECK_FALSE(manager.getState(DeckId::A).playing);
+    REQUIRE(observedSources.size() == 2);
+    CHECK(observedSources[0] == DeltaSource::remote); // the original play
+    CHECK(observedSources[1] == DeltaSource::local);  // this client's own correction, per spec
+}
+
+TEST_CASE("EngineAdapter checkForSelfStop's corrective delta carries only deck and playing, "
+          "no other field",
+          "[engine][EngineAdapter][whitebox]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    StateDelta observed;
+    bool observedAnything = false;
+    manager.addListener(
+        [&](const StateDelta& applied, const PlaybackState&, DeltaSource)
+        {
+            if (!applied.playing.has_value() || *applied.playing)
+                return; // skip the initial playing:true delta below; capture only the correction
+            observed = applied;
+            observedAnything = true;
+        });
+
+    StateDelta delta = makeDelta(DeckId::A);
+    delta.playing = true;
+    manager.applyDelta(delta, DeltaSource::local);
+
+    engine.playing = false;
+    adapter.checkForSelfStop();
+
+    REQUIRE(observedAnything);
+    REQUIRE(observed.playing.has_value());
+    CHECK_FALSE(*observed.playing);
+    CHECK_FALSE(observed.trackId.has_value());
+    CHECK_FALSE(observed.positionSeconds.has_value());
+    CHECK_FALSE(observed.gain.has_value());
+    CHECK_FALSE(observed.playbackRate.has_value());
+    CHECK_FALSE(observed.pitchOffsetSemitones.has_value());
+    CHECK_FALSE(observed.loop.has_value());
 }
 
 } // namespace djapp
