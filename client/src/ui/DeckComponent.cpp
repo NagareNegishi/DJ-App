@@ -22,7 +22,7 @@ juce::String formatMinutesSeconds(double totalSeconds)
 } // namespace
 
 DeckComponent::DeckComponent(StateManager& stateManager, DeckId deck, AudioRepository& repository,
-                              std::function<double()> resumePositionProvider)
+                             std::function<double()> resumePositionProvider)
     : stateManager_(stateManager), deck_(deck), repository_(repository),
       resumePositionProvider_(std::move(resumePositionProvider))
 {
@@ -181,8 +181,9 @@ void DeckComponent::updatePositionDisplay()
         return; // don't fight an in-progress user drag
     const double currentPosition = currentDisplayPositionSeconds();
     positionSlider_.setValue(currentPosition, juce::dontSendNotification);
-    timeLabel_.setText(formatMinutesSeconds(currentPosition) + " / " + formatMinutesSeconds(positionSlider_.getMaximum()),
-                        juce::dontSendNotification);
+    timeLabel_.setText(formatMinutesSeconds(currentPosition) + " / " +
+                           formatMinutesSeconds(positionSlider_.getMaximum()),
+                       juce::dontSendNotification);
 }
 
 void DeckComponent::togglePlayPause()

@@ -71,8 +71,8 @@ void EngineAdapter::checkForSelfStop()
         StateDelta delta;
         delta.deck = deck_;
         delta.playing = false; // no positionSeconds: mirrors DeckComponent's own
-                                // manual-pause delta, freezing the displayed
-                                // position rather than resetting it
+                               // manual-pause delta, freezing the displayed
+                               // position rather than resetting it
         stateManager_.applyDelta(delta, DeltaSource::local);
     }
 }

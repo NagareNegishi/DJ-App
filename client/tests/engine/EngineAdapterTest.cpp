@@ -403,8 +403,7 @@ TEST_CASE("EngineAdapter checkForSelfStop clears state.playing and re-invokes pa
     CHECK(engine.calls.back() == "pause");
 }
 
-TEST_CASE("EngineAdapter checkForSelfStop is a no-op for a deck that was never playing",
-          "[engine][EngineAdapter]")
+TEST_CASE("EngineAdapter checkForSelfStop is a no-op for a deck that was never playing", "[engine][EngineAdapter]")
 {
     StateManager manager;
     FakeAudioEngine engine;
@@ -544,8 +543,8 @@ TEST_CASE("EngineAdapter checkForSelfStop corrects a remotely-applied playing:tr
     EngineAdapter adapter(manager, DeckId::A, engine, repository);
 
     std::vector<DeltaSource> observedSources;
-    manager.addListener(
-        [&](const StateDelta&, const PlaybackState&, DeltaSource source) { observedSources.push_back(source); });
+    manager.addListener([&](const StateDelta&, const PlaybackState&, DeltaSource source)
+                        { observedSources.push_back(source); });
 
     StateDelta delta = makeDelta(DeckId::A);
     delta.playing = true;

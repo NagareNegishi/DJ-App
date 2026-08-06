@@ -65,11 +65,12 @@ class DeckComponent : public juce::Component, private juce::Timer
     std::optional<LoopPoints> anchorLoop_;
 
     std::optional<double> pendingLoopInSeconds_; // the raw capture itself is never sent over the
-        // wire, but arming or cancelling can still trigger a synced loop clear/restore via
-        // stashedLoopOnArm_ below
-    std::optional<LoopPoints> stashedLoopOnArm_; // the loop that was active when
-        // the current arm gesture began, if any — restored on Cancel or on a
-        // rejected Loop Out; discarded once Loop Out actually commits a new loop
+                                                 // wire, but arming or cancelling can still trigger a synced loop
+                                                 // clear/restore via stashedLoopOnArm_ below
+    std::optional<LoopPoints>
+        stashedLoopOnArm_; // the loop that was active when
+                           // the current arm gesture began, if any — restored on Cancel or on a
+                           // rejected Loop Out; discarded once Loop Out actually commits a new loop
 
     juce::Label titleLabel_;
     juce::TextButton playPauseButton_{"Play"};

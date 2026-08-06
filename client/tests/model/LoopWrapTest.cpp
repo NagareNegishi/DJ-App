@@ -105,8 +105,7 @@ TEST_CASE("LoopWrap: range straddling zero (negative rangeStart, positive rangeE
     REQUIRE(result < 4.0);
 }
 
-TEST_CASE("LoopWrap: fully negative range (both bounds below zero) wraps within bounds",
-          "[loopwrap][whitebox]")
+TEST_CASE("LoopWrap: fully negative range (both bounds below zero) wraps within bounds", "[loopwrap][whitebox]")
 {
     const double position = -1.0; // past rangeEnd of -4.0
     const double result = djapp::wrapPositionWithinRange(position, -10.0, -4.0);

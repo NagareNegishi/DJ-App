@@ -28,7 +28,7 @@ MainComponent::MainComponent()
         StateDelta delta;
         delta.deck = DeckId::A;
         delta.trackId = track.id;
-        delta.playing = false; // a fresh load always starts stopped
+        delta.playing = false;       // a fresh load always starts stopped
         delta.positionSeconds = 0.0; // AudioEngine::load resets to 0; keep the model in agreement
         stateManager_.applyDelta(delta, DeltaSource::local);
     };
