@@ -92,11 +92,14 @@ files changes for M5. If not (e.g. a fresh checkout), redo `M3-host.md`'s
 11. Click **Clear Loop**.
     - Expected: looping stops, playback continues straight through instead
       of wrapping.
-12. Click **Loop In**, then immediately **Loop Out** without moving/waiting
-    (out at or before in).
+12. **While paused** (position frozen, so this is reproducible at human
+    speed — attempting it while playing races the advancing position and
+    can't reliably land out at-or-before in), click **Loop In**, then
+    immediately **Loop Out** without moving/waiting.
     - Expected: no loop applied (log line only, check the console/log if
-      curious) — playback keeps going straight through, doesn't get stuck
-      in a zero-length loop. Loop In's label reverts to normal.
+      curious) — playback keeps going straight through when you press Play,
+      doesn't get stuck in a zero-length loop. Loop In's label reverts to
+      normal.
 13. Let the track play to its end without touching any control.
     - Expected: playback stops on its own at end-of-track; the position
       slider settles at the end rather than freezing mid-track or reading
