@@ -20,6 +20,7 @@ Under active development, built milestone by milestone per
 - **M2 — AudioRepository**: done (app lists real local tracks from a manifest)
 - **M3 — AudioEngine (single deck)**: done (loads a track and plays it audibly on the Windows host via temporary dev-UI controls)
 - **M4 — StateManager**: done (dev-UI controls now route through `StateManager.applyDelta`; engine and sync are subscribers)
+- **M5 — Single-deck UI**: done (real `DeckComponent` replaces the dev UI: load/play/pause/seek/gain/rate, loop capture and wrap, all confirmed on the Windows host)
 
 See [`docs/plan/PROGRESS.md`](docs/plan/PROGRESS.md) for the full log. Multi-user
 sync (the core feature) lands at M7.
