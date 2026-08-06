@@ -17,9 +17,9 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include "state/StateManager.h"
 #include "sync/SyncPublisher.h"
 #include "sync/SyncTransport.h"
-#include "state/StateManager.h"
 
 #include <juce_core/juce_core.h>
 
@@ -27,7 +27,8 @@
 
 using namespace djapp;
 
-namespace {
+namespace
+{
 
 // StateManager::applyDelta drops an empty StateDelta before it ever reaches listeners
 // (see state/StateManager.h), so "a delta" for these tests must have at least one
@@ -42,7 +43,7 @@ StateDelta nonEmptyDelta()
 // Hand-written SyncTransport test double: records calls, never does real I/O.
 class FakeTransport : public SyncTransport
 {
-public:
+  public:
     void connect(const ConnectionInfo&, Callbacks callbacks) override
     {
         connectCallCount += 1;

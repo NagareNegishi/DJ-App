@@ -6,11 +6,14 @@
 
 #include "state/StateManager.h"
 
-namespace djapp {
+namespace djapp
+{
 
-namespace {
+namespace
+{
 
-StateDelta makeDelta(DeckId deck) {
+StateDelta makeDelta(DeckId deck)
+{
     StateDelta delta;
     delta.deck = deck;
     return delta;
@@ -18,7 +21,8 @@ StateDelta makeDelta(DeckId deck) {
 
 } // namespace
 
-TEST_CASE("StateManager drops an empty delta without notifying or mutating state", "[state][StateManager]") {
+TEST_CASE("StateManager drops an empty delta without notifying or mutating state", "[state][StateManager]")
+{
     StateManager manager;
 
     int notifyCount = 0;
@@ -40,7 +44,8 @@ TEST_CASE("StateManager drops an empty delta without notifying or mutating state
     CHECK(after.trackId == before.trackId);
 }
 
-TEST_CASE("StateManager merge only changes fields present in the delta", "[state][StateManager]") {
+TEST_CASE("StateManager merge only changes fields present in the delta", "[state][StateManager]")
+{
     StateManager manager;
 
     StateDelta first = makeDelta(DeckId::A);
@@ -65,17 +70,20 @@ TEST_CASE("StateManager merge only changes fields present in the delta", "[state
     CHECK(state.trackId == "track-1");
 }
 
-TEST_CASE("StateManager clamps out-of-range fields before merging", "[state][StateManager]") {
+TEST_CASE("StateManager clamps out-of-range fields before merging", "[state][StateManager]")
+{
     StateManager manager;
 
-    SECTION("gain above the maximum clamps to 2.0") {
+    SECTION("gain above the maximum clamps to 2.0")
+    {
         StateDelta delta = makeDelta(DeckId::A);
         delta.gain = 5.0;
         manager.applyDelta(delta, DeltaSource::local);
         CHECK(manager.getState(DeckId::A).gain == 2.0);
     }
 
-    SECTION("playbackRate below the minimum clamps to 0.5") {
+    SECTION("playbackRate below the minimum clamps to 0.5")
+    {
         StateDelta delta = makeDelta(DeckId::A);
         delta.playbackRate = 0.1;
         manager.applyDelta(delta, DeltaSource::local);
@@ -83,10 +91,12 @@ TEST_CASE("StateManager clamps out-of-range fields before merging", "[state][Sta
     }
 }
 
-TEST_CASE("StateManager loop field follows double-optional merge semantics", "[state][StateManager]") {
+TEST_CASE("StateManager loop field follows double-optional merge semantics", "[state][StateManager]")
+{
     StateManager manager;
 
-    SECTION("outer absent leaves a previously-set loop untouched") {
+    SECTION("outer absent leaves a previously-set loop untouched")
+    {
         StateDelta setLoop = makeDelta(DeckId::A);
         setLoop.loop = LoopPoints{10.0, 20.0};
         manager.applyDelta(setLoop, DeltaSource::local);
@@ -99,7 +109,8 @@ TEST_CASE("StateManager loop field follows double-optional merge semantics", "[s
         CHECK(manager.getState(DeckId::A).loop.has_value());
     }
 
-    SECTION("outer present, inner nullopt clears loop") {
+    SECTION("outer present, inner nullopt clears loop")
+    {
         StateDelta setLoop = makeDelta(DeckId::A);
         setLoop.loop = LoopPoints{10.0, 20.0};
         manager.applyDelta(setLoop, DeltaSource::local);
@@ -112,7 +123,8 @@ TEST_CASE("StateManager loop field follows double-optional merge semantics", "[s
         CHECK_FALSE(manager.getState(DeckId::A).loop.has_value());
     }
 
-    SECTION("outer present, inner value sets loop") {
+    SECTION("outer present, inner value sets loop")
+    {
         StateDelta setLoop = makeDelta(DeckId::A);
         setLoop.loop = LoopPoints{10.0, 20.0};
         manager.applyDelta(setLoop, DeltaSource::local);
@@ -122,7 +134,8 @@ TEST_CASE("StateManager loop field follows double-optional merge semantics", "[s
 }
 
 TEST_CASE("StateManager injects the deck's current position into a local playing:true delta with no position",
-          "[state][StateManager]") {
+          "[state][StateManager]")
+{
     StateManager manager;
 
     StateDelta prime = makeDelta(DeckId::A);
@@ -131,9 +144,8 @@ TEST_CASE("StateManager injects the deck's current position into a local playing
     REQUIRE(manager.getState(DeckId::A).positionSeconds == 42.0);
 
     std::optional<double> observedDeltaPosition;
-    manager.addListener([&](const StateDelta& applied, const PlaybackState&, DeltaSource) {
-        observedDeltaPosition = applied.positionSeconds;
-    });
+    manager.addListener([&](const StateDelta& applied, const PlaybackState&, DeltaSource)
+                        { observedDeltaPosition = applied.positionSeconds; });
 
     StateDelta play = makeDelta(DeckId::A);
     play.playing = true;
@@ -144,7 +156,8 @@ TEST_CASE("StateManager injects the deck's current position into a local playing
     CHECK(manager.getState(DeckId::A).positionSeconds == 42.0);
 }
 
-TEST_CASE("StateManager does not inject position for a remote playing:true delta", "[state][StateManager]") {
+TEST_CASE("StateManager does not inject position for a remote playing:true delta", "[state][StateManager]")
+{
     StateManager manager;
 
     StateDelta prime = makeDelta(DeckId::A);
@@ -153,10 +166,12 @@ TEST_CASE("StateManager does not inject position for a remote playing:true delta
 
     bool notified = false;
     bool observedHasPosition = false;
-    manager.addListener([&](const StateDelta& applied, const PlaybackState&, DeltaSource) {
-        notified = true;
-        observedHasPosition = applied.positionSeconds.has_value();
-    });
+    manager.addListener(
+        [&](const StateDelta& applied, const PlaybackState&, DeltaSource)
+        {
+            notified = true;
+            observedHasPosition = applied.positionSeconds.has_value();
+        });
 
     StateDelta play = makeDelta(DeckId::A);
     play.playing = true;
@@ -168,12 +183,13 @@ TEST_CASE("StateManager does not inject position for a remote playing:true delta
     CHECK(manager.getState(DeckId::A).positionSeconds == 42.0);
 }
 
-TEST_CASE("StateManager tags each notification with the source passed to applyDelta", "[state][StateManager]") {
+TEST_CASE("StateManager tags each notification with the source passed to applyDelta", "[state][StateManager]")
+{
     StateManager manager;
 
     std::vector<DeltaSource> observed;
-    manager.addListener(
-        [&](const StateDelta&, const PlaybackState&, DeltaSource source) { observed.push_back(source); });
+    manager.addListener([&](const StateDelta&, const PlaybackState&, DeltaSource source)
+                        { observed.push_back(source); });
 
     StateDelta local = makeDelta(DeckId::A);
     local.gain = 1.0;
@@ -188,7 +204,8 @@ TEST_CASE("StateManager tags each notification with the source passed to applyDe
     CHECK(observed[1] == DeltaSource::remote);
 }
 
-TEST_CASE("StateManager notifies listeners in registration order", "[state][StateManager]") {
+TEST_CASE("StateManager notifies listeners in registration order", "[state][StateManager]")
+{
     StateManager manager;
     std::vector<int> firedOrder;
 
@@ -203,7 +220,8 @@ TEST_CASE("StateManager notifies listeners in registration order", "[state][Stat
     CHECK(firedOrder == std::vector<int>{1, 2, 3});
 }
 
-TEST_CASE("StateManager stops notifying a removed listener", "[state][StateManager]") {
+TEST_CASE("StateManager stops notifying a removed listener", "[state][StateManager]")
+{
     StateManager manager;
     std::vector<int> firedOrder;
 
@@ -228,7 +246,8 @@ TEST_CASE("StateManager stops notifying a removed listener", "[state][StateManag
 // fix-history comment below), and `nextToken_` never resetting.
 
 TEST_CASE("StateManager token allocation: a removed token is never reused by a later addListener",
-          "[state][StateManager][whitebox]") {
+          "[state][StateManager][whitebox]")
+{
     StateManager manager;
 
     int first = manager.addListener([](const StateDelta&, const PlaybackState&, DeltaSource) {});
@@ -244,7 +263,8 @@ TEST_CASE("StateManager token allocation: a removed token is never reused by a l
 }
 
 TEST_CASE("StateManager: registering the same listener twice yields two independent tokens",
-          "[state][StateManager][whitebox]") {
+          "[state][StateManager][whitebox]")
+{
     StateManager manager;
     int sharedCount = 0;
     auto countingListener = [&](const StateDelta&, const PlaybackState&, DeltaSource) { ++sharedCount; };
@@ -269,23 +289,27 @@ TEST_CASE("StateManager: registering the same listener twice yields two independ
 
 TEST_CASE("StateManager re-entrancy: a listener applying a delta on a different deck does not corrupt "
           "the outer notification loop",
-          "[state][StateManager][whitebox]") {
+          "[state][StateManager][whitebox]")
+{
     StateManager manager;
     std::vector<std::string> firedOrder;
 
     // Listener 1 (deck A delta) nests a call to applyDelta for deck B from inside its
     // own notification callback -- a second, independent traversal of the same
     // listeners_ map while the outer traversal is still paused mid-iteration.
-    manager.addListener([&](const StateDelta& applied, const PlaybackState&, DeltaSource) {
-        firedOrder.push_back("1:" + toString(applied.deck).toStdString());
-        if (applied.deck == DeckId::A) {
-            StateDelta nested = makeDelta(DeckId::B);
-            nested.gain = 1.0f;
-            manager.applyDelta(nested, DeltaSource::local);
-        }
-    });
     manager.addListener(
-        [&](const StateDelta& applied, const PlaybackState&, DeltaSource) { firedOrder.push_back("2:" + toString(applied.deck).toStdString()); });
+        [&](const StateDelta& applied, const PlaybackState&, DeltaSource)
+        {
+            firedOrder.push_back("1:" + toString(applied.deck).toStdString());
+            if (applied.deck == DeckId::A)
+            {
+                StateDelta nested = makeDelta(DeckId::B);
+                nested.gain = 1.0f;
+                manager.applyDelta(nested, DeltaSource::local);
+            }
+        });
+    manager.addListener([&](const StateDelta& applied, const PlaybackState&, DeltaSource)
+                        { firedOrder.push_back("2:" + toString(applied.deck).toStdString()); });
 
     StateDelta outer = makeDelta(DeckId::A);
     outer.gain = 0.5f;
@@ -302,7 +326,8 @@ TEST_CASE("StateManager re-entrancy: a listener applying a delta on a different 
 
 TEST_CASE("StateManager re-entrancy: a listener registered from inside a notification callback "
           "also fires for that same in-flight delta",
-          "[state][StateManager][whitebox]") {
+          "[state][StateManager][whitebox]")
+{
     // Documents an actual internal consequence of iterating listeners_ (a std::map keyed
     // by monotonically increasing token) with a plain range-based for: addListener's new
     // token always sorts after every token visited so far, so std::map's insert does not
@@ -312,10 +337,10 @@ TEST_CASE("StateManager re-entrancy: a listener registered from inside a notific
     StateManager manager;
     int lateListenerFireCount = 0;
 
-    manager.addListener([&](const StateDelta&, const PlaybackState&, DeltaSource) {
-        manager.addListener(
-            [&](const StateDelta&, const PlaybackState&, DeltaSource) { ++lateListenerFireCount; });
-    });
+    manager.addListener(
+        [&](const StateDelta&, const PlaybackState&, DeltaSource) {
+            manager.addListener([&](const StateDelta&, const PlaybackState&, DeltaSource) { ++lateListenerFireCount; });
+        });
 
     StateDelta delta = makeDelta(DeckId::A);
     delta.gain = 1.0f;
@@ -326,18 +351,22 @@ TEST_CASE("StateManager re-entrancy: a listener registered from inside a notific
 
 TEST_CASE("StateManager re-entrancy: a listener removing a not-yet-visited listener during notification "
           "skips the removed one and still reaches the listener after it",
-          "[state][StateManager][whitebox]") {
+          "[state][StateManager][whitebox]")
+{
     StateManager manager;
     std::vector<int> firedOrder;
 
     int victimToken = -1;
 
     // Registration order: remover (1), victim (2, not yet fired when removed), trailing (3).
-    manager.addListener([&](const StateDelta&, const PlaybackState&, DeltaSource) {
-        firedOrder.push_back(1);
-        manager.removeListener(victimToken);
-    });
-    victimToken = manager.addListener([&](const StateDelta&, const PlaybackState&, DeltaSource) { firedOrder.push_back(2); });
+    manager.addListener(
+        [&](const StateDelta&, const PlaybackState&, DeltaSource)
+        {
+            firedOrder.push_back(1);
+            manager.removeListener(victimToken);
+        });
+    victimToken =
+        manager.addListener([&](const StateDelta&, const PlaybackState&, DeltaSource) { firedOrder.push_back(2); });
     manager.addListener([&](const StateDelta&, const PlaybackState&, DeltaSource) { firedOrder.push_back(3); });
 
     StateDelta delta = makeDelta(DeckId::A);
@@ -352,7 +381,8 @@ TEST_CASE("StateManager re-entrancy: a listener removing a not-yet-visited liste
 
 TEST_CASE("StateManager re-entrancy: a listener that removes its own registration mid-notification "
           "does not crash and does not fire again",
-          "[state][StateManager][whitebox]") {
+          "[state][StateManager][whitebox]")
+{
     // Regression test for a real bug found via white-box testing: applyDelta's
     // notification loop used to be a raw range-for over listeners_ itself, so a
     // listener removing its own token from inside its callback invalidated the
@@ -363,10 +393,12 @@ TEST_CASE("StateManager re-entrancy: a listener that removes its own registratio
     std::vector<int> firedOrder;
 
     int selfToken = -1;
-    selfToken = manager.addListener([&](const StateDelta&, const PlaybackState&, DeltaSource) {
-        firedOrder.push_back(1);
-        manager.removeListener(selfToken);
-    });
+    selfToken = manager.addListener(
+        [&](const StateDelta&, const PlaybackState&, DeltaSource)
+        {
+            firedOrder.push_back(1);
+            manager.removeListener(selfToken);
+        });
     manager.addListener([&](const StateDelta&, const PlaybackState&, DeltaSource) { firedOrder.push_back(2); });
     manager.addListener([&](const StateDelta&, const PlaybackState&, DeltaSource) { firedOrder.push_back(3); });
 
@@ -386,7 +418,8 @@ TEST_CASE("StateManager re-entrancy: a listener that removes its own registratio
 
 TEST_CASE("StateManager applies clamp to a delta before the local playing:true position-injection check, "
           "so an out-of-range explicit position is clamped rather than overwritten by injection",
-          "[state][StateManager][whitebox]") {
+          "[state][StateManager][whitebox]")
+{
     StateManager manager;
 
     StateDelta prime = makeDelta(DeckId::A);
@@ -394,9 +427,8 @@ TEST_CASE("StateManager applies clamp to a delta before the local playing:true p
     manager.applyDelta(prime, DeltaSource::local);
 
     std::optional<double> observedDeltaPosition;
-    manager.addListener([&](const StateDelta& applied, const PlaybackState&, DeltaSource) {
-        observedDeltaPosition = applied.positionSeconds;
-    });
+    manager.addListener([&](const StateDelta& applied, const PlaybackState&, DeltaSource)
+                        { observedDeltaPosition = applied.positionSeconds; });
 
     StateDelta play = makeDelta(DeckId::A);
     play.positionSeconds = -5.0; // out of range: clamps to 0.0 (ranges::clamp runs first)
@@ -412,7 +444,8 @@ TEST_CASE("StateManager applies clamp to a delta before the local playing:true p
 
 TEST_CASE("StateManager applyDelta clears an invalid loop (in >= out after clamping) instead of merging "
           "a degenerate loop",
-          "[state][StateManager][whitebox]") {
+          "[state][StateManager][whitebox]")
+{
     StateManager manager;
 
     StateDelta setLoop = makeDelta(DeckId::A);
@@ -430,7 +463,8 @@ TEST_CASE("StateManager applyDelta clears an invalid loop (in >= out after clamp
     CHECK_FALSE(manager.getState(DeckId::A).loop.has_value());
 }
 
-TEST_CASE("StateManager keeps deck A and deck B independent", "[state][StateManager]") {
+TEST_CASE("StateManager keeps deck A and deck B independent", "[state][StateManager]")
+{
     StateManager manager;
 
     auto beforeB = manager.getState(DeckId::B);

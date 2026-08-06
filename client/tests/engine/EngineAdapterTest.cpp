@@ -11,33 +11,41 @@
 #include "repository/AudioRepository.h"
 #include "state/StateManager.h"
 
-namespace djapp {
+namespace djapp
+{
 
-namespace {
+namespace
+{
 
-class FakeAudioEngine final : public AudioEngine {
-public:
-    void load(std::shared_ptr<const LoadedAudio> audio) override {
+class FakeAudioEngine final : public AudioEngine
+{
+  public:
+    void load(std::shared_ptr<const LoadedAudio> audio) override
+    {
         calls.push_back("load");
         lastLoadedAudio = std::move(audio);
     }
 
-    void seek(double positionSeconds) override {
+    void seek(double positionSeconds) override
+    {
         calls.push_back("seek");
         lastSeekPosition = positionSeconds;
     }
 
-    void setGain(float gain) override {
+    void setGain(float gain) override
+    {
         calls.push_back("setGain");
         lastGain = gain;
     }
 
-    void setPlaybackRate(float rate) override {
+    void setPlaybackRate(float rate) override
+    {
         calls.push_back("setPlaybackRate");
         lastPlaybackRate = rate;
     }
 
-    void setLoop(std::optional<LoopPoints> loop) override {
+    void setLoop(std::optional<LoopPoints> loop) override
+    {
         calls.push_back("setLoop");
         setLoopCalled = true;
         lastLoop = loop;
@@ -58,13 +66,15 @@ public:
     std::optional<LoopPoints> lastLoop;
 };
 
-class FakeAudioRepository final : public AudioRepository {
-public:
+class FakeAudioRepository final : public AudioRepository
+{
+  public:
     std::vector<TrackMetadata> listAvailableTracks() override { return {}; }
 
     std::optional<TrackMetadata> getTrackMetadata(const juce::String&) override { return std::nullopt; }
 
-    std::shared_ptr<const LoadedAudio> getAudioBuffer(const juce::String& trackId) override {
+    std::shared_ptr<const LoadedAudio> getAudioBuffer(const juce::String& trackId) override
+    {
         auto it = buffers.find(trackId);
         return it == buffers.end() ? nullptr : it->second;
     }
@@ -72,7 +82,8 @@ public:
     std::map<juce::String, std::shared_ptr<const LoadedAudio>> buffers;
 };
 
-StateDelta makeDelta(DeckId deck) {
+StateDelta makeDelta(DeckId deck)
+{
     StateDelta delta;
     delta.deck = deck;
     return delta;
@@ -80,7 +91,8 @@ StateDelta makeDelta(DeckId deck) {
 
 } // namespace
 
-TEST_CASE("EngineAdapter maps a gain-only delta to setGain alone", "[engine][EngineAdapter]") {
+TEST_CASE("EngineAdapter maps a gain-only delta to setGain alone", "[engine][EngineAdapter]")
+{
     StateManager manager;
     FakeAudioEngine engine;
     FakeAudioRepository repository;
@@ -97,7 +109,8 @@ TEST_CASE("EngineAdapter maps a gain-only delta to setGain alone", "[engine][Eng
     CHECK(engine.lastGain == 1.3f);
 }
 
-TEST_CASE("EngineAdapter loads the buffer the repository resolves for a present trackId", "[engine][EngineAdapter]") {
+TEST_CASE("EngineAdapter loads the buffer the repository resolves for a present trackId", "[engine][EngineAdapter]")
+{
     StateManager manager;
     FakeAudioEngine engine;
     FakeAudioRepository repository;
@@ -115,7 +128,8 @@ TEST_CASE("EngineAdapter loads the buffer the repository resolves for a present 
 }
 
 TEST_CASE("EngineAdapter skips the load and does not crash when the repository resolves nullptr",
-          "[engine][EngineAdapter]") {
+          "[engine][EngineAdapter]")
+{
     StateManager manager;
     FakeAudioEngine engine;
     FakeAudioRepository repository; // "missing-track" intentionally absent from the map
@@ -130,7 +144,8 @@ TEST_CASE("EngineAdapter skips the load and does not crash when the repository r
 }
 
 TEST_CASE("EngineAdapter makes no engine call and does not crash for an explicit-empty trackId",
-          "[engine][EngineAdapter]") {
+          "[engine][EngineAdapter]")
+{
     StateManager manager;
     FakeAudioEngine engine;
     FakeAudioRepository repository;
@@ -144,7 +159,8 @@ TEST_CASE("EngineAdapter makes no engine call and does not crash for an explicit
 }
 
 TEST_CASE("EngineAdapter loads before seeking when both trackId and positionSeconds are present",
-          "[engine][EngineAdapter]") {
+          "[engine][EngineAdapter]")
+{
     StateManager manager;
     FakeAudioEngine engine;
     FakeAudioRepository repository;
@@ -163,8 +179,8 @@ TEST_CASE("EngineAdapter loads before seeking when both trackId and positionSeco
     CHECK(engine.lastSeekPosition == 12.5);
 }
 
-TEST_CASE("EngineAdapter calls play() last, after gain and playbackRate in the same delta",
-          "[engine][EngineAdapter]") {
+TEST_CASE("EngineAdapter calls play() last, after gain and playbackRate in the same delta", "[engine][EngineAdapter]")
+{
     StateManager manager;
     FakeAudioEngine engine;
     FakeAudioRepository repository;
@@ -186,7 +202,8 @@ TEST_CASE("EngineAdapter calls play() last, after gain and playbackRate in the s
     CHECK(engine.calls[2] == "play");
 }
 
-TEST_CASE("EngineAdapter ignores deltas for the other deck", "[engine][EngineAdapter]") {
+TEST_CASE("EngineAdapter ignores deltas for the other deck", "[engine][EngineAdapter]")
+{
     StateManager manager;
     FakeAudioEngine engine;
     FakeAudioRepository repository;
@@ -200,7 +217,8 @@ TEST_CASE("EngineAdapter ignores deltas for the other deck", "[engine][EngineAda
     CHECK(engine.calls.empty());
 }
 
-TEST_CASE("EngineAdapter passes nullopt to setLoop for an explicit loop clear", "[engine][EngineAdapter]") {
+TEST_CASE("EngineAdapter passes nullopt to setLoop for an explicit loop clear", "[engine][EngineAdapter]")
+{
     StateManager manager;
     FakeAudioEngine engine;
     FakeAudioRepository repository;
@@ -214,7 +232,8 @@ TEST_CASE("EngineAdapter passes nullopt to setLoop for an explicit loop clear", 
     CHECK_FALSE(engine.lastLoop.has_value());
 }
 
-TEST_CASE("EngineAdapter passes the loop value through to setLoop when present", "[engine][EngineAdapter]") {
+TEST_CASE("EngineAdapter passes the loop value through to setLoop when present", "[engine][EngineAdapter]")
+{
     StateManager manager;
     FakeAudioEngine engine;
     FakeAudioRepository repository;
@@ -232,7 +251,8 @@ TEST_CASE("EngineAdapter passes the loop value through to setLoop when present",
 
 TEST_CASE("EngineAdapter applies all six fields present in a single delta in the exact order "
           "load, seek, setGain, setPlaybackRate, setLoop, play",
-          "[engine][EngineAdapter][whitebox]") {
+          "[engine][EngineAdapter][whitebox]")
+{
     StateManager manager;
     FakeAudioEngine engine;
     FakeAudioRepository repository;
@@ -270,7 +290,8 @@ TEST_CASE("EngineAdapter applies all six fields present in a single delta in the
 
 TEST_CASE("EngineAdapter destructor removes only its own StateManager listener, "
           "leaving another EngineAdapter on the same StateManager unaffected",
-          "[engine][EngineAdapter][whitebox]") {
+          "[engine][EngineAdapter][whitebox]")
+{
     StateManager manager;
     FakeAudioEngine engineOne;
     FakeAudioEngine engineTwo;
@@ -299,7 +320,8 @@ TEST_CASE("EngineAdapter destructor removes only its own StateManager listener, 
 
 TEST_CASE("EngineAdapter re-resolves trackId through the repository on every delta that carries one, "
           "not just the first",
-          "[engine][EngineAdapter][whitebox]") {
+          "[engine][EngineAdapter][whitebox]")
+{
     StateManager manager;
     FakeAudioEngine engine;
     FakeAudioRepository repository;

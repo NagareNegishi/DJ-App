@@ -21,10 +21,8 @@ void BufferPlaybackSource::retireStaleBuffers()
 {
     const auto currentGeneration = renderGeneration_.load(std::memory_order_acquire);
     retireList_.erase(std::remove_if(retireList_.begin(), retireList_.end(),
-                                      [&](const auto& entry) {
-                                          return currentGeneration - entry.first > retireMargin;
-                                      }),
-                       retireList_.end());
+                                     [&](const auto& entry) { return currentGeneration - entry.first > retireMargin; }),
+                      retireList_.end());
 }
 
 void BufferPlaybackSource::load(std::shared_ptr<const LoadedAudio> audio)
@@ -126,9 +124,7 @@ void BufferPlaybackSource::prepareToPlay(int /*samplesPerBlockExpected*/, double
     deviceSampleRate_.store(sampleRate, std::memory_order_relaxed);
 }
 
-void BufferPlaybackSource::releaseResources()
-{
-}
+void BufferPlaybackSource::releaseResources() {}
 
 void BufferPlaybackSource::getNextAudioBlock(const juce::AudioSourceChannelInfo& bufferToFill)
 {
@@ -158,9 +154,8 @@ void BufferPlaybackSource::getNextAudioBlock(const juce::AudioSourceChannelInfo&
     const double sourceSampleRate = audio->sampleRate > 0.0 ? audio->sampleRate : deviceSampleRate;
     const float rate = rate_.load(std::memory_order_relaxed);
     const float gain = gain_.load(std::memory_order_relaxed);
-    const double increment =
-        deviceSampleRate > 0.0 ? static_cast<double>(rate) * (sourceSampleRate / deviceSampleRate)
-                                : static_cast<double>(rate);
+    const double increment = deviceSampleRate > 0.0 ? static_cast<double>(rate) * (sourceSampleRate / deviceSampleRate)
+                                                    : static_cast<double>(rate);
 
     const int loopSlot = activeLoopSlot_.load(std::memory_order_acquire);
     const LoopState loop = loopSlots_[loopSlot];

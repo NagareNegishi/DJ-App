@@ -21,7 +21,7 @@ std::shared_ptr<const djapp::LoadedAudio> makeRampAudio(int numSamples, double s
     juce::AudioBuffer<float> buffer(numChannels, numSamples);
     for (int ch = 0; ch < numChannels; ++ch)
         for (int i = 0; i < numSamples; ++i)
-            buffer.setSample(ch, i, (float) i);
+            buffer.setSample(ch, i, (float)i);
 
     return std::make_shared<const djapp::LoadedAudio>(djapp::LoadedAudio{std::move(buffer), sampleRate});
 }
@@ -30,7 +30,7 @@ std::shared_ptr<const djapp::LoadedAudio> makeRampAudio(int numSamples, double s
 // loaded buffers is currently being rendered, with no dependence on read
 // position: useful for pinning buffer-handoff behavior across repeated load().
 std::shared_ptr<const djapp::LoadedAudio> makeConstantAudio(float value, int numSamples, double sampleRate,
-                                                              int numChannels = 1)
+                                                            int numChannels = 1)
 {
     juce::AudioBuffer<float> buffer(numChannels, numSamples);
     for (int ch = 0; ch < numChannels; ++ch)
@@ -71,10 +71,9 @@ TEST_CASE("BufferPlaybackSource reproduces source samples at rate 1.0", "[engine
     auto block = renderBlock(source, 2, blockSize);
 
     for (int i = 0; i < blockSize; ++i)
-        CHECK(block.getSample(0, i) == Catch::Approx((float) i).margin(kContentMargin));
+        CHECK(block.getSample(0, i) == Catch::Approx((float)i).margin(kContentMargin));
 
-    CHECK(source.getCurrentPositionSeconds() ==
-          Catch::Approx((double) blockSize / sampleRate).margin(kPositionMargin));
+    CHECK(source.getCurrentPositionSeconds() == Catch::Approx((double)blockSize / sampleRate).margin(kPositionMargin));
 }
 
 TEST_CASE("BufferPlaybackSource advances position twice as fast at rate 2.0", "[engine][BufferPlaybackSource]")
@@ -104,8 +103,7 @@ TEST_CASE("BufferPlaybackSource advances position twice as fast at rate 2.0", "[
     CHECK(pos2 == Catch::Approx(2.0 * pos1).margin(kPositionMargin));
 }
 
-TEST_CASE("BufferPlaybackSource consumes a source in half as many blocks at rate 2.0",
-          "[engine][BufferPlaybackSource]")
+TEST_CASE("BufferPlaybackSource consumes a source in half as many blocks at rate 2.0", "[engine][BufferPlaybackSource]")
 {
     constexpr double sampleRate = 1000.0;
     // Not a multiple of blockSize so end-of-buffer is crossed mid-block, not exactly
@@ -113,7 +111,8 @@ TEST_CASE("BufferPlaybackSource consumes a source in half as many blocks at rate
     constexpr int sourceLength = 380;
     constexpr int blockSize = 100;
 
-    auto blocksUntilStopped = [&](float rate) {
+    auto blocksUntilStopped = [&](float rate)
+    {
         djapp::BufferPlaybackSource source;
         source.prepareToPlay(blockSize, sampleRate);
         source.load(makeRampAudio(sourceLength, sampleRate));
@@ -185,7 +184,7 @@ TEST_CASE("BufferPlaybackSource requestSeek moves the read head", "[engine][Buff
 
     CHECK(block.getSample(0, 0) == Catch::Approx(500.0f).margin(kContentMargin));
     CHECK(source.getCurrentPositionSeconds() ==
-          Catch::Approx(seekSeconds + (double) blockSize / sampleRate).margin(kPositionMargin));
+          Catch::Approx(seekSeconds + (double)blockSize / sampleRate).margin(kPositionMargin));
 }
 
 TEST_CASE("BufferPlaybackSource loop wraps at outSeconds without exceeding it", "[engine][BufferPlaybackSource]")
@@ -230,8 +229,7 @@ TEST_CASE("BufferPlaybackSource loop wraps at outSeconds without exceeding it", 
     CHECK(minSample >= 99.0f);
 }
 
-TEST_CASE("BufferPlaybackSource stops and renders silence past the end of the buffer",
-          "[engine][BufferPlaybackSource]")
+TEST_CASE("BufferPlaybackSource stops and renders silence past the end of the buffer", "[engine][BufferPlaybackSource]")
 {
     constexpr double sampleRate = 1000.0;
     constexpr int sourceLength = 100;
@@ -255,7 +253,7 @@ TEST_CASE("BufferPlaybackSource stops and renders silence past the end of the bu
     auto finalBlock = renderBlock(source, 2, blockSize);
 
     for (int i = 0; i < 9; ++i)
-        CHECK(finalBlock.getSample(0, i) == Catch::Approx(90.0f + (float) i).margin(kContentMargin));
+        CHECK(finalBlock.getSample(0, i) == Catch::Approx(90.0f + (float)i).margin(kContentMargin));
 
     for (int i = 9; i < blockSize; ++i)
         CHECK(finalBlock.getSample(0, i) == Catch::Approx(0.0f).margin(kSilenceMargin));
@@ -264,7 +262,7 @@ TEST_CASE("BufferPlaybackSource stops and renders silence past the end of the bu
 
     const double positionAtEnd = source.getCurrentPositionSeconds();
     CHECK(positionAtEnd >= 0.0);
-    CHECK(positionAtEnd <= (double) sourceLength / sampleRate + kPositionMargin);
+    CHECK(positionAtEnd <= (double)sourceLength / sampleRate + kPositionMargin);
 
     auto silentBlock = renderBlock(source, 2, blockSize);
 
@@ -318,8 +316,7 @@ TEST_CASE("BufferPlaybackSource renders silence and holds position while paused"
     }
 }
 
-TEST_CASE("BufferPlaybackSource duplicates a mono source to both output channels",
-          "[engine][BufferPlaybackSource]")
+TEST_CASE("BufferPlaybackSource duplicates a mono source to both output channels", "[engine][BufferPlaybackSource]")
 {
     constexpr double sampleRate = 1000.0;
     constexpr int sourceLength = 100;
@@ -336,8 +333,8 @@ TEST_CASE("BufferPlaybackSource duplicates a mono source to both output channels
 
     for (int i = 0; i < blockSize; ++i)
     {
-        CHECK(block.getSample(0, i) == Catch::Approx((float) i).margin(kContentMargin));
-        CHECK(block.getSample(1, i) == Catch::Approx((float) i).margin(kContentMargin));
+        CHECK(block.getSample(0, i) == Catch::Approx((float)i).margin(kContentMargin));
+        CHECK(block.getSample(1, i) == Catch::Approx((float)i).margin(kContentMargin));
     }
 }
 
@@ -352,7 +349,7 @@ TEST_CASE("BufferPlaybackSource takes the first two channels of a multichannel s
     juce::AudioBuffer<float> buffer(sourceChannels, sourceLength);
     for (int ch = 0; ch < sourceChannels; ++ch)
         for (int i = 0; i < sourceLength; ++i)
-            buffer.setSample(ch, i, (float) (ch + 1)); // constant per channel: identifies the source channel
+            buffer.setSample(ch, i, (float)(ch + 1)); // constant per channel: identifies the source channel
 
     auto audio = std::make_shared<const djapp::LoadedAudio>(djapp::LoadedAudio{std::move(buffer), sampleRate});
 
@@ -390,10 +387,10 @@ TEST_CASE("BufferPlaybackSource always plays the most recently loaded buffer acr
     // repeatedly rather than just once.
     for (int i = 1; i <= 6; ++i)
     {
-        source.load(makeConstantAudio((float) i, sourceLength, sampleRate));
+        source.load(makeConstantAudio((float)i, sourceLength, sampleRate));
         auto block = renderBlock(source, 1, blockSize);
-        CHECK(block.getSample(0, 0) == Catch::Approx((float) i).margin(kContentMargin));
-        CHECK(block.getSample(0, blockSize - 1) == Catch::Approx((float) i).margin(kContentMargin));
+        CHECK(block.getSample(0, 0) == Catch::Approx((float)i).margin(kContentMargin));
+        CHECK(block.getSample(0, blockSize - 1) == Catch::Approx((float)i).margin(kContentMargin));
     }
 }
 
@@ -415,7 +412,7 @@ TEST_CASE("BufferPlaybackSource plays the latest buffer after many loads issued 
     // but nothing has aged past retireMargin generations yet, so the retire
     // list only grows here. Confirms that stress doesn't corrupt the handoff.
     for (int i = 1; i <= numLoads; ++i)
-        source.load(makeConstantAudio((float) i, sourceLength, sampleRate));
+        source.load(makeConstantAudio((float)i, sourceLength, sampleRate));
 
     // Render past the retire margin so the accumulated retire-list entries
     // actually get reclaimed on a still-later load; playback must still be
@@ -424,7 +421,7 @@ TEST_CASE("BufferPlaybackSource plays the latest buffer after many loads issued 
     {
         auto block = renderBlock(source, 1, blockSize);
         for (int i = 0; i < blockSize; ++i)
-            CHECK(block.getSample(0, i) == Catch::Approx((float) numLoads).margin(kContentMargin));
+            CHECK(block.getSample(0, i) == Catch::Approx((float)numLoads).margin(kContentMargin));
     }
 
     source.load(makeConstantAudio(-1.0f, sourceLength, sampleRate));
@@ -432,8 +429,7 @@ TEST_CASE("BufferPlaybackSource plays the latest buffer after many loads issued 
     CHECK(finalBlock.getSample(0, 0) == Catch::Approx(-1.0f).margin(kContentMargin));
 }
 
-TEST_CASE("BufferPlaybackSource applies a seek requested before playback ever starts",
-          "[engine][BufferPlaybackSource]")
+TEST_CASE("BufferPlaybackSource applies a seek requested before playback ever starts", "[engine][BufferPlaybackSource]")
 {
     constexpr double sampleRate = 1000.0;
     constexpr int sourceLength = 1000;
@@ -457,7 +453,7 @@ TEST_CASE("BufferPlaybackSource applies a seek requested before playback ever st
 
     CHECK(block.getSample(0, 0) == Catch::Approx(300.0f).margin(kContentMargin));
     CHECK(source.getCurrentPositionSeconds() ==
-          Catch::Approx(seekSeconds + (double) blockSize / sampleRate).margin(kPositionMargin));
+          Catch::Approx(seekSeconds + (double)blockSize / sampleRate).margin(kPositionMargin));
 }
 
 TEST_CASE("BufferPlaybackSource keeps a paused seek across a rendered silent block before play",
@@ -515,7 +511,7 @@ TEST_CASE("BufferPlaybackSource setLoop before any load stores an inactive loop 
     source.setPlaying(true);
 
     auto block = renderBlock(source, 2, blockSize);
-    CHECK(block.getSample(0, blockSize - 1) == Catch::Approx((float) (blockSize - 1)).margin(kContentMargin));
+    CHECK(block.getSample(0, blockSize - 1) == Catch::Approx((float)(blockSize - 1)).margin(kContentMargin));
 
     // Re-issuing setLoop after load converts against the now-known sample
     // rate and works normally.
@@ -551,7 +547,8 @@ TEST_CASE("BufferPlaybackSource repeated setLoop calls always reflect the most r
     source.setPlaybackRate(1.0f);
     source.setPlaying(true);
 
-    auto maxSampleOverBlocks = [&](int numBlocks) {
+    auto maxSampleOverBlocks = [&](int numBlocks)
+    {
         float maxSample = -1.0f;
         for (int b = 0; b < numBlocks; ++b)
         {
@@ -611,7 +608,7 @@ TEST_CASE("BufferPlaybackSource ignores a loop whose outSeconds does not exceed 
     // Plays straight through the ignored loop region and off the end of the
     // buffer instead of ever wrapping.
     CHECK_FALSE(source.isPlaying());
-    CHECK(source.getCurrentPositionSeconds() <= (double) sourceLength / sampleRate + kPositionMargin);
+    CHECK(source.getCurrentPositionSeconds() <= (double)sourceLength / sampleRate + kPositionMargin);
 }
 
 TEST_CASE("BufferPlaybackSource renders nothing from a single-sample buffer", "[engine][BufferPlaybackSource]")

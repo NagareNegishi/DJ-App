@@ -8,15 +8,16 @@
 
 #include <catch2/catch_test_macros.hpp>
 
+#include "state/StateManager.h"
 #include "sync/NullTransport.h"
 #include "sync/SyncTransport.h"
-#include "state/StateManager.h"
 
 #include <juce_core/juce_core.h>
 
 using namespace djapp;
 
-namespace {
+namespace
+{
 
 ConnectionInfo makeConnectionInfo()
 {
@@ -47,8 +48,7 @@ SyncTransport::Callbacks makeCallbacks(CallbackFlags& flags)
 
 bool anyCallbackFired(const CallbackFlags& flags)
 {
-    return flags.welcomeCalled || flags.remoteDeltaCalled || flags.serverEventCalled
-           || flags.connectionChangeCalled;
+    return flags.welcomeCalled || flags.remoteDeltaCalled || flags.serverEventCalled || flags.connectionChangeCalled;
 }
 
 } // namespace
@@ -56,7 +56,7 @@ bool anyCallbackFired(const CallbackFlags& flags)
 TEST_CASE("NullTransport methods are no-ops callable before connect() without crashing")
 {
     NullTransport transport;
-    StateDelta delta {};
+    StateDelta delta{};
 
     SECTION("disconnect before connect")
     {
@@ -125,7 +125,7 @@ TEST_CASE("NullTransport::connect stores the Callbacks without ever invoking the
     // connect() itself must not fire onConnectionChange (or anything else) synchronously.
     REQUIRE_FALSE(anyCallbackFired(flags));
 
-    StateDelta delta {};
+    StateDelta delta{};
     transport.sendDelta(delta);
     transport.sendClaimControl();
     transport.sendReleaseControl();
@@ -155,7 +155,7 @@ TEST_CASE("NullTransport::disconnect does not invoke onConnectionChange")
 TEST_CASE("NullTransport with no connect() call at all still allows every method to be called safely")
 {
     NullTransport transport;
-    StateDelta delta {};
+    StateDelta delta{};
 
     REQUIRE_NOTHROW(transport.sendDelta(delta));
     REQUIRE_NOTHROW(transport.sendClaimControl());

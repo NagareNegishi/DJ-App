@@ -9,9 +9,8 @@ EngineAdapter::EngineAdapter(StateManager& stateManager, DeckId deck, AudioEngin
 {
     JUCE_ASSERT_MESSAGE_THREAD
 
-    listenerToken_ = stateManager_.addListener(
-        [this](const StateDelta& applied, const PlaybackState& newState, DeltaSource source)
-        { handleDelta(applied, newState, source); });
+    listenerToken_ = stateManager_.addListener([this](const StateDelta& applied, const PlaybackState& newState,
+                                                      DeltaSource source) { handleDelta(applied, newState, source); });
 }
 
 EngineAdapter::~EngineAdapter()
@@ -29,14 +28,13 @@ void EngineAdapter::handleDelta(const StateDelta& applied, const PlaybackState& 
         if (applied.trackId->isEmpty())
         {
             juce::Logger::writeToLog("EngineAdapter: track cleared on deck " + toString(deck_) +
-                                      "; unload not supported, ignoring");
+                                     "; unload not supported, ignoring");
         }
         else
         {
             const auto buffer = repository_.getAudioBuffer(*applied.trackId);
             if (buffer == nullptr)
-                juce::Logger::writeToLog("EngineAdapter: failed to load audio for track \"" + *applied.trackId +
-                                          "\"");
+                juce::Logger::writeToLog("EngineAdapter: failed to load audio for track \"" + *applied.trackId + "\"");
             else
                 engine_.load(buffer);
         }

@@ -24,7 +24,7 @@ std::shared_ptr<const djapp::LoadedAudio> makeRampAudio(int numSamples, double s
     juce::AudioBuffer<float> buffer(numChannels, numSamples);
     for (int ch = 0; ch < numChannels; ++ch)
         for (int i = 0; i < numSamples; ++i)
-            buffer.setSample(ch, i, (float) i);
+            buffer.setSample(ch, i, (float)i);
 
     return std::make_shared<const djapp::LoadedAudio>(djapp::LoadedAudio{std::move(buffer), sampleRate});
 }
@@ -67,8 +67,8 @@ TEST_CASE("JuceAudioEngine::load forwards to the underlying source and renders i
     auto block = renderBlock(engine.source(), 2, blockSize);
 
     for (int i = 0; i < blockSize; ++i)
-        CHECK(block.getSample(0, i) == Catch::Approx((float) i).margin(kContentMargin));
-    CHECK(engine.getCurrentPosition() == Catch::Approx((double) blockSize / sampleRate).margin(kPositionMargin));
+        CHECK(block.getSample(0, i) == Catch::Approx((float)i).margin(kContentMargin));
+    CHECK(engine.getCurrentPosition() == Catch::Approx((double)blockSize / sampleRate).margin(kPositionMargin));
 }
 
 TEST_CASE("JuceAudioEngine::play and pause forward to isPlaying and toggle rendered silence",
@@ -114,7 +114,7 @@ TEST_CASE("JuceAudioEngine::seek forwards to requestSeek and takes effect on the
 
     CHECK(block.getSample(0, 0) == Catch::Approx(400.0f).margin(kContentMargin));
     CHECK(engine.getCurrentPosition() ==
-          Catch::Approx(seekSeconds + (double) blockSize / sampleRate).margin(kPositionMargin));
+          Catch::Approx(seekSeconds + (double)blockSize / sampleRate).margin(kPositionMargin));
 }
 
 TEST_CASE("JuceAudioEngine::setGain forwards and scales rendered output", "[engine][JuceAudioEngine]")
@@ -158,8 +158,7 @@ TEST_CASE("JuceAudioEngine::setPlaybackRate forwards and changes the position ad
 
     renderBlock(engine.source(), 2, blockSize);
 
-    CHECK(engine.getCurrentPosition() ==
-          Catch::Approx(2.0 * (double) blockSize / sampleRate).margin(kPositionMargin));
+    CHECK(engine.getCurrentPosition() == Catch::Approx(2.0 * (double)blockSize / sampleRate).margin(kPositionMargin));
 }
 
 TEST_CASE("JuceAudioEngine::setLoop forwards and causes the render to wrap", "[engine][JuceAudioEngine]")
@@ -206,8 +205,7 @@ TEST_CASE("JuceAudioEngine::setLoop forwards and causes the render to wrap", "[e
     CHECK_FALSE(engine.isPlaying());
 }
 
-TEST_CASE("JuceAudioEngine::source returns the same underlying AudioSource on every call",
-          "[engine][JuceAudioEngine]")
+TEST_CASE("JuceAudioEngine::source returns the same underlying AudioSource on every call", "[engine][JuceAudioEngine]")
 {
     djapp::JuceAudioEngine engine;
     CHECK(&engine.source() == &engine.source());

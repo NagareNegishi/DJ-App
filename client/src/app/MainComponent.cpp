@@ -25,11 +25,13 @@ MainComponent::MainComponent()
 
     deviceHub_.addSource(engineA_.source());
 
-    stateManager_.addListener([this](const StateDelta& applied, const PlaybackState& newState, DeltaSource) {
-        if (applied.deck != DeckId::A)
-            return;
-        playPauseButton_.setButtonText(newState.playing ? "Pause" : "Play");
-    });
+    stateManager_.addListener(
+        [this](const StateDelta& applied, const PlaybackState& newState, DeltaSource)
+        {
+            if (applied.deck != DeckId::A)
+                return;
+            playPauseButton_.setButtonText(newState.playing ? "Pause" : "Play");
+        });
 
     addAndMakeVisible(loadButton_);
     loadButton_.onClick = [this] { loadSelected(); };
@@ -42,7 +44,8 @@ MainComponent::MainComponent()
     seekSlider_.setRange(0.0, 0.0);
     seekSlider_.setSliderStyle(juce::Slider::LinearHorizontal);
     seekSlider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20);
-    seekSlider_.onDragEnd = [this] {
+    seekSlider_.onDragEnd = [this]
+    {
         StateDelta delta;
         delta.deck = DeckId::A;
         delta.positionSeconds = seekSlider_.getValue();
@@ -55,10 +58,11 @@ MainComponent::MainComponent()
     gainSlider_.setValue(1.0);
     gainSlider_.setSliderStyle(juce::Slider::LinearHorizontal);
     gainSlider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20);
-    gainSlider_.onValueChange = [this] {
+    gainSlider_.onValueChange = [this]
+    {
         StateDelta delta;
         delta.deck = DeckId::A;
-        delta.gain = (float) gainSlider_.getValue();
+        delta.gain = (float)gainSlider_.getValue();
         stateManager_.applyDelta(delta, DeltaSource::local);
     };
 
@@ -68,10 +72,11 @@ MainComponent::MainComponent()
     rateSlider_.setValue(1.0);
     rateSlider_.setSliderStyle(juce::Slider::LinearHorizontal);
     rateSlider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20);
-    rateSlider_.onValueChange = [this] {
+    rateSlider_.onValueChange = [this]
+    {
         StateDelta delta;
         delta.deck = DeckId::A;
-        delta.playbackRate = (float) rateSlider_.getValue();
+        delta.playbackRate = (float)rateSlider_.getValue();
         stateManager_.applyDelta(delta, DeltaSource::local);
     };
 
@@ -91,7 +96,7 @@ void MainComponent::loadSelected()
     delta.deck = DeckId::A;
     delta.trackId = selected->id;
     delta.playing = false; // a fresh load always starts stopped, matching the old dev-UI's
-                            // explicit setButtonText("Play") after load
+                           // explicit setButtonText("Play") after load
     stateManager_.applyDelta(delta, DeltaSource::local);
 }
 
