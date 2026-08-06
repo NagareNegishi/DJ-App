@@ -28,3 +28,21 @@ that adds the line (see `git log`).
   fixed the dev-UI's Play/Pause handler getting stuck after a natural end-of-track
   stop instead of restarting. `Debug` artefact-subfolder deviation from M1 confirmed
   still present, no new deviations.
+- 2026-08-06 · **M4 — StateManager** · container green: `client/build/linux` builds
+  clean, `ctest` 134/134 (`StateManager`, `EngineAdapter`, `SyncTransport`/
+  `NullTransport`, `SyncPublisher` suites added; a whitebox pass added 14 more,
+  including a regression test for a real re-entrancy bug). Host checklist
+  (`checklists/M3-host.md`, re-run per M4's acceptance criteria — "behavior on host
+  identical to M3") confirmed on Windows: load/play/pause/seek/gain/rate all correct,
+  no regressions from routing the dev UI through `StateManager.applyDelta`. Two bugs
+  found and fixed during the review pass, both inside `b0d6d38`/`de7d41a`: a
+  stale-position bug on resume-after-pause (`StateManager`'s stored-position
+  injection goes stale once `PositionClock` starts advancing playback, so
+  `MainComponent::togglePlayPause` now supplies live engine position on resume
+  instead of relying on injection), and a segfault in
+  `StateManager::applyDelta`'s notification loop when a listener unsubscribes
+  itself mid-notification (fixed by walking listener tokens via fresh lookups
+  instead of holding a `std::map` iterator across a callback). `Debug`
+  artefact-subfolder deviation from M1 reconfirmed present; host checklists
+  corrected to specify the x64 Native Tools Command Prompt (plain "Developer
+  Command Prompt" defaults to 32-bit detection). No new deviations.
