@@ -15,6 +15,15 @@ void TrackListComponent::setTracks(std::vector<TrackMetadata> newTracks)
     listBox_.repaint();
 }
 
+std::optional<TrackMetadata> TrackListComponent::getSelectedTrack() const
+{
+    const int row = listBox_.getSelectedRow();
+    if (row < 0 || row >= static_cast<int>(tracks_.size()))
+        return std::nullopt;
+
+    return tracks_[static_cast<size_t>(row)];
+}
+
 void TrackListComponent::resized()
 {
     listBox_.setBounds(getLocalBounds());
@@ -43,8 +52,6 @@ void TrackListComponent::listBoxItemClicked(int row, const juce::MouseEvent&)
     if (row < 0 || row >= static_cast<int>(tracks_.size()))
         return;
 
-    // M2: selection just logs; loading into the engine and emitting a
-    // StateDelta arrives at M5 once StateManager exists.
     juce::Logger::writeToLog("TrackListComponent: selected track \"" + tracks_[static_cast<size_t>(row)].id + "\"");
 }
 

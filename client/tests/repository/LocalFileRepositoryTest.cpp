@@ -165,7 +165,7 @@ TEST_CASE("LocalFileRepository rejects manifest entries with unsafe file paths",
     SECTION("file containing a backslash")
     {
         TempDirFixture fx;
-        writeTestWav(fx.dir, "a\\b.wav", 1, 100, 44100.0); // literal backslash, valid on Linux
+        // No file needed: isBareFilename() rejects the '\' before any filesystem access.
         writeManifest(fx.dir, R"({ "tracks": [ { "id": "bad3", "title": "T", "file": "a\\b.wav" } ] })");
 
         djapp::LocalFileRepository repo(fx.dir);
