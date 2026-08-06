@@ -64,7 +64,9 @@ class DeckComponent : public juce::Component, private juce::Timer
     bool anchorPlaying_ = false;
     std::optional<LoopPoints> anchorLoop_;
 
-    std::optional<double> pendingLoopInSeconds_; // local-only capture, not synced until Loop Out completes it
+    std::optional<double> pendingLoopInSeconds_; // the raw capture itself is never sent over the
+        // wire, but arming or cancelling can still trigger a synced loop clear/restore via
+        // stashedLoopOnArm_ below
     std::optional<LoopPoints> stashedLoopOnArm_; // the loop that was active when
         // the current arm gesture began, if any — restored on Cancel or on a
         // rejected Loop Out; discarded once Loop Out actually commits a new loop

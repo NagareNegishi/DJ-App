@@ -11,8 +11,9 @@
 // engine alone can observe and StateManager cannot derive any other way;
 // this poll is expected to be absorbed into or coordinated with
 // state/PositionClock once that lands at M7 — not a general license for the
-// adapter to write more into state. Threading: message-thread-only, same as
-// the StateManager notification it's always called from.
+// adapter to write more into state. Threading: message-thread-only throughout — handleDelta from the StateManager
+// notification it's always called from, checkForSelfStop/timerCallback from the
+// Timer callback, independent of any notification.
 
 #include "AudioEngine.h"
 #include "model/Types.h"

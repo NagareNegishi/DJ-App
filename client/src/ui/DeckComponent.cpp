@@ -116,6 +116,12 @@ void DeckComponent::rebaseAnchorAndRefresh(const StateDelta& applied, const Play
     anchorPlaying_ = newState.playing;
     anchorLoop_ = newState.loop;
 
+    // A track change invalidates any in-flight loop-arm gesture: the pending
+    // in-point and stashed loop were captured against the previous track's
+    // timeline, and applying either to the new track would be wrong.
+    if (applied.trackId.has_value())
+        resetPendingLoopIn();
+
     refreshWidgets(newState);
 }
 
@@ -242,22 +248,14 @@ void DeckComponent::onLoopOutClicked()
         delta.deck = deck_;
         delta.loop = LoopPoints{*pendingLoopInSeconds_, outPosition};
         stateManager_.applyDelta(delta, DeltaSource::local);
+        resetPendingLoopIn();
     }
     else
     {
         juce::Logger::writeToLog("DeckComponent: Loop Out at or before Loop In on deck " + toString(deck_) +
                                  ", ignoring");
-        if (stashedLoopOnArm_.has_value())
-        {
-            StateDelta restoreDelta;
-            restoreDelta.deck = deck_;
-            restoreDelta.loop = stashedLoopOnArm_;
-            stateManager_.applyDelta(restoreDelta, DeltaSource::local);
-        }
+        cancelPendingLoopIn(); // restores the stash (if any) and ends the gesture
     }
-
-    resetPendingLoopIn();
-    stashedLoopOnArm_.reset();
 }
 
 void DeckComponent::onLoopClearClicked()
@@ -273,6 +271,7 @@ void DeckComponent::onLoopClearClicked()
 void DeckComponent::resetPendingLoopIn()
 {
     pendingLoopInSeconds_.reset();
+    stashedLoopOnArm_.reset();
     loopInButton_.setButtonText("Loop In");
     loopOutButton_.setEnabled(false);
 }
@@ -286,8 +285,7 @@ void DeckComponent::cancelPendingLoopIn()
         restoreDelta.loop = stashedLoopOnArm_;
         stateManager_.applyDelta(restoreDelta, DeltaSource::local);
     }
-    resetPendingLoopIn(); // existing helper: clears pendingLoopInSeconds_, resets loopInButton_ text, disables loopOutButton_
-    stashedLoopOnArm_.reset();
+    resetPendingLoopIn(); // also clears stashedLoopOnArm_
 }
 
 void DeckComponent::resized()
