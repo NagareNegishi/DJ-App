@@ -86,6 +86,7 @@ target_sources(dj-app-client PRIVATE
     src/app/MainWindow.cpp
     src/app/MainComponent.cpp
     src/ui/TrackListComponent.cpp
+    src/ui/DeckComponent.cpp
     src/engine/AudioDeviceHub.cpp
 )
 
