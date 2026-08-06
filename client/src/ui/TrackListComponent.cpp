@@ -58,6 +58,12 @@ void TrackListComponent::listBoxItemClicked(int row, const juce::MouseEvent&)
 void TrackListComponent::listBoxItemDoubleClicked(int row, const juce::MouseEvent& event)
 {
     listBoxItemClicked(row, event);
+
+    if (row < 0 || row >= static_cast<int>(tracks_.size()))
+        return;
+
+    if (onTrackSelected)
+        onTrackSelected(tracks_[static_cast<size_t>(row)]);
 }
 
 } // namespace djapp

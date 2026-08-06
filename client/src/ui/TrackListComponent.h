@@ -6,6 +6,7 @@
 // MainComponent's job (routed through StateManager since M4).
 
 #include "model/Types.h"
+#include <functional>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <optional>
 #include <vector>
@@ -23,6 +24,8 @@ class TrackListComponent : public juce::Component, private juce::ListBoxModel
     // nullopt if no row is selected or the selection is out of range of the
     // current tracks (e.g. stale after setTracks shrinks the list).
     std::optional<TrackMetadata> getSelectedTrack() const;
+
+    std::function<void(const TrackMetadata&)> onTrackSelected; // called on double-click
 
     void resized() override;
 
