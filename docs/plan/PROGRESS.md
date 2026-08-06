@@ -46,3 +46,18 @@ that adds the line (see `git log`).
   artefact-subfolder deviation from M1 reconfirmed present; host checklists
   corrected to specify the x64 Native Tools Command Prompt (plain "Developer
   Command Prompt" defaults to 32-bit detection). No new deviations.
+- 2026-08-07 · **M5 — Single-deck UI** · container green: `client/build/linux`
+  builds clean, `ctest` 153/153 (`EngineAdapter` self-stop and `LoopWrap`
+  regression suites added, 19 new tests). Host checklist
+  (`checklists/M5-host.md`) confirmed on Windows, all 15 steps pass: real
+  `DeckComponent` load/play/pause/seek/gain/rate correct, disabled-state
+  gating correct, loop capture/wrap/clear correct, clean window close. Two
+  bugs found on an earlier pass this session and fixed before the final
+  confirmed run: a self-stop label desync (`playing` state going stale after
+  the engine stopped itself, `33803bb`) and a loop-arm ratchet that could
+  only narrow on re-arm, never widen or relocate (`67db4a7`, plus a
+  track-change edge case caught in review, `d76259a`). Checklist step 12
+  corrected: capturing a zero-length loop can't be reproduced at human speed
+  while playing (position races the click), so the step now specifies doing
+  it while paused. `Debug` artefact-subfolder deviation from M1 reconfirmed
+  present. No new deviations.
