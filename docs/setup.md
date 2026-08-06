@@ -128,7 +128,7 @@ RUN git clone --depth=1 --branch 8.0.12 https://github.com/juce-framework/JUCE.g
 
 ### Windows developer setup
 
-One-time setup before the first build. Run from a Developer Command Prompt (Visual Studio Build Tools 2022), **opened via "Run as administrator"** — step 4 writes to `C:\Program Files\JUCE` (CMake's default install prefix for JUCE's own `project(JUCE ...)` name), which a standard, non-elevated prompt cannot write to:
+One-time setup before the first build. Run from the **x64 Native Tools Command Prompt** for Visual Studio Build Tools 2022 (not the plain "Developer Command Prompt," which defaults to 32-bit detection — see `docs/plan/DEVIATIONS.md`'s 2026-08-05 JUCE-install-path entry), **opened via "Run as administrator"** — step 4 writes to `C:\Program Files\JUCE` (CMake's default install prefix for JUCE's own `project(JUCE ...)` name), which a standard, non-elevated prompt cannot write to:
 
 1. Clone JUCE at the same version tag used in the Dockerfile:
    `git clone --depth=1 --branch <version> https://github.com/juce-framework/JUCE.git C:\JUCE`

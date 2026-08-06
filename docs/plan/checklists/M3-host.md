@@ -1,8 +1,10 @@
 # M3 host checklist — single-deck audio engine
 
-Run on the Windows host, from a Developer Command Prompt (VS Build Tools).
-Confirms real playback through `JuceAudioEngine`/`AudioDeviceHub` on the
-platform that actually has a sound device — the container only proves the
+Run on the Windows host, from the **x64 Native Tools Command Prompt** for VS
+Build Tools (not the plain "Developer Command Prompt," which defaults to
+32-bit detection — see `docs/plan/DEVIATIONS.md`'s 2026-08-05 JUCE-install-path
+entry). Confirms real playback through `JuceAudioEngine`/`AudioDeviceHub` on
+the platform that actually has a sound device — the container only proves the
 DSP core is correct offline (`ctest`'s `BufferPlaybackSource` suite).
 
 This repo is checked out at `C:\Users\nagi\Desktop\DJ-App` on this host.
@@ -18,10 +20,11 @@ actually has **VS Build Tools 2026** (MSVC 19.51) and that's fine — proceed
 with whatever this host has installed, don't try to install 2022 specifically.
 
 **Open the correct terminal**: press the Windows key, type
-`Developer Command Prompt`, and open the entry that appears (it will say
-"for VS 2026" or similar, matching whatever version Windows shows you — do
-not use a plain `cmd.exe` or PowerShell window, JUCE's build needs `cl.exe`
-on the PATH, which only the Developer Command Prompt sets up).
+`x64 Native Tools Command Prompt`, and open the entry that appears (it will
+say "for VS 2026" or similar, matching whatever version Windows shows you —
+do not use a plain `cmd.exe`, PowerShell window, or the generic "Developer
+Command Prompt" entry, which defaults `cl.exe` to 32-bit target detection
+instead of 64-bit).
 
 ### Test audio file (new for M3 — do this before Step 1)
 
@@ -75,7 +78,7 @@ built without the FLAC/OggVorbis/MP3 compile flags — checked against
 
 ## Steps
 
-1. Open the Developer Command Prompt as described above. Navigate to the
+1. Open the x64 Native Tools Command Prompt as described above. Navigate to the
    repo:
    ```
    cd C:\Users\nagi\Desktop\DJ-App

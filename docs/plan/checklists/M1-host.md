@@ -1,15 +1,17 @@
 # M1 host checklist — walking skeleton window
 
-Run on the Windows host, from a Developer Command Prompt (Visual Studio Build
-Tools 2022). Confirms the JUCE window builds and runs on the platform that
-actually plays audio — the container only proves it compiles.
+Run on the Windows host, from the **x64 Native Tools Command Prompt** for VS
+Build Tools 2022 (not the plain "Developer Command Prompt," which defaults to
+32-bit detection — see `docs/plan/DEVIATIONS.md`'s 2026-08-05 JUCE-install-path
+entry). Confirms the JUCE window builds and runs on the platform that actually
+plays audio — the container only proves it compiles.
 
 ## Prerequisites (one-time, skip if already installed)
 
 1. VS Build Tools 2022, "Desktop development with C++" workload. Gives
    `cl.exe`, the Windows SDK, MSBuild, and Ninja (`docs/setup.md` →
    Windows Host Toolchain).
-2. JUCE 8.0.12 built and installed, from a Developer Command Prompt
+2. JUCE 8.0.12 built and installed, from the x64 Native Tools Command Prompt
    **opened via "Run as administrator"** (`docs/setup.md` → Windows
    developer setup):
    ```
@@ -31,7 +33,7 @@ actually plays audio — the container only proves it compiles.
 
 ## Steps
 
-1. From a Developer Command Prompt at the repo root: `git checkout claude`
+1. From the x64 Native Tools Command Prompt at the repo root: `git checkout claude`
    then `git pull`.
    - Expected: `client/src/Main.cpp`, `client/src/app/MainWindow.*`,
      `client/src/app/MainComponent.*` are present (not the old placeholder
