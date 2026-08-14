@@ -63,7 +63,7 @@ Failure closes: wrong/missing `protocolVersion` ⇒ close **4001**; wrong `room`
 
 | field | JSON type | valid range | default | notes |
 |---|---|---|---|---|
-| `trackId` | string | `^[A-Za-z0-9._-]{1,64}$` or `null` | `null` | id from repository manifest; clients that don't have this id show "missing track" and stay silent, state still applies |
+| `trackId` | string | `^[A-Za-z0-9._-]{1,64}$` or `null`, and additionally **not** `"."`, `".."`, or any value containing `".."` | `null` | id from repository manifest; clients that don't have this id show "missing track" and stay silent, state still applies. The `".."` exclusion is not expressible in the character-class regex and is checked separately: a `trackId` must never be usable as a path segment (`06-security.md` §Client rules 2). Both sides enforce it |
 | `playing` | boolean | — | `false` | a delta setting `playing:true` MUST also carry `positionSeconds` |
 | `positionSeconds` | number | finite, `0 ≤ x ≤ 86400` | `0` | client additionally clamps to track duration |
 | `gain` | number | finite, `0.0 ≤ x ≤ 2.0` | `1.0` | linear amplitude |
