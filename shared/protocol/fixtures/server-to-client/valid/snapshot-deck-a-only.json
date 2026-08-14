@@ -1,0 +1,24 @@
+{
+  "description": "snapshot before any delta has touched deck B",
+  "message": {
+    "type": "snapshot",
+    "serverSeq": 12,
+    "decks": {
+      "A": {
+        "trackId": null,
+        "playing": false,
+        "positionSeconds": 0,
+        "gain": 1.0,
+        "playbackRate": 1.0,
+        "pitchOffsetSemitones": 0,
+        "loop": null
+      }
+    }
+  },
+  "payloads": [
+    {
+      "pointer": "/decks/A",
+      "as": "PlaybackState"
+    }
+  ]
+}

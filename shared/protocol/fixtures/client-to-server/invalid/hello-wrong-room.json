@@ -1,0 +1,14 @@
+{
+  "description": "hello presenting a room code the server does not host",
+  "message": {
+    "type": "hello",
+    "protocolVersion": 1,
+    "name": "nagare",
+    "room": "wrong-room"
+  },
+  "reason": "wrong room code",
+  "expect": {
+    "server": "reject"
+  },
+  "closeCode": 4004
+}

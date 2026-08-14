@@ -1,0 +1,10 @@
+{
+  "description": "peerJoined announcing a new observer",
+  "message": {
+    "type": "peerJoined",
+    "clientId": "c-9b01",
+    "name": "aki",
+    "role": "observer"
+  },
+  "payloads": []
+}

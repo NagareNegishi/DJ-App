@@ -1,0 +1,10 @@
+{
+  "description": "delta pausing a deck, which needs no position",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "playing": false
+    }
+  }
+}

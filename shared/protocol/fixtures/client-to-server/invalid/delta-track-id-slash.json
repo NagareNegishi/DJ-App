@@ -1,0 +1,14 @@
+{
+  "description": "delta with a trackId containing a path separator",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "trackId": "sets/demo-track"
+    }
+  },
+  "reason": "trackId does not match its pattern",
+  "expect": {
+    "server": "reject"
+  }
+}

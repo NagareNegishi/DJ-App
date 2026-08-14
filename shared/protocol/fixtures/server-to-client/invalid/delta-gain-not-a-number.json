@@ -1,0 +1,22 @@
+{
+  "description": "hostile delta sending gain as the string Infinity, which JSON cannot express as a number",
+  "message": {
+    "type": "delta",
+    "serverSeq": 14,
+    "sourceClientId": "c-9b01",
+    "deck": "A",
+    "changes": {
+      "gain": "Infinity"
+    }
+  },
+  "reason": "gain is not a number",
+  "expect": {
+    "client": "reject"
+  },
+  "payloads": [
+    {
+      "pointer": "",
+      "as": "StateDelta"
+    }
+  ]
+}

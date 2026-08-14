@@ -1,0 +1,29 @@
+{
+  "description": "hostile snapshot whose deck object carries a field the Field reference does not define",
+  "message": {
+    "type": "snapshot",
+    "serverSeq": 15,
+    "decks": {
+      "A": {
+        "trackId": null,
+        "playing": false,
+        "positionSeconds": 0,
+        "gain": 1.0,
+        "playbackRate": 1.0,
+        "pitchOffsetSemitones": 0,
+        "loop": null,
+        "cuePoints": []
+      }
+    }
+  },
+  "reason": "unknown field in deck state",
+  "expect": {
+    "client": "reject"
+  },
+  "payloads": [
+    {
+      "pointer": "/decks/A",
+      "as": "PlaybackState"
+    }
+  ]
+}

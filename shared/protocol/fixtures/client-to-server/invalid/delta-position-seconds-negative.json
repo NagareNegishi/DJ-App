@@ -1,0 +1,14 @@
+{
+  "description": "delta whose positionSeconds is negative",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "positionSeconds": -1
+    }
+  },
+  "reason": "positionSeconds below minimum",
+  "expect": {
+    "server": "reject"
+  }
+}

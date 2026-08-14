@@ -1,0 +1,10 @@
+{
+  "description": "delta with playbackRate at the inclusive minimum of 0.5",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "playbackRate": 0.5
+    }
+  }
+}

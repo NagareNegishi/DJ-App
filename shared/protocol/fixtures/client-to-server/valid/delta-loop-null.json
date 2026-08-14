@@ -1,0 +1,10 @@
+{
+  "description": "delta clearing the loop with null",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "loop": null
+    }
+  }
+}

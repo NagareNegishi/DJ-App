@@ -1,0 +1,17 @@
+{
+  "description": "delta whose changes carry a prototype key alongside a valid field",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "gain": 1.5,
+      "prototype": {
+        "gain": 2
+      }
+    }
+  },
+  "reason": "unknown field prototype in changes",
+  "expect": {
+    "server": "reject"
+  }
+}

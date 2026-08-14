@@ -1,0 +1,13 @@
+{
+  "description": "delta setting a loop with in before out",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "loop": {
+        "inSeconds": 4.0,
+        "outSeconds": 8.0
+      }
+    }
+  }
+}

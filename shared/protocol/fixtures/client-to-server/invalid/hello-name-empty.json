@@ -1,0 +1,14 @@
+{
+  "description": "hello with an empty name",
+  "message": {
+    "type": "hello",
+    "protocolVersion": 1,
+    "name": "",
+    "room": "demo-room"
+  },
+  "reason": "name shorter than 1 character",
+  "expect": {
+    "server": "reject"
+  },
+  "closeCode": 4000
+}

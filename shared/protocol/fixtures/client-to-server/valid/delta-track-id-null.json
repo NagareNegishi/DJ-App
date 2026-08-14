@@ -1,0 +1,10 @@
+{
+  "description": "delta clearing trackId with null",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "trackId": null
+    }
+  }
+}

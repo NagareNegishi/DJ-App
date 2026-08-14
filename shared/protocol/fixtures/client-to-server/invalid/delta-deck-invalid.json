@@ -1,0 +1,14 @@
+{
+  "description": "delta naming a deck outside A and B",
+  "message": {
+    "type": "delta",
+    "deck": "C",
+    "changes": {
+      "gain": 1.5
+    }
+  },
+  "reason": "deck is not A or B",
+  "expect": {
+    "server": "reject"
+  }
+}

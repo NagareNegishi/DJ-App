@@ -1,0 +1,14 @@
+{
+  "description": "hello sending protocolVersion as a string instead of an integer",
+  "message": {
+    "type": "hello",
+    "protocolVersion": "1",
+    "name": "nagare",
+    "room": "demo-room"
+  },
+  "reason": "protocolVersion is not an integer",
+  "expect": {
+    "server": "reject"
+  },
+  "closeCode": 4001
+}

@@ -1,0 +1,15 @@
+{
+  "description": "delta whose changes carry a constructor key alongside a valid field",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "gain": 1.5,
+      "constructor": "Object"
+    }
+  },
+  "reason": "unknown field constructor in changes",
+  "expect": {
+    "server": "reject"
+  }
+}

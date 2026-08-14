@@ -1,0 +1,22 @@
+{
+  "description": "hostile delta whose trackId carries a parent-directory segment",
+  "message": {
+    "type": "delta",
+    "serverSeq": 11,
+    "sourceClientId": "c-9b01",
+    "deck": "A",
+    "changes": {
+      "trackId": "demo..track"
+    }
+  },
+  "reason": "trackId contains ..",
+  "expect": {
+    "client": "reject"
+  },
+  "payloads": [
+    {
+      "pointer": "",
+      "as": "StateDelta"
+    }
+  ]
+}

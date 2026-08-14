@@ -1,0 +1,14 @@
+{
+  "description": "delta whose gain exceeds the 2.0 maximum",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "gain": 5.0
+    }
+  },
+  "reason": "gain above maximum",
+  "expect": {
+    "server": "reject"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "description": "delta sending loop as a number rather than an object or null",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "loop": 4
+    }
+  },
+  "reason": "loop is neither an object nor null",
+  "expect": {
+    "server": "reject"
+  }
+}

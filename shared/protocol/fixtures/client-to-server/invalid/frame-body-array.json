@@ -1,0 +1,12 @@
+{
+  "description": "frame body that parses to an array rather than an object",
+  "message": [
+    {
+      "type": "claimControl"
+    }
+  ],
+  "reason": "frame body is not an object",
+  "expect": {
+    "server": "reject"
+  }
+}

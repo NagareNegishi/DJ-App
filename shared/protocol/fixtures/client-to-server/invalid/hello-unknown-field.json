@@ -1,0 +1,15 @@
+{
+  "description": "hello carrying a field the protocol does not define",
+  "message": {
+    "type": "hello",
+    "protocolVersion": 1,
+    "name": "nagare",
+    "room": "demo-room",
+    "clientVersion": "0.1.0"
+  },
+  "reason": "unknown field in hello",
+  "expect": {
+    "server": "reject"
+  },
+  "closeCode": 4000
+}

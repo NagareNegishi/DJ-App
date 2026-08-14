@@ -1,0 +1,14 @@
+{
+  "description": "hello with a control character embedded in the name",
+  "message": {
+    "type": "hello",
+    "protocolVersion": 1,
+    "name": "na\u0007gare",
+    "room": "demo-room"
+  },
+  "reason": "name contains a control character",
+  "expect": {
+    "server": "reject"
+  },
+  "closeCode": 4000
+}

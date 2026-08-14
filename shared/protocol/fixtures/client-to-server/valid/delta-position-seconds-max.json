@@ -1,0 +1,10 @@
+{
+  "description": "delta with positionSeconds at the inclusive maximum of 86400",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "positionSeconds": 86400
+    }
+  }
+}

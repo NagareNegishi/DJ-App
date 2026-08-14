@@ -1,0 +1,8 @@
+{
+  "description": "frame body that parses to null rather than an object",
+  "message": null,
+  "reason": "frame body is not an object",
+  "expect": {
+    "server": "reject"
+  }
+}

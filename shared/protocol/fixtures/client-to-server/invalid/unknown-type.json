@@ -1,0 +1,10 @@
+{
+  "description": "envelope naming a message type the protocol does not define",
+  "message": {
+    "type": "nudge"
+  },
+  "reason": "unknown message type",
+  "expect": {
+    "server": "reject"
+  }
+}

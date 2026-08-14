@@ -1,0 +1,28 @@
+{
+  "description": "hostile snapshot whose deck position exceeds the 86400 maximum but is otherwise well formed",
+  "message": {
+    "type": "snapshot",
+    "serverSeq": 18,
+    "decks": {
+      "A": {
+        "trackId": null,
+        "playing": false,
+        "positionSeconds": 999999,
+        "gain": 1.0,
+        "playbackRate": 1.0,
+        "pitchOffsetSemitones": 0,
+        "loop": null
+      }
+    }
+  },
+  "reason": "positionSeconds above maximum",
+  "expect": {
+    "client": "accept"
+  },
+  "payloads": [
+    {
+      "pointer": "/decks/A",
+      "as": "PlaybackState"
+    }
+  ]
+}

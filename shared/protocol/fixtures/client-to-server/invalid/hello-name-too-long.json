@@ -1,0 +1,14 @@
+{
+  "description": "hello with a 33-character name, one over the maximum",
+  "message": {
+    "type": "hello",
+    "protocolVersion": 1,
+    "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "room": "demo-room"
+  },
+  "reason": "name longer than 32 characters",
+  "expect": {
+    "server": "reject"
+  },
+  "closeCode": 4000
+}

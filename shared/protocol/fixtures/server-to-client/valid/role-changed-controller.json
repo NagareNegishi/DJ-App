@@ -1,0 +1,9 @@
+{
+  "description": "roleChanged promoting a client to controller",
+  "message": {
+    "type": "roleChanged",
+    "clientId": "c-3f2a",
+    "role": "controller"
+  },
+  "payloads": []
+}

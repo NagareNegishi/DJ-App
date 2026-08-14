@@ -1,0 +1,14 @@
+{
+  "description": "delta with a trackId that is a single dot",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "trackId": "."
+    }
+  },
+  "reason": "trackId is a path segment",
+  "expect": {
+    "server": "reject"
+  }
+}

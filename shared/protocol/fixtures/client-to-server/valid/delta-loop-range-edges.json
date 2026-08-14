@@ -1,0 +1,13 @@
+{
+  "description": "delta with a loop spanning the full 0 to 86400 range",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "loop": {
+        "inSeconds": 0,
+        "outSeconds": 86400
+      }
+    }
+  }
+}

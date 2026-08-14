@@ -1,0 +1,14 @@
+{
+  "description": "hello declaring a protocol version the server does not speak",
+  "message": {
+    "type": "hello",
+    "protocolVersion": 99,
+    "name": "nagare",
+    "room": "demo-room"
+  },
+  "reason": "protocol version mismatch",
+  "expect": {
+    "server": "reject"
+  },
+  "closeCode": 4001
+}

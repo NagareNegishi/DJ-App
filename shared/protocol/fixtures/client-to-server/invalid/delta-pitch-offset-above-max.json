@@ -1,0 +1,14 @@
+{
+  "description": "delta whose pitchOffsetSemitones exceeds the 12 maximum",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "pitchOffsetSemitones": 24
+    }
+  },
+  "reason": "pitchOffsetSemitones above maximum",
+  "expect": {
+    "server": "reject"
+  }
+}

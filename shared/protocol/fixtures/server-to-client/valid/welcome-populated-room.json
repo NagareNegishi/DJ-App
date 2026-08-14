@@ -1,0 +1,40 @@
+{
+  "description": "welcome into a room that already holds a controller and an observer",
+  "message": {
+    "type": "welcome",
+    "clientId": "c-3f2a",
+    "role": "observer",
+    "serverSeq": 42,
+    "snapshot": {
+      "decks": {
+        "A": {
+          "trackId": null,
+          "playing": false,
+          "positionSeconds": 0,
+          "gain": 1.0,
+          "playbackRate": 1.0,
+          "pitchOffsetSemitones": 0,
+          "loop": null
+        }
+      }
+    },
+    "peers": [
+      {
+        "clientId": "c-9b01",
+        "name": "aki",
+        "role": "controller"
+      },
+      {
+        "clientId": "c-71cd",
+        "name": "mika",
+        "role": "observer"
+      }
+    ]
+  },
+  "payloads": [
+    {
+      "pointer": "/snapshot/decks/A",
+      "as": "PlaybackState"
+    }
+  ]
+}

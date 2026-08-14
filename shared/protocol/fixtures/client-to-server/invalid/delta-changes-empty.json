@@ -1,0 +1,12 @@
+{
+  "description": "delta whose changes object is empty",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {}
+  },
+  "reason": "changes must carry at least one field",
+  "expect": {
+    "server": "reject"
+  }
+}

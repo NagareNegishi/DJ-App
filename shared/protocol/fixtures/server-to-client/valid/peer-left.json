@@ -1,0 +1,8 @@
+{
+  "description": "peerLeft announcing a departure",
+  "message": {
+    "type": "peerLeft",
+    "clientId": "c-9b01"
+  },
+  "payloads": []
+}

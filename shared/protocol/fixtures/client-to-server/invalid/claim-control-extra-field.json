@@ -1,0 +1,11 @@
+{
+  "description": "claimControl carrying a field it is not allowed to have",
+  "message": {
+    "type": "claimControl",
+    "deck": "A"
+  },
+  "reason": "unknown field in claimControl",
+  "expect": {
+    "server": "reject"
+  }
+}

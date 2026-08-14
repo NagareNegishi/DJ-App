@@ -1,0 +1,16 @@
+{
+  "description": "delta whose loop omits outSeconds",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "loop": {
+        "inSeconds": 4.0
+      }
+    }
+  },
+  "reason": "loop missing required field outSeconds",
+  "expect": {
+    "server": "reject"
+  }
+}

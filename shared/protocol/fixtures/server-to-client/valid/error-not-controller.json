@@ -1,0 +1,9 @@
+{
+  "description": "error refusing a delta from a non-controller",
+  "message": {
+    "type": "error",
+    "code": "not-controller",
+    "message": "only the controller can change playback"
+  },
+  "payloads": []
+}

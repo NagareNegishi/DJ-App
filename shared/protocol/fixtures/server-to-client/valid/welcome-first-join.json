@@ -1,0 +1,29 @@
+{
+  "description": "welcome for the first client into an empty room",
+  "message": {
+    "type": "welcome",
+    "clientId": "c-3f2a",
+    "role": "observer",
+    "serverSeq": 0,
+    "snapshot": {
+      "decks": {
+        "A": {
+          "trackId": null,
+          "playing": false,
+          "positionSeconds": 0,
+          "gain": 1.0,
+          "playbackRate": 1.0,
+          "pitchOffsetSemitones": 0,
+          "loop": null
+        }
+      }
+    },
+    "peers": []
+  },
+  "payloads": [
+    {
+      "pointer": "/snapshot/decks/A",
+      "as": "PlaybackState"
+    }
+  ]
+}

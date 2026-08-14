@@ -1,0 +1,8 @@
+{
+  "description": "frame body that parses to a bare number rather than an object",
+  "message": 42,
+  "reason": "frame body is not an object",
+  "expect": {
+    "server": "reject"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "delta with playbackRate at the inclusive maximum of 2.0",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "playbackRate": 2.0
+    }
+  }
+}

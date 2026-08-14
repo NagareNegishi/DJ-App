@@ -1,0 +1,27 @@
+{
+  "description": "delta broadcast carrying every field of the Field reference",
+  "message": {
+    "type": "delta",
+    "serverSeq": 8,
+    "sourceClientId": "c-9b01",
+    "deck": "B",
+    "changes": {
+      "trackId": "demo-track-02",
+      "playing": true,
+      "positionSeconds": 30.25,
+      "gain": 1.25,
+      "playbackRate": 1.5,
+      "pitchOffsetSemitones": -3,
+      "loop": {
+        "inSeconds": 10.0,
+        "outSeconds": 20.0
+      }
+    }
+  },
+  "payloads": [
+    {
+      "pointer": "",
+      "as": "StateDelta"
+    }
+  ]
+}

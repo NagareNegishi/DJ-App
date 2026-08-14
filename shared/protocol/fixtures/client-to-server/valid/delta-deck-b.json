@@ -1,0 +1,10 @@
+{
+  "description": "delta targeting deck B",
+  "message": {
+    "type": "delta",
+    "deck": "B",
+    "changes": {
+      "gain": 0.8
+    }
+  }
+}

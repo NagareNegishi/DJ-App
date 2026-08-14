@@ -1,0 +1,11 @@
+{
+  "description": "delta starting playback, which must carry positionSeconds",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "playing": true,
+      "positionSeconds": 12.5
+    }
+  }
+}
