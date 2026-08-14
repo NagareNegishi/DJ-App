@@ -140,3 +140,63 @@ Each entry: date, what the plan said, what was done instead, why.
   error) instead of silently reformatting differently, so if this exact
   `.deb` is ever superseded out of the archive pool, bump the pin in
   both files, reformat, and record it here.
+
+## 2026-08-14 — `02-protocol.md`'s `trackId` row amended to exclude `..` (no version bump)
+
+- **Plan said**: `docs/plan/02-protocol.md`'s Field reference gave `trackId` the range
+  `^[A-Za-z0-9._-]{1,64}$` or `null`. That character class admits `"."`, `".."`, and any
+  value containing `".."`, e.g. `a..b`.
+- **Plan also said**: `CLAUDE.md`'s non-negotiable rules require a protocol change to
+  edit `02-protocol.md` first, update both sides and the fixtures in the same milestone,
+  and bump the version.
+- **Actual**: the client has rejected `"."`, `".."`, and embedded `".."` since M1
+  (`isValidTrackId` in `client/src/model/Serialization.cpp`), as defence-in-depth for
+  `06-security.md` §Client rules 2 — network data must never become a file path. Building
+  the M6 server to the published regex alone would have made the server accept identifiers
+  the client refuses, and the shared fixture corpus would have had to encode that as a
+  permanent divergence.
+- **Change**: amended the `trackId` row of the Field reference to state the `"."` / `".."`
+  / embedded-`".."` exclusion alongside the regex, noting that it is checked separately
+  because a character class cannot express it. `shared/protocol/PROTOCOL-VERSION` stays
+  `1` and `PROTOCOL_VERSION` stays `1`.
+- **Why**: no version bump, because no wire format that ever ran is invalidated. The
+  client enforced this rule before any server existed; the document was describing the
+  implementation inaccurately rather than specifying different behaviour, so there is no
+  v1 peer that a v2 would be protecting itself from. Bumping would have churned every
+  hello fixture, both `PROTOCOL_VERSION` constants, and M7's transport for a change no
+  peer can detect. Recorded here because the amendment edits a binding document.
+
+## 2026-08-14 — `npm test` script cannot be `node --test test/` on Node 24
+
+- **Plan said**: `docs/plan/03-server.md` §npm scripts gives the exact script body
+  `"test": "node --test test/"`.
+- **Actual**: that form fails on the dev container's Node 24.19.0. `node --test test/`
+  resolves the positional argument as a module entry point rather than as a directory to
+  scan, and exits with `Error: Cannot find module '/workspaces/DJ-App/server/test'` before
+  running anything. The plan pins Node 22 LTS, where the directory form works; the
+  container ships 24, and CI pins 22, so the two would have disagreed.
+- **Change**: `"test": "node --test \"test/**/*.test.js\""`. The quoted glob is expanded by
+  Node's own test runner (Node 21+), not by the shell, so it behaves identically on 22 and
+  24 and does not depend on shell globbing.
+- **Why**: the script has to work in the container developers actually use and in the CI
+  runner that pins the planned version. The glob form is the narrowest change that works on
+  both; the alternative, pinning the container to Node 22, is a much larger change for no
+  gain. Verified on Node 24: 631 tests, 631 passing.
+
+## 2026-08-14 — the injected `conn` abstraction carries no `role` property
+
+- **Plan said**: `docs/plan/03-server.md` describes `room.js` as operating on a thin client
+  abstraction `{id, name, role, send(obj), close(code)}`.
+- **Actual**: `conn` is `{id, name, send(obj), close(code, reason), remoteAddress}`. Role is
+  derived inside `room.js` as `conn.id === controllerId ? 'controller' : 'observer'` via a
+  `roleOf` helper, and `remoteAddress` was added for the security log lines.
+- **Change**: dropped `role` from the abstraction; added `remoteAddress`.
+- **Why**: raised by the design review of the M6 unit specs. Storing `role` on the
+  connection while the room also tracks `controllerId` is one fact with two writers and
+  nothing enforcing agreement. Every claim and release path would have to update both, and
+  the first change to control that does not go through those two handlers — M8's second
+  deck, or a future "steal control" affordance — would update one and leave the other
+  stale, so the peers list would start disagreeing with `getControllerId()`. Deriving it
+  makes the disagreement unrepresentable. `remoteAddress` exists because handshake failures
+  must be logged with a source address for a room-code guessing attempt to be diagnosable
+  at all; it is used only in log lines and is never sent to a peer.
