@@ -337,8 +337,7 @@ TEST_CASE("Protocol fixtures: every fixture is well-formed JSON carrying descrip
     }
 }
 
-TEST_CASE("Protocol fixtures: every payload entry declares a string pointer and a supported as",
-          "[protocol][fixtures]")
+TEST_CASE("Protocol fixtures: every payload entry declares a string pointer and a supported as", "[protocol][fixtures]")
 {
     const auto fixtures = allServerToClientFixtures();
     REQUIRE_FALSE(fixtures.empty());
