@@ -350,6 +350,9 @@ export function createServer({ config, logger, room }) {
 
   wss.on('connection', onConnection);
 
+  // Follows the idiom from ws's own README, "How to detect and close broken
+  // connections?": isAlive is cleared before each ping and only a pong sets it
+  // back, so a peer that misses one full interval is terminated on the next sweep.
   const heartbeat = setInterval(() => {
     for (const record of records) {
       // Per iteration, so one bad connection cannot abort the sweep.
