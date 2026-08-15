@@ -32,10 +32,6 @@ export function createRoom({ roomCode, maxClients, logger, protocolVersion = PRO
   let serverSeq = 0;
   let controllerId = null;
 
-  // Last serverSeq at which we sent a non-controller its repair snapshot. Keyed by conn so
-  // entries vanish with the connection.
-  const lastRepairSeq = new WeakMap();
-
   // Role is derived from controllerId alone; storing it on conn as well would be a second
   // writer of the same fact, free to drift out of agreement with getControllerId().
   const roleOf = (conn) => (conn.id !== null && conn.id === controllerId ? 'controller' : 'observer');
@@ -145,13 +141,12 @@ export function createRoom({ roomCode, maxClients, logger, protocolVersion = PRO
 
     if (conn.id !== controllerId) {
       sendError(conn, ERROR_CODES.notController, 'only the controller can change playback');
-      // One repair per connection per serverSeq: a rejection against state the client has
-      // already been repaired to needs no second copy, and a snapshot per rejected delta
-      // would turn this path into a byte amplifier under a stuck play button.
-      if (lastRepairSeq.get(conn) !== serverSeq) {
-        lastRepairSeq.set(conn, serverSeq);
-        sendTo(conn, { type: 'snapshot', ...snapshotOf() });
-      }
+      // Repairs every rejected delta, not just the first at a given serverSeq: the sender's
+      // optimistic state moves with each delta it has applied locally, even though serverSeq
+      // does not move on a rejection, so a dedup keyed on serverSeq would leave every delta
+      // after the first at that sequence unrepaired. The amplification cost of one snapshot
+      // per rejection is accepted; server.js's per-connection rate limiter is the bound.
+      conn.send({ type: 'snapshot', ...snapshotOf() });
       return { ok: false, errorCode: ERROR_CODES.notController };
     }
 
@@ -169,9 +164,9 @@ export function createRoom({ roomCode, maxClients, logger, protocolVersion = PRO
   };
 
   const handleRequestSnapshot = (conn) => {
-    // Not deduplicated like the repair snapshot above: a client asking for state is the
-    // defensive resync path and must always be answered. Metered by the rate limiter only.
-    sendTo(conn, { type: 'snapshot', ...snapshotOf() });
+    // Always answered, same as the not-controller repair snapshot: a client asking for state
+    // is the defensive resync path. Metered by the rate limiter only.
+    conn.send({ type: 'snapshot', ...snapshotOf() });
     return { ok: true };
   };
 

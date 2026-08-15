@@ -750,9 +750,13 @@ test('the repair snapshot carries the canonical serverSeq and decks', () => {
   assert.deepEqual(snapshot.decks, canonical.decks);
 });
 
-test('a second refused delta against unchanged state draws the error without a second snapshot', () => {
-  // The repair snapshot is sent at most once per connection per serverSeq, so a rejection
-  // path cannot be turned into a byte amplifier.
+test('a second refused delta against unchanged state draws the error and a second snapshot', () => {
+  // Per 02-protocol.md:41, every refused delta draws error{not-controller} followed by a
+  // snapshot — not just the first at a given serverSeq. What needs repairing is the
+  // sender's own optimistic state, which moves with each delta it applies locally even
+  // though serverSeq (by definition) has not moved, since nothing was accepted. A client
+  // with two deltas in flight after losing control must be repaired for both, not just
+  // the first, or it is left permanently wrong for the second.
   const { room } = makeRoom();
   const controller = join(room, { name: 'aki' });
   const observer = join(room, { name: 'nagare' });
@@ -762,12 +766,17 @@ test('a second refused delta against unchanged state draws the error without a s
 
   room.handleMessage(observer, deltaFrame('A', { gain: 0.6 }));
 
-  assert.equal(observer.sent.length, 1);
+  assert.equal(observer.sent.length, 2);
   assert.equal(observer.sent[0].type, 'error');
   assert.equal(observer.sent[0].code, 'not-controller');
+  assert.equal(observer.sent[1].type, 'snapshot');
 });
 
-test('the repair snapshot re-arms once canonical state has moved', () => {
+test('a delta rejected after an intervening accepted delta still draws its own repair snapshot', () => {
+  // Every rejected delta draws its own error + snapshot unconditionally (room.js:154-163);
+  // there is no per-connection dedup state to disarm or re-arm. This case pins that an
+  // accepted delta from the controller landing in between two of the observer's rejected
+  // deltas changes nothing about the second rejection's own error + snapshot response.
   const { room } = makeRoom();
   const controller = join(room, { name: 'aki' });
   const observer = join(room, { name: 'nagare' });
@@ -782,7 +791,13 @@ test('the repair snapshot re-arms once canonical state has moved', () => {
   assert.equal(observer.sent[1].type, 'snapshot');
 });
 
-test('the repair snapshot is deduplicated per connection, not per room', () => {
+test('a rejected delta draws its own repair snapshot regardless of another connection having just drawn one', () => {
+  // Unconditional per rejection, not deduplicated by any shared or per-connection state
+  // (room.js:154-163): a second connection's rejected delta is unaffected by a first
+  // connection's rejected delta having just been answered. With the dedup this test was
+  // originally named for now gone, this coincides with the single-connection case above
+  // ('a delta from a non-controller draws an error then a repair snapshot...'); kept as an
+  // explicit multi-connection sanity check rather than removed.
   const { room } = makeRoom();
   const controller = join(room, { name: 'aki' });
   const first = join(room, { name: 'nagare' });
