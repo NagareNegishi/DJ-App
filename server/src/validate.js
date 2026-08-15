@@ -21,8 +21,11 @@ const CHANGE_FIELDS = [
 
 const NUMERIC_CHANGE_FIELDS = ['positionSeconds', 'gain', 'playbackRate', 'pitchOffsetSemitones'];
 
-// C0 controls, DEL, and the C1 block: "printable, no control chars" per 02-protocol.md.
-const CONTROL_CHARS = /[\u0000-\u001F\u007F-\u009F]/;
+// C0 controls, DEL, the C1 block, and Unicode format characters (category Cf: bidi
+// overrides like U+202E, the U+2066-U+2069 isolates, the U+200B-U+200F zero-widths):
+// "printable, no control chars" per 02-protocol.md. Cf chars are invisible but not
+// caught by the C0/C1 ranges, and a name is relayed verbatim into every peer's list.
+const CONTROL_CHARS = /[\u0000-\u001F\u007F-\u009F]|\p{Cf}/u;
 
 const UNPAIRED_SURROGATE = /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?:[^\uD800-\uDBFF]|^)[\uDC00-\uDFFF]/;
 

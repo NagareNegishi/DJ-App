@@ -166,6 +166,39 @@ test('validateHello accepts a name containing a well-formed surrogate pair', () 
   assert.equal(result.ok, true);
 });
 
+for (const [label, codePoint] of [
+  ['a right-to-left override', 0x202e],
+  ['a left-to-right isolate', 0x2066],
+  ['a pop directional isolate', 0x2069],
+  ['a zero-width space', 0x200b],
+  ['a zero-width joiner', 0x200d],
+  ['a right-to-left mark', 0x200f],
+]) {
+  test(`validateHello rejects a name containing ${label}`, () => {
+    // General-category Cf (Unicode "format" characters): invisible on their own, but a
+    // bidi override relayed verbatim into every peer's list would let an observer's name
+    // render as though it belonged to someone else, e.g. the controller.
+    const name = `na${String.fromCodePoint(codePoint)}gare`;
+    const result = validateHello(hello({ name }), EXPECTED);
+    assert.equal(result.ok, false);
+    assert.equal(result.reason, 'malformed hello');
+  });
+}
+
+for (const [label, name] of [
+  ['accented Latin letters', 'Amélie Núñez'],
+  ['CJK characters', '中村七海'],
+  ['an emoji', 'nagare 🎧'],
+]) {
+  test(`validateHello accepts an ordinary non-ASCII name: ${label}`, () => {
+    // Cf rejection must not overreach into rejecting well-formed non-ASCII text that
+    // carries no Cf code points of its own.
+    const result = validateHello(hello({ name }), EXPECTED);
+    assert.equal(result.ok, true);
+    assert.equal(result.value.name, name);
+  });
+}
+
 for (const [label, name] of [
   ['a number', 5],
   ['null', null],
