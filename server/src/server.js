@@ -66,7 +66,10 @@ export function createServer({ config, logger, room }) {
   // The callback form is what gets a 403 on the wire — refusing by return value
   // makes ws answer 401, which invites a client to retry with credentials.
   const verifyClient = (info, done) => {
-    if (info.req.headers.origin === undefined) {
+    // info.origin is ws's own version-aware field: populated from Origin on a
+    // hybi-13 handshake and from Sec-WebSocket-Origin on the older hybi-08 one,
+    // which info.req.headers.origin misses entirely.
+    if (info.origin === undefined) {
       done(true);
       return;
     }

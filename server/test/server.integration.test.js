@@ -308,6 +308,23 @@ test('an upgrade request carrying an Origin header is refused with HTTP 403', as
   assert.notEqual(client.ws.readyState, WebSocket.OPEN);
 });
 
+test('an upgrade request with no Origin header is admitted', async (t) => {
+  // verifyClient reads ws's own version-aware info.origin rather than req.headers.origin
+  // (which only exists for a hybi-13 handshake); a handshake that never sent Origin at
+  // all — every non-browser client, including our own IXWebSocket client — must still be
+  // let through, not refused for a header it never had reason to send.
+  const { server, port } = await startServer();
+  const client = connect(port);
+  t.after(async () => {
+    client.dispose();
+    await server.close();
+  });
+
+  const welcome = await handshake(client, 'nagare');
+
+  assert.equal(welcome.type, 'welcome');
+});
+
 test('a connection beyond the pre-hello ceiling is closed 1008', async (t) => {
   // The ceiling is maxClients * 4 sockets that have not yet completed a hello.
   const { server, port } = await startServer({ maxClients: 1 });
