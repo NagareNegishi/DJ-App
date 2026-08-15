@@ -1,0 +1,22 @@
+{
+  "description": "hostile delta whose gain exceeds the 2.0 maximum but is otherwise well formed",
+  "message": {
+    "type": "delta",
+    "serverSeq": 17,
+    "sourceClientId": "c-9b01",
+    "deck": "A",
+    "changes": {
+      "gain": 5.0
+    }
+  },
+  "reason": "gain above maximum",
+  "expect": {
+    "client": "accept"
+  },
+  "payloads": [
+    {
+      "pointer": "",
+      "as": "StateDelta"
+    }
+  ]
+}

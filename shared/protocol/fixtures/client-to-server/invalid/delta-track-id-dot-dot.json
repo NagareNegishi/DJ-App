@@ -1,0 +1,14 @@
+{
+  "description": "delta with a trackId containing a parent-directory segment",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "trackId": "demo..track"
+    }
+  },
+  "reason": "trackId contains ..",
+  "expect": {
+    "server": "reject"
+  }
+}

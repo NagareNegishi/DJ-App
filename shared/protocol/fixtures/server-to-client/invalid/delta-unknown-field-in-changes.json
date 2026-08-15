@@ -1,0 +1,22 @@
+{
+  "description": "hostile delta whose changes carry a field the Field reference does not define",
+  "message": {
+    "type": "delta",
+    "serverSeq": 9,
+    "sourceClientId": "c-9b01",
+    "deck": "A",
+    "changes": {
+      "volume": 0.5
+    }
+  },
+  "reason": "unknown field in changes",
+  "expect": {
+    "client": "reject"
+  },
+  "payloads": [
+    {
+      "pointer": "",
+      "as": "StateDelta"
+    }
+  ]
+}

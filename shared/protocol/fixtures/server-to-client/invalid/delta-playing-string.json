@@ -1,0 +1,23 @@
+{
+  "description": "hostile delta sending playing as a string rather than a boolean",
+  "message": {
+    "type": "delta",
+    "serverSeq": 10,
+    "sourceClientId": "c-9b01",
+    "deck": "A",
+    "changes": {
+      "playing": "true",
+      "positionSeconds": 5
+    }
+  },
+  "reason": "playing is not a boolean",
+  "expect": {
+    "client": "reject"
+  },
+  "payloads": [
+    {
+      "pointer": "",
+      "as": "StateDelta"
+    }
+  ]
+}

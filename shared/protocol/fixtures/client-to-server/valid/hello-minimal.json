@@ -1,0 +1,9 @@
+{
+  "description": "hello with the minimum required fields",
+  "message": {
+    "type": "hello",
+    "protocolVersion": 1,
+    "name": "nagare",
+    "room": "demo-room"
+  }
+}

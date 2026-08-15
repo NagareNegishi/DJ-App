@@ -1,0 +1,14 @@
+{
+  "description": "delta whose changes carry a field the Field reference does not define",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "volume": 0.5
+    }
+  },
+  "reason": "unknown field in changes",
+  "expect": {
+    "server": "reject"
+  }
+}

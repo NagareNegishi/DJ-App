@@ -1,0 +1,14 @@
+{
+  "description": "delta whose playbackRate exceeds the 2.0 maximum",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "playbackRate": 3.0
+    }
+  },
+  "reason": "playbackRate above maximum",
+  "expect": {
+    "server": "reject"
+  }
+}

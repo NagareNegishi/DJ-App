@@ -1,0 +1,13 @@
+{
+  "description": "hello omitting the required name field",
+  "message": {
+    "type": "hello",
+    "protocolVersion": 1,
+    "room": "demo-room"
+  },
+  "reason": "missing required field name",
+  "expect": {
+    "server": "reject"
+  },
+  "closeCode": 4000
+}

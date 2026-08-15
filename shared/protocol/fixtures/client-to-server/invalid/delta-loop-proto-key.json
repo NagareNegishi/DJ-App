@@ -1,0 +1,20 @@
+{
+  "description": "delta whose loop object carries a __proto__ key",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "loop": {
+        "inSeconds": 4,
+        "outSeconds": 8,
+        "__proto__": {
+          "outSeconds": 0
+        }
+      }
+    }
+  },
+  "reason": "unknown field __proto__ in loop",
+  "expect": {
+    "server": "reject"
+  }
+}

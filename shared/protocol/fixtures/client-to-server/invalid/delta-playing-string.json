@@ -1,0 +1,14 @@
+{
+  "description": "delta sending playing as a string rather than a boolean",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "playing": "true"
+    }
+  },
+  "reason": "playing is not a boolean",
+  "expect": {
+    "server": "reject"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "description": "delta with a 65-character trackId, one over the maximum",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "trackId": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  "reason": "trackId longer than 64 characters",
+  "expect": {
+    "server": "reject"
+  }
+}

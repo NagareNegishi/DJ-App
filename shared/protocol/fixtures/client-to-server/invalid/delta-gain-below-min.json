@@ -1,0 +1,14 @@
+{
+  "description": "delta whose gain falls below the 0.0 minimum",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "gain": -0.5
+    }
+  },
+  "reason": "gain below minimum",
+  "expect": {
+    "server": "reject"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "description": "delta with pitchOffsetSemitones at the inclusive maximum of 12",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "pitchOffsetSemitones": 12
+    }
+  }
+}

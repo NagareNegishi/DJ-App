@@ -11,35 +11,27 @@ permissions:
   contents: read
 
 jobs:
-  # Server unit/integration tests (node:test). Guarded because the sync
-  # server lands at M6 — before that, server/package.json doesn't exist yet
-  # and this job must still report green rather than failing the pipeline.
+  # Server unit/integration tests (node:test). The existence guard this job
+  # carried before M6 is gone: server/package.json now exists, so a missing
+  # server is a real failure rather than a state to tolerate.
+  #
+  # Node 22 is pinned to match docs/plan/README.md's fixed-versions table. The
+  # dev container happens to run 24, so this job is the only place the pinned
+  # runtime is actually exercised — do not float it to `lts/*`.
   server:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
 
-      - name: Check for server project
-        id: check
-        run: |
-          if [ -f server/package.json ]; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-          fi
-
       - uses: actions/setup-node@v4
-        if: steps.check.outputs.exists == 'true'
         with:
           node-version: 22
 
       - name: npm ci
-        if: steps.check.outputs.exists == 'true'
         working-directory: server
         run: npm ci
 
       - name: npm test
-        if: steps.check.outputs.exists == 'true'
         working-directory: server
         run: npm test
 

@@ -1,0 +1,14 @@
+{
+  "description": "delta whose positionSeconds exceeds the 86400 maximum",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "positionSeconds": 90000
+    }
+  },
+  "reason": "positionSeconds above maximum",
+  "expect": {
+    "server": "reject"
+  }
+}

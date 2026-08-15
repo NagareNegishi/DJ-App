@@ -57,6 +57,10 @@ target_compile_definitions(dj-app-core PUBLIC
     JUCE_WEB_BROWSER=0
     JUCE_USE_CURL=0
     CLIENT_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    # Shared wire-contract corpus (shared/protocol/fixtures), consumed by the
+    # protocol fixture suite. Absolute at configure time so the test finds it
+    # regardless of the working directory ctest happens to run it from.
+    DJ_FIXTURE_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../shared/protocol/fixtures"
 )
 
 target_link_libraries(dj-app-core PUBLIC

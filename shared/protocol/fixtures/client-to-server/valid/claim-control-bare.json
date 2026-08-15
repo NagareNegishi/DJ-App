@@ -1,0 +1,6 @@
+{
+  "description": "claimControl carrying only its type",
+  "message": {
+    "type": "claimControl"
+  }
+}

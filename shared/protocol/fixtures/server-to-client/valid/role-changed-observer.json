@@ -1,0 +1,9 @@
+{
+  "description": "roleChanged returning a client to observer",
+  "message": {
+    "type": "roleChanged",
+    "clientId": "c-3f2a",
+    "role": "observer"
+  },
+  "payloads": []
+}

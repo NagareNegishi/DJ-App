@@ -1,0 +1,10 @@
+{
+  "description": "delta setting trackId to a plain manifest id",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "trackId": "demo-track-01"
+    }
+  }
+}

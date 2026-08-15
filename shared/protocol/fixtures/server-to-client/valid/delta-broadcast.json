@@ -1,0 +1,18 @@
+{
+  "description": "delta broadcast carrying one changed field",
+  "message": {
+    "type": "delta",
+    "serverSeq": 7,
+    "sourceClientId": "c-3f2a",
+    "deck": "A",
+    "changes": {
+      "gain": 1.5
+    }
+  },
+  "payloads": [
+    {
+      "pointer": "",
+      "as": "StateDelta"
+    }
+  ]
+}

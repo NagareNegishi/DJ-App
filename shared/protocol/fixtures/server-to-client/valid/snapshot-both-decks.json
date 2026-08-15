@@ -1,0 +1,40 @@
+{
+  "description": "snapshot with deck A playing a track and deck B at its defaults",
+  "message": {
+    "type": "snapshot",
+    "serverSeq": 31,
+    "decks": {
+      "A": {
+        "trackId": "demo-track-01",
+        "playing": true,
+        "positionSeconds": 42.5,
+        "gain": 0.75,
+        "playbackRate": 1.25,
+        "pitchOffsetSemitones": 2,
+        "loop": {
+          "inSeconds": 4.0,
+          "outSeconds": 8.0
+        }
+      },
+      "B": {
+        "trackId": null,
+        "playing": false,
+        "positionSeconds": 0,
+        "gain": 1.0,
+        "playbackRate": 1.0,
+        "pitchOffsetSemitones": 0,
+        "loop": null
+      }
+    }
+  },
+  "payloads": [
+    {
+      "pointer": "/decks/A",
+      "as": "PlaybackState"
+    },
+    {
+      "pointer": "/decks/B",
+      "as": "PlaybackState"
+    }
+  ]
+}

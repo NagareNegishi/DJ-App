@@ -35,7 +35,7 @@ Run: `npm test` in `server/`.
 
 ## Contract fixtures (`shared/protocol/fixtures/`)
 
-JSON files, one directory per direction: `valid/` and `invalid/` (each file: `{"description": "...", "message": {...}}`; invalid files add `"reason"`). Populate at M6 with at least: hello (good, bad version, long name), every server→client type, deltas exercising each field's boundaries, `loop` null/value/invalid.
+JSON files, one directory per direction, each split into `valid/` and `invalid/`. The file shape is specified and kept current in `shared/protocol/fixtures/README.md` — that is the authoritative description, because it has to stay in step with the corpus as it grows. Beyond `description`/`message`/`reason` it covers the fields a fixture needs in practice: `expect`, which names the outcome per consumer because the two sides legitimately disagree (the server rejects an out-of-range value, the client clamps it); `payloads`, the RFC 6901 pointers that let the client suite find nested payloads without knowing about envelopes; and `closeCode` on handshake fixtures. Populate at M6 with at least: hello (good, bad version, long name), every server→client type, deltas exercising each field's boundaries, `loop` null/value/invalid.
 - Server tests feed every `valid/` fixture through `validate.js` expecting acceptance, every `invalid/` expecting rejection.
 - Client tests parse every `valid/` server-message fixture through `model/Serialization` expecting success, and every `invalid/` expecting failure.
 A change that breaks one side's fixture run means the wire contract drifted — fix the code, or update `02-protocol.md` + fixtures + both sides together.

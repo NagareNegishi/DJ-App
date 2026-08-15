@@ -1,0 +1,31 @@
+{
+  "description": "hostile snapshot whose deck object carries a __proto__ key",
+  "message": {
+    "type": "snapshot",
+    "serverSeq": 16,
+    "decks": {
+      "A": {
+        "trackId": null,
+        "playing": false,
+        "positionSeconds": 0,
+        "gain": 1.0,
+        "playbackRate": 1.0,
+        "pitchOffsetSemitones": 0,
+        "loop": null,
+        "__proto__": {
+          "gain": 9
+        }
+      }
+    }
+  },
+  "reason": "unknown field __proto__ in deck state",
+  "expect": {
+    "client": "reject"
+  },
+  "payloads": [
+    {
+      "pointer": "/decks/A",
+      "as": "PlaybackState"
+    }
+  ]
+}

@@ -1,6 +1,6 @@
 # 06 — Security Requirements
 
-Binding requirements, scoped to what the prototype actually is: a state-sync app on a trusted-ish LAN, public AGPL repo, no accounts, no payments, no PII beyond a display name. Don't gold-plate beyond this document; don't ship less than it.
+Binding requirements, scoped to what the prototype actually is: a state-sync app on a trusted-ish LAN, public AGPL repo, no accounts, no payments. The only personal data in play is a display name and the client IP addresses the server writes to its log on join and on every abuse path — that is the whole of it, and it is deliberately not stored anywhere but the log stream. Don't gold-plate beyond this document; don't ship less than it.
 
 ## Threat model (what we defend against)
 

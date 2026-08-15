@@ -1,0 +1,19 @@
+{
+  "description": "delta carrying every field of the Field reference at once",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "trackId": "demo-track-02",
+      "playing": true,
+      "positionSeconds": 30.25,
+      "gain": 1.25,
+      "playbackRate": 1.5,
+      "pitchOffsetSemitones": -3,
+      "loop": {
+        "inSeconds": 10.0,
+        "outSeconds": 20.0
+      }
+    }
+  }
+}

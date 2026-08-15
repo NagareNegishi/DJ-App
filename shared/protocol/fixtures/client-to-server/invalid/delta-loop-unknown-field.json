@@ -1,0 +1,18 @@
+{
+  "description": "delta whose loop carries a field the protocol does not define",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "loop": {
+        "inSeconds": 4.0,
+        "outSeconds": 8.0,
+        "mode": "pingpong"
+      }
+    }
+  },
+  "reason": "unknown field in loop",
+  "expect": {
+    "server": "reject"
+  }
+}

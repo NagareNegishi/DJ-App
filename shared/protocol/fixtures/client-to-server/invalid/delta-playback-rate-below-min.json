@@ -1,0 +1,14 @@
+{
+  "description": "delta whose playbackRate falls below the 0.5 minimum",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "playbackRate": 0.1
+    }
+  },
+  "reason": "playbackRate below minimum",
+  "expect": {
+    "server": "reject"
+  }
+}

@@ -61,3 +61,28 @@ that adds the line (see `git log`).
   while playing (position races the click), so the step now specifies doing
   it while paused. `Debug` artefact-subfolder deviation from M1 reconfirmed
   present. No new deviations.
+- 2026-08-15 · **M6 — Sync server and protocol fixtures** · container green:
+  `server` suite 667/667 (up from 631), `client/build/linux` builds clean,
+  `ctest` 164/164. CI green on `084b37c` — the first run the server job has ever
+  had, since nothing from M6 had been pushed until now. No host checklist: M6
+  touches no audio and no GUI, so there is nothing a Windows host can tell us
+  that the container cannot. Landed in two sessions. The first built the server
+  and the shared fixture corpus (`build-log/2026-08-14-m6-server-protocol.md`);
+  the second ran the review it had not had (`build-log/2026-08-15-m6-review.md`),
+  a whitebox pass plus five advisers, 22 findings, 15 commits. One was high:
+  every policy close in the server was advisory, because `ws.close()` does not
+  stop the receiver and nothing checked whether a connection had been ejected,
+  so a peer closed for flooding kept mutating canonical state and broadcasting
+  to everyone else for up to 30 s (`a0460e2`). The same root cause let 32 silent
+  sockets hold every pre-hello slot and make the room unjoinable. Also fixed: a
+  repair-snapshot dedup that left a client permanently diverged after losing
+  control (`3fdc51b`), a ban clock that closed provably conforming clients
+  (`514c771`), and five smaller defects. Of the two paths M6 shipped with no
+  test, the backpressure ceiling is now covered and the heartbeat reaper stays
+  exempt per `05-testing.md`. Four plan documents were corrected against the
+  code they specify, and one protocol amendment is recorded in `DEVIATIONS.md`
+  (one `rate-limited` error per deficit episode, not per dropped frame; version
+  stays at 1). Known gaps carried into M7, all recorded in the review build-log:
+  the room code is still the only membership gate and handshakes are still
+  unthrottled, and `02-protocol.md` still does not pin the `roleChanged` payload
+  or ordering on controller disconnect.

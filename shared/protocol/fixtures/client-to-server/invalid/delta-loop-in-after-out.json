@@ -1,0 +1,17 @@
+{
+  "description": "delta whose loop start comes after its end",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "loop": {
+        "inSeconds": 8.0,
+        "outSeconds": 4.0
+      }
+    }
+  },
+  "reason": "loop inSeconds not strictly less than outSeconds",
+  "expect": {
+    "server": "reject"
+  }
+}

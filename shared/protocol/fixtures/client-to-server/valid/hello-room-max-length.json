@@ -1,0 +1,9 @@
+{
+  "description": "hello with a room code at the 64-character maximum",
+  "message": {
+    "type": "hello",
+    "protocolVersion": 1,
+    "name": "nagare",
+    "room": "demo-room-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  }
+}

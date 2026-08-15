@@ -1,0 +1,6 @@
+{
+  "description": "releaseControl carrying only its type",
+  "message": {
+    "type": "releaseControl"
+  }
+}

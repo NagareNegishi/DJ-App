@@ -1,0 +1,14 @@
+{
+  "description": "delta with a trackId that is exactly two dots",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "trackId": ".."
+    }
+  },
+  "reason": "trackId is a path segment",
+  "expect": {
+    "server": "reject"
+  }
+}

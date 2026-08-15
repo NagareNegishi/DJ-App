@@ -17,7 +17,7 @@ server/
 ├── src/
 │   ├── index.js            # entry: read config from env, create room + server, print room code, handle SIGINT/SIGTERM graceful close
 │   ├── config.js           # env parsing with defaults: HOST=127.0.0.1, PORT=8765, DJ_ROOM_CODE?, DJ_MAX_CLIENTS=8, LOG_LEVEL=info
-│   ├── server.js           # ws.WebSocketServer wiring: maxPayload 4096, connection lifecycle, hello timeout, heartbeat ping/pong, per-connection rate limiter; parses JSON safely and hands valid envelopes to room
+│   ├── server.js           # ws.WebSocketServer wiring: maxPayload 4096, connection lifecycle, hello timeout, heartbeat ping/pong, per-connection rate limiter; parses JSON safely and hands the parsed value to room, which does the envelope and per-type validation
 │   ├── room.js             # the domain: clients map, roles, canonical deck state, serverSeq, message handlers (hello/claim/release/delta/requestSnapshot), broadcast helpers
 │   ├── validate.js         # pure functions: validateHello, validateDelta(changes), clampless strict checks per 02-protocol Field reference; returns {ok} | {ok:false, reason}
 │   ├── protocol.js         # constants: PROTOCOL_VERSION, limits, error codes, close codes, field ranges (mirrors 02-protocol tables)
@@ -41,7 +41,7 @@ Keep `room.js` free of `ws` imports — it operates on a thin `client` abstracti
 
 ## Logging
 
-JSON lines to stdout only. Log at `info`: startup, join (id + name + remote address), role changes, leave, close codes. Log at `debug`: accepted deltas (deck + field names, **not** values), rate-limit hits. Never log the room code after startup, never log raw frames at info.
+JSON lines to stdout only. Log at `info`: startup, join (id + name + remote address), role changes, leave, close codes. Log at `warn`: rate-limit hits and bans, refused upgrades, and the other abuse paths — an operator needs to see these at the default level. Log at `debug`: accepted deltas (deck + field names, **not** values). Never log the room code after startup, never log raw frames at info.
 
 ## npm scripts
 

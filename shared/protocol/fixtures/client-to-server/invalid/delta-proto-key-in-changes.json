@@ -1,0 +1,17 @@
+{
+  "description": "delta whose changes carry a __proto__ key alongside a valid field",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "gain": 1.5,
+      "__proto__": {
+        "gain": 2
+      }
+    }
+  },
+  "reason": "unknown field __proto__ in changes",
+  "expect": {
+    "server": "reject"
+  }
+}

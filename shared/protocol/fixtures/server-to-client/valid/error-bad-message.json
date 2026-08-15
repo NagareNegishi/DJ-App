@@ -1,0 +1,9 @@
+{
+  "description": "error reporting a message that failed validation",
+  "message": {
+    "type": "error",
+    "code": "bad-message",
+    "message": "message did not match the protocol"
+  },
+  "payloads": []
+}

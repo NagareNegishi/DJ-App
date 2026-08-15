@@ -1,0 +1,12 @@
+{
+  "description": "delta whose changes is a string rather than an object",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": "gain"
+  },
+  "reason": "changes is not an object",
+  "expect": {
+    "server": "reject"
+  }
+}

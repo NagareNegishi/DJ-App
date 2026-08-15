@@ -1,0 +1,14 @@
+{
+  "description": "delta setting playing true without the mandatory positionSeconds",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "playing": true
+    }
+  },
+  "reason": "playing true without positionSeconds",
+  "expect": {
+    "server": "reject"
+  }
+}

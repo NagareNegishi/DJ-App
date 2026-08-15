@@ -1,0 +1,10 @@
+{
+  "description": "delta with gain at the inclusive minimum of 0.0",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "gain": 0.0
+    }
+  }
+}

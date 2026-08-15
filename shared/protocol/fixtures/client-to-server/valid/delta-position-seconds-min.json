@@ -1,0 +1,10 @@
+{
+  "description": "delta with positionSeconds at the inclusive minimum of 0",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "positionSeconds": 0
+    }
+  }
+}

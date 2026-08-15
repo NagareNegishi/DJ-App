@@ -1,0 +1,25 @@
+{
+  "description": "hostile delta whose loop start comes after its end",
+  "message": {
+    "type": "delta",
+    "serverSeq": 13,
+    "sourceClientId": "c-9b01",
+    "deck": "A",
+    "changes": {
+      "loop": {
+        "inSeconds": 8.0,
+        "outSeconds": 4.0
+      }
+    }
+  },
+  "reason": "loop inSeconds not strictly less than outSeconds",
+  "expect": {
+    "client": "reject"
+  },
+  "payloads": [
+    {
+      "pointer": "",
+      "as": "StateDelta"
+    }
+  ]
+}

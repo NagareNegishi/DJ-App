@@ -1,0 +1,17 @@
+{
+  "description": "delta whose loop starts before 0",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "loop": {
+        "inSeconds": -1,
+        "outSeconds": 8.0
+      }
+    }
+  },
+  "reason": "loop inSeconds below minimum",
+  "expect": {
+    "server": "reject"
+  }
+}
