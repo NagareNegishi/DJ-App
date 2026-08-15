@@ -33,7 +33,7 @@ const ok = (value) => ({ ok: true, value });
 
 const fail = (reason) => ({ ok: false, reason });
 
-const isPlainObject = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
+export const isPlainObject = (v) => typeof v === 'object' && v !== null && !Array.isArray(v);
 
 const hasField = (obj, key) => Object.hasOwn(obj, key);
 

@@ -6,7 +6,7 @@
 import { randomBytes } from 'node:crypto';
 
 import { PROTOCOL_VERSION, DEFAULT_DECK_STATE, ERROR_CODES, CLOSE_CODES } from './protocol.js';
-import { validateHello, validateDelta, validateEnvelope } from './validate.js';
+import { validateHello, validateDelta, validateEnvelope, isPlainObject } from './validate.js';
 
 const CLIENT_ID_ATTEMPTS = 100;
 
@@ -15,8 +15,6 @@ const HANDSHAKE_CLOSE_CODES = {
   'protocol version mismatch': CLOSE_CODES.versionMismatch,
   'wrong room': CLOSE_CODES.wrongRoom,
 };
-
-const isPlainObject = (value) => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** Copy one deck's state, detaching the nested loop object so nothing aliases room state. */
 const copyDeck = (deck) => ({ ...deck, loop: deck.loop === null ? null : { ...deck.loop } });
