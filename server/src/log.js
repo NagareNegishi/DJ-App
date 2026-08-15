@@ -4,6 +4,10 @@
 
 const LEVELS = { error: 0, warn: 1, info: 2, debug: 3 };
 
+// The set of valid level names, in severity order. config.js validates LOG_LEVEL
+// against this instead of keeping its own list, so the two can't drift apart.
+export const LOG_LEVELS = Object.keys(LEVELS);
+
 const defaultWrite = (line) => process.stdout.write(line);
 
 /**

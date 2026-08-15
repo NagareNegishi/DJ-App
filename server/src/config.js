@@ -5,13 +5,20 @@
 import { randomUUID } from 'node:crypto';
 
 import { DEFAULT_MAX_CLIENTS, DEFAULT_RATE_LIMIT, ROOM_CODE_MAX_LENGTH } from './protocol.js';
+import { LOG_LEVELS } from './log.js';
 
 // Bind address and port are deployment settings, not part of the wire contract, so they
 // live here rather than in protocol.js.
 const DEFAULT_HOST = '127.0.0.1';
 const DEFAULT_PORT = 8765;
 
-const LOG_LEVELS = ['error', 'warn', 'info', 'debug'];
+// The app is specified for a room of up to DEFAULT_MAX_CLIENTS (8) users. maxClients is
+// the resource-exhaustion defence (docs/plan/06-security.md) and server.js scales its
+// pre-hello connection ceiling from it, so it must stay bounded rather than accepting
+// anything up to Number.MAX_SAFE_INTEGER — an operator typo (a stray zero, a copy-pasted
+// env) would otherwise silently remove both limits. 8x the default leaves headroom for
+// larger sessions without defeating the defence.
+const MAX_CLIENTS_CEILING = DEFAULT_MAX_CLIENTS * 8;
 
 // An operator-chosen room code is the only thing gating membership once HOST is off
 // loopback, and failed handshakes are not rate-limited. This is not an entropy measure; it
@@ -61,9 +68,21 @@ export function loadConfig(env = process.env) {
   const maxClients =
     env.DJ_MAX_CLIENTS === undefined
       ? DEFAULT_MAX_CLIENTS
-      : parseIntegerVar(env.DJ_MAX_CLIENTS, 1, Number.MAX_SAFE_INTEGER, 'DJ_MAX_CLIENTS must be an integer of at least 1');
+      : parseIntegerVar(
+          env.DJ_MAX_CLIENTS,
+          1,
+          MAX_CLIENTS_CEILING,
+          `DJ_MAX_CLIENTS must be an integer between 1 and ${MAX_CLIENTS_CEILING}`,
+        );
 
-  const logLevel = LOG_LEVELS.includes(env.LOG_LEVEL) ? env.LOG_LEVEL : 'info';
+  let logLevel;
+  if (env.LOG_LEVEL === undefined) {
+    logLevel = 'info';
+  } else if (LOG_LEVELS.includes(env.LOG_LEVEL)) {
+    logLevel = env.LOG_LEVEL;
+  } else {
+    throw new Error(`LOG_LEVEL must be one of ${LOG_LEVELS.join(', ')}`);
+  }
 
   // Deliberately not overridable from the environment: an operator cannot accidentally
   // disable the limiter. Tests needing a smaller bucket build a config literal instead.

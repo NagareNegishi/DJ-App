@@ -141,14 +141,51 @@ for (const [label, value] of [
   });
 }
 
+test('DJ_MAX_CLIENTS at the 64-client ceiling is accepted', () => {
+  // The ceiling is 8x DEFAULT_MAX_CLIENTS (config.js:21); it also scales server.js's
+  // pre-hello connection ceiling, so it stays bounded rather than accepting anything up
+  // to Number.MAX_SAFE_INTEGER.
+  assert.equal(loadConfig({ DJ_MAX_CLIENTS: '64' }).maxClients, 64);
+});
+
+test('a DJ_MAX_CLIENTS one above the 64-client ceiling throws', () => {
+  assert.throws(
+    () => loadConfig({ DJ_MAX_CLIENTS: '65' }),
+    (err) => {
+      assert.ok(err.message.includes('DJ_MAX_CLIENTS'), err.message);
+      assert.match(err.message, /64/);
+      return true;
+    },
+  );
+});
+
 for (const level of ['error', 'warn', 'info', 'debug']) {
   test(`LOG_LEVEL ${level} is accepted`, () => {
     assert.equal(loadConfig({ LOG_LEVEL: level }).logLevel, level);
   });
 }
 
-test('an unrecognised LOG_LEVEL falls back to info', () => {
-  assert.equal(loadConfig({ LOG_LEVEL: 'chatty' }).logLevel, 'info');
+test('an unrecognised LOG_LEVEL throws rather than falling back to info', () => {
+  // LOG_LEVEL used to fall back silently; it now throws like every other malformed
+  // variable (config.js:78-85), naming the variable and the accepted set, because a
+  // wrong-case value (LOG_LEVEL=DEBUG) otherwise starts at info with no explanation
+  // for why the debug lines an operator asked for never show up.
+  assert.throws(
+    () => loadConfig({ LOG_LEVEL: 'chatty' }),
+    (err) => {
+      assert.ok(err.message.includes('LOG_LEVEL'), err.message);
+      assert.match(err.message, /error, warn, info, debug/);
+      return true;
+    },
+  );
+});
+
+test('an unset LOG_LEVEL still defaults to info without error', () => {
+  assert.equal(loadConfig({}).logLevel, 'info');
+});
+
+test('a LOG_LEVEL differing only in case throws rather than being treated as valid', () => {
+  assert.throws(() => loadConfig({ LOG_LEVEL: 'DEBUG' }), Error);
 });
 
 test('loadConfig reads only its argument, never process.env', (t) => {
