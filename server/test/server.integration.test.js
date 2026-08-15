@@ -347,6 +347,12 @@ test('a connection beyond the pre-hello ceiling is closed 1008', async (t) => {
   assert.equal((await expectClose(extra)).code, 1008);
 });
 
+// A raw-socket variant of the pre-hello-slot-release case lives in
+// server.raw-frame.test.js: a cooperative `ws` client completes its own close handshake
+// fast enough on loopback that it cannot distinguish "freed the instant close() ran" from
+// "freed only when the socket finally closed" — proving that needs a peer that never
+// answers the server's close frame at all.
+
 // ---------------------------------------------------------------------------
 // fan-out
 // ---------------------------------------------------------------------------
