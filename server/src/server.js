@@ -277,6 +277,13 @@ export function createServer({ config, logger, room }) {
         try {
           parsed = JSON.parse(decodeFrame(data));
         } catch {
+          // room.js already closes 4000 for a parsed-but-invalid pre-hello frame
+          // (02-protocol.md:20,38); a frame that fails to parse at all must be held
+          // to the same rule rather than falling back to the three-strike count.
+          if (conn.id === null) {
+            close(CLOSE_CODES.badHandshake, 'malformed hello');
+            return;
+          }
           send({ type: 'error', code: ERROR_CODES.badMessage, message: 'malformed json' });
           countInvalid(record);
           return;

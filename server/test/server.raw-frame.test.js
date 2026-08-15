@@ -209,3 +209,33 @@ test('a rejected pre-hello connection frees its slot immediately, even when its 
   });
 
   assert.equal(welcome.type, 'welcome', 'the freed slot should have let a new connection in');
+});
+
+// ---------------------------------------------------------------------------
+// malformed first frame
+// ---------------------------------------------------------------------------
+
+test('a first frame that fails to parse closes 4000 immediately, without an error frame first', async (t) => {
+  // room.js already closes 4000 for a parsed-but-invalid pre-hello frame; a frame that
+  // fails to parse at all must be held to the same rule (server.js:283-289) rather than
+  // falling back to the post-hello error-and-strike path.
+  const { server, port } = await startRealServer();
+  const raw = await connectRaw(port);
+  t.after(async () => {
+    raw.dispose();
+    await server.close();
+  });
+
+  raw.sendRawBytes(OPCODE.text, Buffer.from('{not json', 'utf8'));
+
+  await waitFor(() => raw.frames.some((f) => f.opcode === OPCODE.close));
+
+  const closeFrame = raw.frames.find((f) => f.opcode === OPCODE.close);
+  const code = closeFrame.payload.length >= 2 ? closeFrame.payload.readUInt16BE(0) : null;
+  assert.equal(code, 4000);
+  assert.equal(
+    raw.frames.some((f) => f.opcode === OPCODE.text),
+    false,
+    'no error frame should have been sent ahead of the close',
+  );
+});
