@@ -593,3 +593,37 @@ test('a continuous deficit past banAfterMs closes 4003', async (t) => {
 
   assert.equal(closed.code, 4003);
 });
+
+test('a client that returns to a conforming rate after a brief deficit is not banned, even once banAfterMs has elapsed since the deficit began', async (t) => {
+  // rateLimitedSince clears the moment a frame is served (server.js:125-126), so the 5 s
+  // (here, scaled down) window measures *continuous* violation, per 02-protocol.md:78 —
+  // not merely "some deficit happened within the last banAfterMs of wall-clock time". A
+  // client that overshoots once and then settles back under the sustained rate must not
+  // be punished later for having been over it briefly, however long ago that was.
+  const { server, port } = await startServer({
+    rateLimit: { sustainedPerSecond: 10, burst: 2, banAfterMs: 150 },
+  });
+  const client = connect(port);
+  t.after(async () => {
+    client.dispose();
+    await server.close();
+  });
+
+  await handshake(client, 'nagare'); // consumes one token of the burst-2 bucket
+
+  // A burst well past the remaining single token: the first is served, the rest are
+  // dropped, opening a deficit episode (one rate-limited error, per the test above).
+  for (let i = 0; i < 5; i += 1) client.send({ type: 'requestSnapshot' });
+  await nextOfType(client, 'error');
+
+  // Long enough for the bucket to refill past 1 token (well under a second at 10/s) and
+  // for banAfterMs to have fully elapsed since the deficit began — the case that would
+  // trip a clock that only measured elapsed time rather than continuous violation.
+  await delay(300);
+
+  client.send({ type: 'requestSnapshot' });
+  const reply = await client.next();
+
+  assert.equal(reply.type, 'snapshot', 'the message should have been served, not dropped');
+  assert.equal(client.ws.readyState, WebSocket.OPEN, 'serving a frame must clear the ban clock');
+});

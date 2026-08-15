@@ -107,9 +107,12 @@ export function createServer({ config, logger, room }) {
   // Charges one token; false means the frame must be dropped. A deficit episode
   // produces exactly one reply and one log line — answering every dropped frame
   // would make the limiter send more bytes than it receives and turn it into the
-  // flood's amplifier. The episode only closes once the bucket has recovered to
-  // half of burst, otherwise a flooder pausing for a single refill would reset
-  // the ban clock forever.
+  // flood's amplifier. 02-protocol.md:78 bans only *continuous* violation for more
+  // than 5 s, so the clock resets the moment a frame is served rather than waiting
+  // for the bucket to refill partway back to burst: a genuine flood has almost
+  // nothing served, so the ban clock still holds against it, but a client that
+  // overshot once and settled back under the sustained rate must not be punished
+  // for conforming.
   const charge = (record) => {
     const now = Date.now();
     refill(record, now);
@@ -117,9 +120,7 @@ export function createServer({ config, logger, room }) {
     if (served) record.tokens -= 1;
 
     if (served) {
-      if (record.rateLimitedSince !== null && record.tokens >= rateLimit.burst / 2) {
-        record.rateLimitedSince = null;
-      }
+      record.rateLimitedSince = null;
     } else if (record.rateLimitedSince === null) {
       record.rateLimitedSince = now;
       logger.warn('rate-limited', {
