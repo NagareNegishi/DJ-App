@@ -36,9 +36,10 @@ export function createRoom({ roomCode, maxClients, logger, protocolVersion = PRO
   // writer of the same fact, free to drift out of agreement with getControllerId().
   const roleOf = (conn) => (conn.id !== null && conn.id === controllerId ? 'controller' : 'observer');
 
-  const sendTo = (conn, obj) => {
-    conn.send(obj);
-  };
+  // True only for a conn that is the live entry clients has for its id. A conn whose id was
+  // handed out but which handleDisconnect has since retired still has a non-null conn.id, so
+  // callers that mutate room state must check this, not just conn.id !== null.
+  const isMember = (conn) => conn.id !== null && clients.get(conn.id) === conn;
 
   /** Fans out to every registered client except `except`. conn.send is total, so no guard. */
   const broadcast = (obj, { except } = {}) => {
@@ -52,7 +53,7 @@ export function createRoom({ roomCode, maxClients, logger, protocolVersion = PRO
     decks: Object.fromEntries(Object.entries(decks).map(([id, deck]) => [id, copyDeck(deck)])),
   });
 
-  const sendError = (conn, code, message) => sendTo(conn, { type: 'error', code, message });
+  const sendError = (conn, code, message) => conn.send({ type: 'error', code, message });
 
   /** Draws an unused `c-<4 hex>` id, or null if the (unreachable) collision cap is hit. */
   const allocateClientId = () => {
@@ -96,7 +97,7 @@ export function createRoom({ roomCode, maxClients, logger, protocolVersion = PRO
     }
 
     const role = roleOf(conn);
-    sendTo(conn, {
+    conn.send({
       type: 'welcome',
       clientId,
       role,
@@ -111,6 +112,10 @@ export function createRoom({ roomCode, maxClients, logger, protocolVersion = PRO
   };
 
   const handleClaimControl = (conn) => {
+    if (!isMember(conn)) {
+      sendError(conn, ERROR_CODES.badMessage, 'not a room member');
+      return { ok: false, errorCode: ERROR_CODES.badMessage };
+    }
     if (controllerId !== null) {
       sendError(conn, ERROR_CODES.controlTaken, 'control is already claimed');
       return { ok: false, errorCode: ERROR_CODES.controlTaken };
@@ -122,6 +127,10 @@ export function createRoom({ roomCode, maxClients, logger, protocolVersion = PRO
   };
 
   const handleReleaseControl = (conn) => {
+    if (!isMember(conn)) {
+      sendError(conn, ERROR_CODES.badMessage, 'not a room member');
+      return { ok: false, errorCode: ERROR_CODES.badMessage };
+    }
     if (controllerId !== conn.id) {
       sendError(conn, ERROR_CODES.notController, 'only the controller can release control');
       return { ok: false, errorCode: ERROR_CODES.notController };
@@ -133,6 +142,11 @@ export function createRoom({ roomCode, maxClients, logger, protocolVersion = PRO
   };
 
   const handleDelta = (conn, msg) => {
+    if (!isMember(conn)) {
+      sendError(conn, ERROR_CODES.badMessage, 'not a room member');
+      return { ok: false, errorCode: ERROR_CODES.badMessage };
+    }
+
     const result = validateDelta(msg);
     if (!result.ok) {
       sendError(conn, ERROR_CODES.badMessage, result.reason);
