@@ -25,6 +25,14 @@ const COUNTS_AS_INVALID = new Set([ERROR_CODES.badMessage]);
 // writes in process memory indefinitely.
 const MAX_BUFFERED_BYTES = 1024 * 1024;
 
+// ws.close() only queues a close frame; it does not stop the receiver, and ws's own
+// force-close fallback (closeTimeout) defaults to 30 s. That is long enough for a
+// peer we just ejected (ban, three-strike, binary frame) to keep its socket, its
+// slot, and graceful shutdown hostage. Force it well inside that window — long
+// enough for a cooperative peer to receive the close code first (M7 renders it as
+// user-facing text), short enough that an uncooperative one can't hold anything.
+const EJECT_TERMINATE_GRACE_MS = 3000;
+
 // maxClients is only checked once a hello validates, which leaves sockets that
 // never speak unbounded — each one costs a descriptor, a timer and a heartbeat
 // slot. Ceiling them at a multiple of the room size.
@@ -148,6 +156,9 @@ export function createServer({ config, logger, room }) {
     record.conn.close(CLOSE_CODES.policyViolation, 'too many invalid messages');
   };
 
+  // Idempotent: `pendingHello` guards the decrement, so this is safe to call both
+  // from close() (the moment a rejection is decided) and again from the socket's
+  // close event (the fallback for any close that doesn't route through close()).
   const releaseHelloWatch = (record) => {
     if (record.helloTimer !== null) {
       clearTimeout(record.helloTimer);
@@ -172,11 +183,20 @@ export function createServer({ config, logger, room }) {
     }
 
     const close = (code, reason) => {
+      if (record.ejected) return;
+      record.ejected = true;
+      // The pre-hello phase is over the moment we decide to eject, win or lose;
+      // freeing the slot here (instead of only on the socket's eventual close
+      // event) is what keeps an uncooperative pre-hello peer from holding it for
+      // the full grace window below.
+      releaseHelloWatch(record);
       try {
         ws.close(code, reason);
       } catch {
         // A socket that is already gone is not a failure to report.
       }
+      record.terminateTimer = setTimeout(() => ws.terminate(), EJECT_TERMINATE_GRACE_MS);
+      record.terminateTimer.unref();
     };
 
     // Total by contract: it never throws for any input, so callers — the room in
@@ -218,12 +238,14 @@ export function createServer({ config, logger, room }) {
       ws,
       conn,
       helloTimer: null,
+      terminateTimer: null,
       pendingHello: true,
       tokens: rateLimit.burst,
       lastRefillMs: Date.now(),
       rateLimitedSince: null,
       consecutiveInvalid: 0,
       isAlive: true,
+      ejected: false,
     };
     preHelloCount += 1;
     records.add(record);
@@ -239,6 +261,10 @@ export function createServer({ config, logger, room }) {
 
     ws.on('message', (data, isBinary) => {
       contain(record, () => {
+        // close() has already decided this connection is done; ws keeps delivering
+        // events until the close handshake (or our terminate fallback) completes,
+        // so every handler must refuse to act on its behalf in the meantime.
+        if (record.ejected) return;
         if (isBinary) {
           logger.warn('binary-frame', { clientId: conn.id, remoteAddress });
           close(CLOSE_CODES.policyViolation, 'text frames only');
@@ -272,12 +298,14 @@ export function createServer({ config, logger, room }) {
     // A conforming client pings once every 15 s, well under the bucket.
     ws.on('ping', () => {
       contain(record, () => {
+        if (record.ejected) return;
         charge(record);
       });
     });
 
     ws.on('pong', () => {
       contain(record, () => {
+        if (record.ejected) return;
         record.isAlive = true;
         charge(record);
       });
@@ -295,6 +323,12 @@ export function createServer({ config, logger, room }) {
       contain(record, () => {
         if (code === CLOSE_CODES.oversizeFrame) {
           logger.warn('oversize-frame', { clientId: conn.id, remoteAddress });
+        }
+        // The socket is gone; a pending fallback terminate() would be a no-op at
+        // best, but leaving it armed is a dangling timer for no reason.
+        if (record.terminateTimer !== null) {
+          clearTimeout(record.terminateTimer);
+          record.terminateTimer = null;
         }
         releaseHelloWatch(record);
         records.delete(record);
