@@ -200,3 +200,25 @@ Each entry: date, what the plan said, what was done instead, why.
   makes the disagreement unrepresentable. `remoteAddress` exists because handshake failures
   must be logged with a source address for a room-code guessing attempt to be diagnosable
   at all; it is used only in log lines and is never sent to a peer.
+
+## 2026-08-15 — one `rate-limited` error per deficit episode, not per dropped message
+
+- **Plan said**: `docs/plan/02-protocol.md` rate limiting: "On exhaustion:
+  `error{code:"rate-limited"}` and the message is dropped" — read literally, one error frame
+  for every dropped frame.
+- **Actual**: the connection gets one `error{code:"rate-limited"}` when it first goes into
+  deficit, and nothing further until it has been served again. The dropped frames after the
+  first are discarded silently.
+- **Change**: amended `02-protocol.md` to state once-per-episode. The protocol version stays
+  at 1.
+- **Why**: raised by the correctness review of the landed M6 server, which read the document
+  literally and found the code narrower. On inspection the document was the thing that was
+  wrong. Answering every dropped frame makes the rate limiter reply with more bytes than it
+  receives, so exceeding the limit would cost the server more than staying under it and the
+  limiter would become the flood's amplifier — the exact property it exists to deny. The
+  suppressed messages are redundant notifications about a condition the client caused and has
+  already been told about once; no state diverges as a result, which is what separates this
+  from the repair-snapshot dedup found in the same review, where suppression left a peer
+  permanently wrong and the code was changed to match the document instead. Version stays at
+  1 by the same reasoning as the `trackId` amendment above: no wire format that ever ran is
+  invalidated, and there is no deployed v1 peer relying on a per-frame error.

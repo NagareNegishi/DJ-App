@@ -57,7 +57,7 @@ Failure closes: wrong/missing `protocolVersion` ⇒ close **4001**; wrong `room`
 
 ## Error codes
 
-`bad-message` (schema/size/type violation) · `not-controller` · `control-taken` · `rate-limited` · `unknown-track` (reserved) . Close codes: **4000** bad handshake, **4001** version mismatch, **4002** room full, **4003** rate-limit ban, **4004** wrong room code, **1008** policy violation, **1009** oversize frame.
+`bad-message` (schema/size/type violation) · `not-controller` · `control-taken` · `rate-limited` · `unknown-track` (reserved) . Close codes: **4000** bad handshake, **4001** version mismatch, **4002** room full, **4003** rate-limit ban, **4004** wrong room code, **1008** policy violation, **1009** oversize frame, **1001** graceful shutdown, **1011** internal error.
 
 ## Field reference — `PlaybackState` / `changes` (THE canonical table)
 
@@ -75,7 +75,7 @@ Validation policy: **server rejects** out-of-spec values (`error{bad-message}`, 
 
 ## Rate limiting
 
-Token bucket per connection: **60 messages/s sustained, burst 120**. On exhaustion: `error{code:"rate-limited"}` and the message is dropped. Continuous violation for > 5 s ⇒ close 4003. Client-side: UI slider streams are throttled to ≤ 30 deltas/s per control (trailing-edge coalescing), keeping normal use far under the limit.
+Token bucket per connection: **60 messages/s sustained, burst 120**. On exhaustion the message is dropped, and the connection gets **one** `error{code:"rate-limited"}` per deficit episode — not one per dropped message. Answering every dropped frame would make the limiter send more bytes than it receives, so a flood would cost the server more than the flooder. The episode ends as soon as a message is served again. Continuous violation for > 5 s ⇒ close 4003. Client-side: UI slider streams are throttled to ≤ 30 deltas/s per control (trailing-edge coalescing), keeping normal use far under the limit.
 
 ## Room and control model
 
