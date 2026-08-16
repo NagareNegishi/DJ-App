@@ -30,6 +30,9 @@ class DeckComponent : public juce::Component, private juce::Timer
                   std::function<double()> resumePositionProvider);
     ~DeckComponent() override;
 
+    void setControlsEnabled(bool enabled); // role-based gate — combines with the existing
+                                           // "has a track loaded" gate already inside refreshWidgets
+
     void resized() override;
 
   private:
@@ -71,6 +74,9 @@ class DeckComponent : public juce::Component, private juce::Timer
         stashedLoopOnArm_; // the loop that was active when
                            // the current arm gesture began, if any — restored on Cancel or on a
                            // rejected Loop Out; discarded once Loop Out actually commits a new loop
+
+    bool rolePermitsControl_ = true; // starts fully enabled: before ever connecting, this is
+                                     // solo local playback (M3-M6 behavior) and must keep working
 
     juce::Label titleLabel_;
     juce::TextButton playPauseButton_{"Play"};

@@ -99,9 +99,8 @@ that a network server triggers and a desktop app does not: if people interact wi
 over a network, you have to offer them the Corresponding Source of the version you are
 actually running. Running it unmodified from the public repository and telling your users
 where that is satisfies it. If you have patched anything, publish your patched version and
-point them at that instead. The server does not yet announce this itself — carrying a source
-URL in the `welcome` message is planned for M7, since adding a field to `welcome` is a
-protocol change and belongs with the other M7 protocol work.
+point them at that instead. The server announces its own source in every `welcome` message,
+via the `source` field.
 
 Some things are known gaps rather than oversights, and they are recorded so the next person
 does not have to rediscover them:

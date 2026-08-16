@@ -139,7 +139,7 @@ TEST_CASE("EngineAdapter loads the buffer the repository resolves for a present 
     CHECK(engine.lastLoadedAudio == buffer);
 }
 
-TEST_CASE("EngineAdapter skips the load and does not crash when the repository resolves nullptr",
+TEST_CASE("EngineAdapter loads a null buffer and does not crash when the repository resolves nullptr",
           "[engine][EngineAdapter]")
 {
     StateManager manager;
@@ -152,10 +152,12 @@ TEST_CASE("EngineAdapter skips the load and does not crash when the repository r
     delta.trackId = std::string("missing-track");
 
     REQUIRE_NOTHROW(manager.applyDelta(delta, DeltaSource::local));
-    CHECK(engine.calls.empty());
+    REQUIRE(engine.calls.size() == 1);
+    CHECK(engine.calls[0] == "load");
+    CHECK(engine.lastLoadedAudio == nullptr);
 }
 
-TEST_CASE("EngineAdapter makes no engine call and does not crash for an explicit-empty trackId",
+TEST_CASE("EngineAdapter loads a null buffer and does not crash for an explicit-empty trackId",
           "[engine][EngineAdapter]")
 {
     StateManager manager;
@@ -167,7 +169,64 @@ TEST_CASE("EngineAdapter makes no engine call and does not crash for an explicit
     delta.trackId = std::string();
 
     REQUIRE_NOTHROW(manager.applyDelta(delta, DeltaSource::local));
-    CHECK(engine.calls.empty());
+    REQUIRE(engine.calls.size() == 1);
+    CHECK(engine.calls[0] == "load");
+    CHECK(engine.lastLoadedAudio == nullptr);
+}
+
+TEST_CASE("EngineAdapter loads a null buffer instead of leaving the previous track playing when a "
+          "later delta's trackId is unresolvable",
+          "[engine][EngineAdapter][regression]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    auto buffer = std::make_shared<LoadedAudio>();
+    repository.buffers["track-1"] = buffer;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    StateDelta first = makeDelta(DeckId::A);
+    first.trackId = std::string("track-1");
+    manager.applyDelta(first, DeltaSource::local);
+    REQUIRE(engine.lastLoadedAudio == buffer);
+
+    StateDelta second = makeDelta(DeckId::A);
+    second.trackId = std::string("missing-track"); // not in repository.buffers
+    second.positionSeconds = 5.0;
+    manager.applyDelta(second, DeltaSource::local);
+
+    // The stale buffer must not survive the delta that failed to resolve a new one.
+    CHECK(engine.lastLoadedAudio == nullptr);
+    REQUIRE(engine.calls.size() == 3);
+    CHECK(engine.calls[0] == "load");
+    CHECK(engine.calls[1] == "load");
+    CHECK(engine.calls[2] == "seek");
+}
+
+TEST_CASE("EngineAdapter loads a null buffer instead of leaving the previous track playing when a "
+          "later delta clears trackId",
+          "[engine][EngineAdapter][regression]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    auto buffer = std::make_shared<LoadedAudio>();
+    repository.buffers["track-1"] = buffer;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    StateDelta first = makeDelta(DeckId::A);
+    first.trackId = std::string("track-1");
+    manager.applyDelta(first, DeltaSource::local);
+    REQUIRE(engine.lastLoadedAudio == buffer);
+
+    StateDelta second = makeDelta(DeckId::A);
+    second.trackId = std::string(); // explicit clear
+    manager.applyDelta(second, DeltaSource::local);
+
+    CHECK(engine.lastLoadedAudio == nullptr);
+    REQUIRE(engine.calls.size() == 2);
+    CHECK(engine.calls[0] == "load");
+    CHECK(engine.calls[1] == "load");
 }
 
 TEST_CASE("EngineAdapter loads before seeking when both trackId and positionSeconds are present",

@@ -40,4 +40,58 @@ template <> Result<PlaybackState> fromVar<PlaybackState>(const juce::var& v);
 
 template <> Result<StateDelta> fromVar<StateDelta>(const juce::var& v);
 
+// Whole-protocol-message (de)serialization: everything below builds or parses a
+// complete `{type: "...", ...}` wire message, as opposed to the field-level
+// (de)serialization above. Pure — no I/O, no IXWebSocket — consumed by
+// sync/WebSocketTransport (M7).
+
+constexpr int kProtocolVersion = 1; // shared/protocol/PROTOCOL-VERSION
+
+// Validates `name`/`room` against 02-protocol.md's `hello` field constraints
+// (`name`: string 1-32, printable, no control chars; `room`: string 1-64)
+// before building the envelope. Failure means the caller must never attempt
+// to connect with this input.
+Result<juce::var> buildHello(const juce::String& name, const juce::String& room);
+
+// Same shape rule outbound hello names are held to (1-32 chars, printable, no
+// control chars) — reused for validating inbound peer names (welcome.peers,
+// peerJoined) so a hostile server can't inject control characters/newlines
+// into the peer list display via a forged name.
+bool isValidPeerName(const juce::String& name);
+
+juce::var buildDelta(const StateDelta& delta); // {type:"delta", deck, changes:{...}}
+juce::var buildClaimControl();
+juce::var buildReleaseControl();
+juce::var buildRequestSnapshot();
+
+// "" if `message` is not an object or its "type" is missing/not a string.
+juce::String messageType(const juce::var& message);
+
+// message must already have type == "delta". Reconstructs a flat {deck, ...changes}
+// var from the wire's {deck, changes:{...}} shape and parses it via fromVar<StateDelta>.
+// Fails if `deck` is absent or `changes` is not an object (mirrors the retired
+// flattenWireDelta's exact two failure conditions).
+Result<StateDelta> parseDeltaMessage(const juce::var& message);
+
+// Reads `serverSeq` off any server-to-client message that carries one (welcome, delta,
+// snapshot). std::nullopt if absent or not a non-negative integer-valued number.
+std::optional<int> messageServerSeq(const juce::var& message);
+
+// Maps a WebSocket close code (02-protocol.md's Error codes / close code table) to one
+// human-readable string for SyncTransport::Callbacks::onConnectionChange. Deliberately
+// takes only the code, not the server's free-text close reason: every documented code
+// already has one fixed, complete meaning, and the server's own accompanying string is
+// not something the client has any protocol reason to trust (log-line forging via
+// embedded newlines, a crafted "reason" coaxing a user toward something outside the
+// app). Every documented code (4000-4004, 1008, 1009, 1001, 1011) gets a specific
+// description; an undocumented code still returns a safe generic string.
+juce::String describeCloseCode(int code);
+
+// Serializes `message` and checks it against the 4096-byte wire limit (02-protocol.md
+// Transport section). Failure means "too large to send" — the caller must drop, never
+// truncate or send anyway. This is the one place the byte-length check happens; both
+// the handshake's hello and every SyncTransport::send* method route through it, so the
+// check cannot be bypassed by a new call site later forgetting it.
+Result<juce::String> serializeForSend(const juce::var& message);
+
 } // namespace djapp

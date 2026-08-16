@@ -140,6 +140,15 @@ test('the welcome carries an integer serverSeq matching the room snapshot', () =
   assert.equal(conn.sent[0].serverSeq, room.getSnapshot().serverSeq);
 });
 
+test('the welcome carries the AGPL corresponding-source URL', () => {
+  const { room } = makeRoom();
+  const conn = fakeConn();
+
+  room.handleMessage(conn, helloFrame());
+
+  assert.equal(conn.sent[0].source, 'https://github.com/NagareNegishi/DJ-App');
+});
+
 test('the first joiner is welcomed into an empty peers list', () => {
   const { room } = makeRoom();
   const conn = fakeConn();
@@ -920,7 +929,7 @@ test('a controller disconnect frees control', () => {
   assert.equal(room.getControllerId(), null);
 });
 
-test('a controller disconnect broadcasts peerLeft and then roleChanged, in that order', () => {
+test('a controller disconnect broadcasts peerLeft only, no roleChanged', () => {
   const { room } = makeRoom();
   const controller = join(room, { name: 'aki' });
   const staying = join(room, { name: 'nagare' });
@@ -929,10 +938,7 @@ test('a controller disconnect broadcasts peerLeft and then roleChanged, in that 
 
   room.handleDisconnect(controller);
 
-  assert.deepEqual(staying.sent, [
-    { type: 'peerLeft', clientId: controller.id },
-    { type: 'roleChanged', clientId: controller.id, role: 'observer' },
-  ]);
+  assert.deepEqual(staying.sent, [{ type: 'peerLeft', clientId: controller.id }]);
 });
 
 test('a controller disconnect promotes nobody', () => {
@@ -974,7 +980,7 @@ test('a repeated disconnect announces the departure only once', () => {
   room.handleDisconnect(leaving);
 
   assert.equal(framesOfType(staying, 'peerLeft').length, 1);
-  assert.equal(framesOfType(staying, 'roleChanged').length, 1);
+  assert.equal(framesOfType(staying, 'roleChanged').length, 0);
 });
 
 test('a disconnect for a connection that never said hello is a no-op', () => {

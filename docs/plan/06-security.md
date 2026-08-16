@@ -9,7 +9,8 @@ Binding requirements, scoped to what the prototype actually is: a state-sync app
 | Malicious/buggy WebSocket client sends crafted messages | strict server-side validation, size/rate limits, role enforcement, never-crash handling (`03-server.md`) |
 | Malicious/compromised *server* (or MITM on ws://) sends crafted state to clients | client-side validation + clamping of every incoming message; no network data ever used as a file path or executed |
 | Uninvited LAN peer joins the session | room code required at handshake; server binds `127.0.0.1` by default — exposing it is an explicit operator action |
-| Resource exhaustion (connection floods, message floods, giant frames) | max clients (8), token-bucket rate limit, 4096-byte `maxPayload`, hello timeout, heartbeat reaping |
+| Resource exhaustion (connection floods, message floods, giant frames) — **server-side**: `ws`'s `maxPayload` rejects an oversize frame before buffering it | max clients (8), token-bucket rate limit, 4096-byte `maxPayload`, hello timeout, heartbeat reaping |
+| Resource exhaustion — **client-side**, from a malicious/compromised server: IXWebSocket has no inbound max-payload setting and buffers a frame (or an unbounded fragment chain) in full before the app ever sees a byte, so the client's own 4096-byte check (`WebSocketTransport.cpp`) runs too late to bound memory against a single giant frame | not defended; accepted prototype risk, same class as the two items below (out-of-scope list) |
 | Supply-chain drift | pinned versions everywhere (JUCE tag, IXWebSocket tag, Catch2 tag, `package-lock.json`); `npm audit` at dependency-change time; runtime dep count kept at 1 (`ws`) |
 | Secrets/credentials leaking into the public repo | none exist by design; never introduce tokens/keys into code or CI without stopping to design storage; `.gitignore` covers build dirs and local assets |
 

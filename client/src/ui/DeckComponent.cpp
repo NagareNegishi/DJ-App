@@ -104,6 +104,12 @@ DeckComponent::~DeckComponent()
     stateManager_.removeListener(listenerToken_);
 }
 
+void DeckComponent::setControlsEnabled(bool enabled)
+{
+    rolePermitsControl_ = enabled;
+    refreshWidgets(stateManager_.getState(deck_));
+}
+
 void DeckComponent::rebaseAnchorAndRefresh(const StateDelta& applied, const PlaybackState& newState)
 {
     if (applied.trackId.has_value() || applied.positionSeconds.has_value())
@@ -150,7 +156,8 @@ void DeckComponent::refreshWidgets(const PlaybackState& state)
     else
     {
         const auto meta = repository_.getTrackMetadata(state.trackId);
-        titleLabel_.setText(meta.has_value() ? meta->title : state.trackId, juce::dontSendNotification);
+        titleLabel_.setText(meta.has_value() ? meta->title : "missing track: " + state.trackId,
+                            juce::dontSendNotification);
         duration = meta.has_value() ? meta->durationSeconds : 0.0;
     }
 
@@ -163,11 +170,13 @@ void DeckComponent::refreshWidgets(const PlaybackState& state)
     rateSlider_.setValue(state.playbackRate, juce::dontSendNotification);
 
     const bool hasTrack = !state.trackId.isEmpty();
-    playPauseButton_.setEnabled(hasTrack);
-    positionSlider_.setEnabled(hasTrack);
-    loopInButton_.setEnabled(hasTrack);
-    loopClearButton_.setEnabled(hasTrack);
-    loopOutButton_.setEnabled(hasTrack && pendingLoopInSeconds_.has_value());
+    playPauseButton_.setEnabled(hasTrack && rolePermitsControl_);
+    positionSlider_.setEnabled(hasTrack && rolePermitsControl_);
+    loopInButton_.setEnabled(hasTrack && rolePermitsControl_);
+    loopClearButton_.setEnabled(hasTrack && rolePermitsControl_);
+    loopOutButton_.setEnabled(hasTrack && rolePermitsControl_ && pendingLoopInSeconds_.has_value());
+    gainSlider_.setEnabled(rolePermitsControl_);
+    rateSlider_.setEnabled(rolePermitsControl_);
 }
 
 void DeckComponent::timerCallback()
@@ -231,7 +240,7 @@ void DeckComponent::onLoopInClicked()
     }
 
     loopInButton_.setButtonText("Cancel Loop In");
-    loopOutButton_.setEnabled(!stateManager_.getState(deck_).trackId.isEmpty());
+    loopOutButton_.setEnabled(!stateManager_.getState(deck_).trackId.isEmpty() && rolePermitsControl_);
 }
 
 void DeckComponent::onLoopOutClicked()
@@ -274,7 +283,7 @@ void DeckComponent::resetPendingLoopIn()
     pendingLoopInSeconds_.reset();
     stashedLoopOnArm_.reset();
     loopInButton_.setButtonText("Loop In");
-    loopOutButton_.setEnabled(false);
+    loopOutButton_.setEnabled(rolePermitsControl_ && false);
 }
 
 void DeckComponent::cancelPendingLoopIn()

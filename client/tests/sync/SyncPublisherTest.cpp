@@ -14,6 +14,15 @@
 // call-count on a hand-written SyncTransport test double, rather than asserting deep
 // structural equality of forwarded delta content (which would require knowing
 // StateDelta's fields/operator==, not specified anywhere available to this task).
+//
+// SyncPublisher also throttles outgoing local deltas to <=30 sendDelta calls/s per
+// deck (trailing-edge coalescing): a burst of local deltas for the same deck within
+// one ~33ms window merges into a single pending delta rather than one sendDelta call
+// each. Because a deck's very first-ever send has no prior send to throttle against,
+// several of the gating tests above that issue more than one local delta for the
+// same deck in quick succession call publisher.flushNow() to force a throttled send
+// through rather than waiting on a real Timer tick — see the throttle-specific cases
+// below for direct coverage of the coalescing behavior itself.
 
 #include <catch2/catch_test_macros.hpp>
 
@@ -240,6 +249,10 @@ TEST_CASE("SyncPublisher gate re-reads current connected/role state on every not
     publisher.setConnected(true);
     publisher.setRole(Role::controller);
     stateManager.applyDelta(nonEmptyDelta(), DeltaSource::local);
+    // This third delta lands on the same deck within the same ~33ms throttle
+    // window as the first send, so it coalesces rather than sending immediately;
+    // flushNow() forces it through to confirm the gate itself reopened correctly.
+    publisher.flushNow();
     REQUIRE(transport.sendDeltaCallCount == 2);
 }
 
@@ -277,6 +290,11 @@ TEST_CASE("SyncPublisher forwards only the deltas sent while both gates happen t
     publisher.setConnected(false);
     stateManager.applyDelta(nonEmptyDelta(), DeltaSource::local);
 
+    // Delta 5's send lands within the same deck's throttle window as delta 3's,
+    // so it coalesces rather than sending immediately; force it out to confirm
+    // it wasn't dropped.
+    publisher.flushNow();
+
     REQUIRE(transport.sendDeltaCallCount == expectedForwards);
 }
 
@@ -297,6 +315,9 @@ TEST_CASE("SyncPublisher gate reads the DeltaSource parameter fresh per call, no
     REQUIRE(transport.sendDeltaCallCount == 1); // gates open, but remote source still blocks
 
     stateManager.applyDelta(nonEmptyDelta(), DeltaSource::local);
+    // This second local send falls inside the first send's throttle window for
+    // this deck, so it coalesces; flushNow() forces it through.
+    publisher.flushNow();
     REQUIRE(transport.sendDeltaCallCount == 2); // local resumes forwarding immediately after
 }
 
@@ -323,7 +344,128 @@ TEST_CASE("A fresh SyncPublisher registers a listener independently of construct
     // second is destroyed here; first must be unaffected and keep forwarding.
 
     stateManager.applyDelta(nonEmptyDelta(), DeltaSource::local);
+    // Falls inside first's own throttle window for this deck; force it through.
+    first.flushNow();
 
     REQUIRE(firstTransport.sendDeltaCallCount == 2);
     REQUIRE(secondTransport.sendDeltaCallCount == 1);
+}
+
+// --- Throttle-specific cases: <=30 sendDelta calls/s per deck, trailing-edge
+// coalescing. A deck's very first-ever local delta always sends immediately
+// (nothing to throttle against yet); these cases exercise what happens once a
+// deck has already sent and a further delta for it arrives inside the window.
+
+TEST_CASE("SyncPublisher coalesces a rapid burst of local deltas for one deck into a single "
+          "sendDelta call, sending only the last values once flushNow() forces the flush")
+{
+    StateManager stateManager;
+    FakeTransport transport;
+    SyncPublisher publisher(stateManager, transport);
+
+    publisher.setConnected(true);
+    publisher.setRole(Role::controller);
+
+    StateDelta first;
+    first.deck = DeckId::A;
+    first.gain = 0.1f;
+    stateManager.applyDelta(first, DeltaSource::local);
+    REQUIRE(transport.sendDeltaCallCount == 1); // first-ever send for this deck: immediate
+
+    // A burst that follows within the same throttle window must coalesce rather
+    // than producing one sendDelta call per delta.
+    StateDelta second;
+    second.deck = DeckId::A;
+    second.gain = 0.5f;
+    stateManager.applyDelta(second, DeltaSource::local);
+
+    StateDelta third;
+    third.deck = DeckId::A;
+    third.gain = 0.9f;
+    third.playbackRate = 1.5f;
+    stateManager.applyDelta(third, DeltaSource::local);
+
+    REQUIRE(transport.sendDeltaCallCount == 1); // still just the one send; burst is pending
+
+    publisher.flushNow();
+
+    REQUIRE(transport.sendDeltaCallCount == 2);
+    REQUIRE(transport.lastDelta.has_value());
+    REQUIRE(transport.lastDelta->gain.has_value());
+    REQUIRE(*transport.lastDelta->gain == 0.9f); // last value in the burst wins, not the first
+    REQUIRE(transport.lastDelta->playbackRate.has_value());
+    REQUIRE(*transport.lastDelta->playbackRate == 1.5f);
+}
+
+TEST_CASE("SyncPublisher never silently drops a single isolated local delta that arrives inside "
+          "the throttle window -- it is sent once flushNow() forces the pending flush")
+{
+    StateManager stateManager;
+    FakeTransport transport;
+    SyncPublisher publisher(stateManager, transport);
+
+    publisher.setConnected(true);
+    publisher.setRole(Role::controller);
+
+    StateDelta first;
+    first.deck = DeckId::A;
+    first.gain = 0.2f;
+    stateManager.applyDelta(first, DeltaSource::local);
+    REQUIRE(transport.sendDeltaCallCount == 1);
+
+    // A single follow-up delta, not part of any burst, still lands inside the
+    // same throttle window and must be queued rather than dropped.
+    StateDelta second;
+    second.deck = DeckId::A;
+    second.gain = 0.7f;
+    stateManager.applyDelta(second, DeltaSource::local);
+    REQUIRE(transport.sendDeltaCallCount == 1); // pending, not yet sent
+
+    publisher.flushNow();
+
+    REQUIRE(transport.sendDeltaCallCount == 2);
+    REQUIRE(transport.lastDelta.has_value());
+    REQUIRE(transport.lastDelta->gain.has_value());
+    REQUIRE(*transport.lastDelta->gain == 0.7f);
+}
+
+TEST_CASE("SyncPublisher throttles two decks' local deltas independently -- one deck's pending, "
+          "throttled burst does not suppress or interfere with the other deck's immediate send")
+{
+    StateManager stateManager;
+    FakeTransport transport;
+    SyncPublisher publisher(stateManager, transport);
+
+    publisher.setConnected(true);
+    publisher.setRole(Role::controller);
+
+    StateDelta deckAFirst;
+    deckAFirst.deck = DeckId::A;
+    deckAFirst.gain = 0.1f;
+    stateManager.applyDelta(deckAFirst, DeltaSource::local);
+    REQUIRE(transport.sendDeltaCallCount == 1);
+
+    // Rapid follow-up on deck A coalesces into a pending delta for deck A only.
+    StateDelta deckASecond;
+    deckASecond.deck = DeckId::A;
+    deckASecond.gain = 0.6f;
+    stateManager.applyDelta(deckASecond, DeltaSource::local);
+    REQUIRE(transport.sendDeltaCallCount == 1);
+
+    // Deck B has never sent before, so its first delta sends immediately,
+    // unaffected by deck A's pending, throttled burst.
+    StateDelta deckBFirst;
+    deckBFirst.deck = DeckId::B;
+    deckBFirst.gain = 0.3f;
+    stateManager.applyDelta(deckBFirst, DeltaSource::local);
+    REQUIRE(transport.sendDeltaCallCount == 2);
+    REQUIRE(transport.lastDelta.has_value());
+    REQUIRE(transport.lastDelta->deck == DeckId::B);
+
+    // Deck A's pending delta is still outstanding until explicitly flushed.
+    publisher.flushNow();
+    REQUIRE(transport.sendDeltaCallCount == 3);
+    REQUIRE(transport.lastDelta->deck == DeckId::A);
+    REQUIRE(transport.lastDelta->gain.has_value());
+    REQUIRE(*transport.lastDelta->gain == 0.6f);
 }
