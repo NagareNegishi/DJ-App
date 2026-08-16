@@ -29,12 +29,18 @@ void EngineAdapter::handleDelta(const StateDelta& applied, const PlaybackState& 
         {
             juce::Logger::writeToLog("EngineAdapter: track cleared on deck " + toString(deck_) +
                                      "; unload not supported, ignoring");
+            engine_.load(nullptr);
         }
         else
         {
             const auto buffer = repository_.getAudioBuffer(*applied.trackId);
             if (buffer == nullptr)
+            {
                 juce::Logger::writeToLog("EngineAdapter: failed to load audio for track \"" + *applied.trackId + "\"");
+                // Don't leave the previously loaded track audible at the new position -
+                // protocol requires clients missing this track to go silent.
+                engine_.load(nullptr);
+            }
             else
                 engine_.load(buffer);
         }
