@@ -33,8 +33,8 @@ class PositionClock : private juce::Timer
   private:
     void timerCallback() override; // calls emitResyncNow()
     void updateTimerState();       // start/stop the 5 s Timer based on role_ && the
-                                    // deck's current `playing` flag; called from the
-                                    // StateManager listener and from setRole()
+                                   // deck's current `playing` flag; called from the
+                                   // StateManager listener and from setRole()
 
     StateManager& stateManager_;
     AudioEngine& engine_;

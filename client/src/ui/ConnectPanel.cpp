@@ -11,8 +11,8 @@ ConnectPanel::ConnectPanel()
 
     urlField_.setText("ws://127.0.0.1:8765");
     roomField_.setPasswordCharacter('*'); // the room code is the system's only access
-                                           // credential (06-security.md); don't leave it
-                                           // visible in cleartext for the whole session
+                                          // credential (06-security.md); don't leave it
+                                          // visible in cleartext for the whole session
 
     peerListDisplay_.setMultiLine(true);
     peerListDisplay_.setReadOnly(true);
@@ -68,8 +68,7 @@ void ConnectPanel::setConnectionStatus(bool connected, const juce::String& statu
 {
     connected_ = connected;
     statusLabel_.setText(statusText, juce::dontSendNotification);
-    statusLabel_.setColour(juce::Label::backgroundColourId,
-                           connected ? juce::Colours::green : juce::Colours::darkgrey);
+    statusLabel_.setColour(juce::Label::backgroundColourId, connected ? juce::Colours::green : juce::Colours::darkgrey);
     refreshEnablement();
 }
 

@@ -31,7 +31,7 @@ Role roleFromWireString(const juce::String& s)
 bool anyPeerControls(const std::vector<ConnectPanel::PeerInfo>& peers)
 {
     return std::any_of(peers.begin(), peers.end(),
-                        [](const ConnectPanel::PeerInfo& peer) { return peer.role == Role::controller; });
+                       [](const ConnectPanel::PeerInfo& peer) { return peer.role == Role::controller; });
 }
 
 // 02-protocol.md's Room and control model: max 8 clients.
@@ -42,8 +42,7 @@ constexpr std::size_t kMaxPeers = 8;
 // outbound hello names get, and refuses to grow `peers` past the protocol's max
 // room size — a malicious server forging peerJoined frames must not be able to
 // inject forged multiline names or grow this list without bound.
-void addOrUpdatePeer(std::vector<ConnectPanel::PeerInfo>& peers, ConnectPanel::PeerInfo peer,
-                     bool& loggedCapExceeded)
+void addOrUpdatePeer(std::vector<ConnectPanel::PeerInfo>& peers, ConnectPanel::PeerInfo peer, bool& loggedCapExceeded)
 {
     if (!isValidPeerName(peer.name))
         return;
@@ -233,7 +232,7 @@ void MainComponent::handleServerEvent(const juce::var& msg)
         const auto clientId = obj->getProperty("clientId").toString();
         peers_.erase(std::remove_if(peers_.begin(), peers_.end(),
                                     [&](const ConnectPanel::PeerInfo& peer) { return peer.clientId == clientId; }),
-                    peers_.end());
+                     peers_.end());
         connectPanel_.setPeers(peers_);
         applyRoleToUI();
         return;
@@ -247,8 +246,8 @@ void MainComponent::handleServerEvent(const juce::var& msg)
         if (!loggedServerError_)
         {
             loggedServerError_ = true;
-            juce::Logger::writeToLog("MainComponent: server sent an error frame (code: " +
-                                     obj->getProperty("code").toString() + ")");
+            juce::Logger::writeToLog(
+                "MainComponent: server sent an error frame (code: " + obj->getProperty("code").toString() + ")");
         }
         return;
     }
@@ -298,8 +297,7 @@ void MainComponent::applyDeckSnapshot(DeckId deck, const juce::var& playbackStat
     auto parsed = fromVar<PlaybackState>(playbackStateVar);
     if (!parsed)
     {
-        juce::Logger::writeToLog("MainComponent: malformed snapshot for deck " + toString(deck) + ": " +
-                                 parsed.error);
+        juce::Logger::writeToLog("MainComponent: malformed snapshot for deck " + toString(deck) + ": " + parsed.error);
         return;
     }
 

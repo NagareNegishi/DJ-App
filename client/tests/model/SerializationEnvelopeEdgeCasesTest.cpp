@@ -94,8 +94,7 @@ TEST_CASE("messageServerSeq rejects serverSeq one past INT_MAX (integer-valued, 
 TEST_CASE("parseDeltaMessage rejects a loop with inSeconds == outSeconds (equal, not just \"in after out\")",
           "[Serialization][envelope][edge][parseDeltaMessage]")
 {
-    auto msg = parseWireMessage(
-        R"({"type":"delta","deck":"A","changes":{"loop":{"inSeconds":5.0,"outSeconds":5.0}}})");
+    auto msg = parseWireMessage(R"({"type":"delta","deck":"A","changes":{"loop":{"inSeconds":5.0,"outSeconds":5.0}}})");
     auto result = parseDeltaMessage(msg);
     REQUIRE_FALSE(result.ok);
     REQUIRE(result.error.isNotEmpty());
@@ -122,9 +121,8 @@ TEST_CASE("parseDeltaMessage rejects a loop object missing inSeconds",
 TEST_CASE("parseDeltaMessage rejects a loop object carrying an unrecognized extra key",
           "[Serialization][envelope][edge][parseDeltaMessage]")
 {
-    auto msg = parseWireMessage(
-        R"({"type":"delta","deck":"A",)"
-        R"("changes":{"loop":{"inSeconds":1.0,"outSeconds":5.0,"bogus":true}}})");
+    auto msg = parseWireMessage(R"({"type":"delta","deck":"A",)"
+                                R"("changes":{"loop":{"inSeconds":1.0,"outSeconds":5.0,"bogus":true}}})");
     auto result = parseDeltaMessage(msg);
     REQUIRE_FALSE(result.ok);
     REQUIRE(result.error.isNotEmpty());

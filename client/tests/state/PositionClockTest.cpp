@@ -52,8 +52,7 @@ StateDelta playingDelta(DeckId deck, bool playing)
 
 } // namespace
 
-TEST_CASE("PositionClock emits a positionSeconds resync when controller and playing",
-          "[state][PositionClock]")
+TEST_CASE("PositionClock emits a positionSeconds resync when controller and playing", "[state][PositionClock]")
 {
     StateManager stateManager;
     FakeAudioEngine engine;
@@ -72,8 +71,7 @@ TEST_CASE("PositionClock emits a positionSeconds resync when controller and play
     REQUIRE(stateManager.getState(kThisDeck).playing == true);
 }
 
-TEST_CASE("PositionClock does nothing when observer even while playing",
-          "[state][PositionClock]")
+TEST_CASE("PositionClock does nothing when observer even while playing", "[state][PositionClock]")
 {
     StateManager stateManager;
     FakeAudioEngine engine;
@@ -168,8 +166,7 @@ TEST_CASE("PositionClock ignores playing changes on the other deck", "[state][Po
     }
 }
 
-TEST_CASE("PositionClock unregisters its listener on destruction without crashing",
-          "[state][PositionClock]")
+TEST_CASE("PositionClock unregisters its listener on destruction without crashing", "[state][PositionClock]")
 {
     StateManager stateManager;
     FakeAudioEngine engine;

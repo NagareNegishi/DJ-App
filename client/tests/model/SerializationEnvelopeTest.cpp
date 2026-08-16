@@ -42,7 +42,7 @@ TEST_CASE("buildHello accepts valid name/room and matches hello-minimal.json", "
     REQUIRE(obj != nullptr);
     REQUIRE(obj->getProperties().size() == 4); // type, protocolVersion, name, room
     REQUIRE(msg.getProperty("type", juce::var()).toString() == "hello");
-    REQUIRE((int) msg.getProperty("protocolVersion", juce::var()) == djapp::kProtocolVersion);
+    REQUIRE((int)msg.getProperty("protocolVersion", juce::var()) == djapp::kProtocolVersion);
     REQUIRE(msg.getProperty("name", juce::var()).toString() == "nagare");
     REQUIRE(msg.getProperty("room", juce::var()).toString() == "demo-room");
 }
@@ -78,8 +78,8 @@ TEST_CASE("buildHello rejects an empty name", "[Serialization][envelope][buildHe
 TEST_CASE("buildHello rejects a name over 32 characters", "[Serialization][envelope][buildHello]")
 {
     const juce::String maxName = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"; // 32 chars, still valid
-    REQUIRE(maxName.length() == 32);                                // guards the boundary derived below
-    const juce::String tooLong = maxName + "a";                     // 33 chars
+    REQUIRE(maxName.length() == 32);                                 // guards the boundary derived below
+    const juce::String tooLong = maxName + "a";                      // 33 chars
     auto result = djapp::buildHello(tooLong, "demo-room");
     REQUIRE_FALSE(result.ok);
     REQUIRE(result.error.isNotEmpty());
@@ -105,8 +105,8 @@ TEST_CASE("buildHello rejects an empty room", "[Serialization][envelope][buildHe
 TEST_CASE("buildHello rejects a room over 64 characters", "[Serialization][envelope][buildHello]")
 {
     const juce::String maxRoom = "demo-room-aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"; // 64 chars
-    REQUIRE(maxRoom.length() == 64); // guards the boundary derived below
-    const juce::String tooLong = maxRoom + "a";                                          // 65 chars
+    REQUIRE(maxRoom.length() == 64);            // guards the boundary derived below
+    const juce::String tooLong = maxRoom + "a"; // 65 chars
     auto result = djapp::buildHello("nagare", tooLong);
     REQUIRE_FALSE(result.ok);
     REQUIRE(result.error.isNotEmpty());
@@ -164,7 +164,7 @@ TEST_CASE("buildDelta with a single changed field matches delta-deck-b.json", "[
     auto* changesObj = changes.getDynamicObject();
     REQUIRE(changesObj != nullptr);
     REQUIRE(changesObj->getProperties().size() == 1);
-    REQUIRE((double) changes.getProperty("gain", juce::var()) == Catch::Approx(0.8));
+    REQUIRE((double)changes.getProperty("gain", juce::var()) == Catch::Approx(0.8));
 }
 
 TEST_CASE("buildDelta with every field set matches delta-all-fields.json", "[Serialization][envelope][buildDelta]")
@@ -191,17 +191,17 @@ TEST_CASE("buildDelta with every field set matches delta-all-fields.json", "[Ser
     REQUIRE(changesObj != nullptr);
     REQUIRE(changesObj->getProperties().size() == 7);
     REQUIRE(changes.getProperty("trackId", juce::var()).toString() == "demo-track-02");
-    REQUIRE((bool) changes.getProperty("playing", juce::var()) == true);
-    REQUIRE((double) changes.getProperty("positionSeconds", juce::var()) == Catch::Approx(30.25));
-    REQUIRE((double) changes.getProperty("gain", juce::var()) == Catch::Approx(1.25));
-    REQUIRE((double) changes.getProperty("playbackRate", juce::var()) == Catch::Approx(1.5));
-    REQUIRE((double) changes.getProperty("pitchOffsetSemitones", juce::var()) == Catch::Approx(-3.0));
+    REQUIRE((bool)changes.getProperty("playing", juce::var()) == true);
+    REQUIRE((double)changes.getProperty("positionSeconds", juce::var()) == Catch::Approx(30.25));
+    REQUIRE((double)changes.getProperty("gain", juce::var()) == Catch::Approx(1.25));
+    REQUIRE((double)changes.getProperty("playbackRate", juce::var()) == Catch::Approx(1.5));
+    REQUIRE((double)changes.getProperty("pitchOffsetSemitones", juce::var()) == Catch::Approx(-3.0));
 
     auto loopVar = changes.getProperty("loop", juce::var());
     auto* loopObj = loopVar.getDynamicObject();
     REQUIRE(loopObj != nullptr);
-    REQUIRE((double) loopVar.getProperty("inSeconds", juce::var()) == Catch::Approx(10.0));
-    REQUIRE((double) loopVar.getProperty("outSeconds", juce::var()) == Catch::Approx(20.0));
+    REQUIRE((double)loopVar.getProperty("inSeconds", juce::var()) == Catch::Approx(10.0));
+    REQUIRE((double)loopVar.getProperty("outSeconds", juce::var()) == Catch::Approx(20.0));
 }
 
 // ---------------------------------------------------------------------------------------
@@ -236,7 +236,8 @@ TEST_CASE("messageType returns empty string for a non-object message (array)", "
     REQUIRE(djapp::messageType(parseWireMessage(R"([1,2,3])")).isEmpty());
 }
 
-TEST_CASE("messageType returns empty string for a non-object message (bare number)", "[Serialization][envelope][messageType]")
+TEST_CASE("messageType returns empty string for a non-object message (bare number)",
+          "[Serialization][envelope][messageType]")
 {
     REQUIRE(djapp::messageType(juce::var(42)).isEmpty());
 }
@@ -264,11 +265,10 @@ TEST_CASE("parseDeltaMessage parses delta-broadcast.json", "[Serialization][enve
 
 TEST_CASE("parseDeltaMessage parses delta-broadcast-all-fields.json", "[Serialization][envelope][parseDeltaMessage]")
 {
-    auto msg = parseWireMessage(
-        R"({"type":"delta","serverSeq":8,"sourceClientId":"c-9b01","deck":"B","changes":{)"
-        R"("trackId":"demo-track-02","playing":true,"positionSeconds":30.25,"gain":1.25,)"
-        R"("playbackRate":1.5,"pitchOffsetSemitones":-3,)"
-        R"("loop":{"inSeconds":10.0,"outSeconds":20.0}}})");
+    auto msg = parseWireMessage(R"({"type":"delta","serverSeq":8,"sourceClientId":"c-9b01","deck":"B","changes":{)"
+                                R"("trackId":"demo-track-02","playing":true,"positionSeconds":30.25,"gain":1.25,)"
+                                R"("playbackRate":1.5,"pitchOffsetSemitones":-3,)"
+                                R"("loop":{"inSeconds":10.0,"outSeconds":20.0}}})");
     auto result = djapp::parseDeltaMessage(msg);
     REQUIRE(result.ok);
     CHECK(result.value.deck == djapp::DeckId::B);
@@ -320,8 +320,9 @@ TEST_CASE("parseDeltaMessage rejects a message with no deck field (hand-built, n
     REQUIRE(result.error.isNotEmpty());
 }
 
-TEST_CASE("parseDeltaMessage rejects a message whose changes is an array, not an object (hand-built, no matching fixture)",
-          "[Serialization][envelope][parseDeltaMessage]")
+TEST_CASE(
+    "parseDeltaMessage rejects a message whose changes is an array, not an object (hand-built, no matching fixture)",
+    "[Serialization][envelope][parseDeltaMessage]")
 {
     auto msg = parseWireMessage(R"({"type":"delta","deck":"A","changes":[1,2,3]})");
     auto result = djapp::parseDeltaMessage(msg);
@@ -329,8 +330,9 @@ TEST_CASE("parseDeltaMessage rejects a message whose changes is an array, not an
     REQUIRE(result.error.isNotEmpty());
 }
 
-TEST_CASE("parseDeltaMessage rejects a message whose changes is a string, not an object (hand-built, no matching fixture)",
-          "[Serialization][envelope][parseDeltaMessage]")
+TEST_CASE(
+    "parseDeltaMessage rejects a message whose changes is a string, not an object (hand-built, no matching fixture)",
+    "[Serialization][envelope][parseDeltaMessage]")
 {
     auto msg = parseWireMessage(R"({"type":"delta","deck":"A","changes":"nope"})");
     auto result = djapp::parseDeltaMessage(msg);
@@ -365,8 +367,9 @@ TEST_CASE("parseDeltaMessage rejects an invalid deck value (hand-built, no match
 // not necessarily per the client's own parse contract).
 // ---------------------------------------------------------------------------------------
 
-TEST_CASE("parseDeltaMessage accepts delta-gain-above-max.json (expect.client: accept — range is clamp's job, not parse's)",
-          "[Serialization][envelope][parseDeltaMessage]")
+TEST_CASE(
+    "parseDeltaMessage accepts delta-gain-above-max.json (expect.client: accept — range is clamp's job, not parse's)",
+    "[Serialization][envelope][parseDeltaMessage]")
 {
     auto msg = parseWireMessage(
         R"({"type":"delta","serverSeq":17,"sourceClientId":"c-9b01","deck":"A","changes":{"gain":5.0}})");
@@ -390,9 +393,8 @@ TEST_CASE("parseDeltaMessage rejects delta-gain-not-a-number.json (expect.client
 TEST_CASE("parseDeltaMessage rejects delta-loop-in-after-out.json (expect.client: reject — inSeconds not < outSeconds)",
           "[Serialization][envelope][parseDeltaMessage]")
 {
-    auto msg = parseWireMessage(
-        R"({"type":"delta","serverSeq":13,"sourceClientId":"c-9b01","deck":"A",)"
-        R"("changes":{"loop":{"inSeconds":8.0,"outSeconds":4.0}}})");
+    auto msg = parseWireMessage(R"({"type":"delta","serverSeq":13,"sourceClientId":"c-9b01","deck":"A",)"
+                                R"("changes":{"loop":{"inSeconds":8.0,"outSeconds":4.0}}})");
     auto result = djapp::parseDeltaMessage(msg);
     REQUIRE_FALSE(result.ok);
     REQUIRE(result.error.isNotEmpty());
@@ -401,9 +403,8 @@ TEST_CASE("parseDeltaMessage rejects delta-loop-in-after-out.json (expect.client
 TEST_CASE("parseDeltaMessage rejects delta-playing-string.json (expect.client: reject — playing sent as a string)",
           "[Serialization][envelope][parseDeltaMessage]")
 {
-    auto msg = parseWireMessage(
-        R"({"type":"delta","serverSeq":10,"sourceClientId":"c-9b01","deck":"A",)"
-        R"("changes":{"playing":"true","positionSeconds":5}})");
+    auto msg = parseWireMessage(R"({"type":"delta","serverSeq":10,"sourceClientId":"c-9b01","deck":"A",)"
+                                R"("changes":{"playing":"true","positionSeconds":5}})");
     auto result = djapp::parseDeltaMessage(msg);
     REQUIRE_FALSE(result.ok);
     REQUIRE(result.error.isNotEmpty());
@@ -419,8 +420,9 @@ TEST_CASE("parseDeltaMessage rejects delta-track-id-dot-dot.json (expect.client:
     REQUIRE(result.error.isNotEmpty());
 }
 
-TEST_CASE("parseDeltaMessage rejects delta-unknown-field-in-changes.json (expect.client: reject — \"volume\" is undefined)",
-          "[Serialization][envelope][parseDeltaMessage]")
+TEST_CASE(
+    "parseDeltaMessage rejects delta-unknown-field-in-changes.json (expect.client: reject — \"volume\" is undefined)",
+    "[Serialization][envelope][parseDeltaMessage]")
 {
     auto msg = parseWireMessage(
         R"({"type":"delta","serverSeq":9,"sourceClientId":"c-9b01","deck":"A","changes":{"volume":0.5}})");
@@ -433,7 +435,8 @@ TEST_CASE("parseDeltaMessage rejects delta-unknown-field-in-changes.json (expect
 // messageServerSeq
 // ---------------------------------------------------------------------------------------
 
-TEST_CASE("messageServerSeq reads serverSeq off delta-broadcast.json (7)", "[Serialization][envelope][messageServerSeq]")
+TEST_CASE("messageServerSeq reads serverSeq off delta-broadcast.json (7)",
+          "[Serialization][envelope][messageServerSeq]")
 {
     auto msg = parseWireMessage(
         R"({"type":"delta","serverSeq":7,"sourceClientId":"c-3f2a","deck":"A","changes":{"gain":1.5}})");
@@ -470,13 +473,13 @@ TEST_CASE("messageServerSeq reads serverSeq off snapshot-deck-a-only.json (12)",
     CHECK(*seq == 12);
 }
 
-TEST_CASE("messageServerSeq reads serverSeq off welcome-first-join.json (0)", "[Serialization][envelope][messageServerSeq]")
+TEST_CASE("messageServerSeq reads serverSeq off welcome-first-join.json (0)",
+          "[Serialization][envelope][messageServerSeq]")
 {
-    auto msg = parseWireMessage(
-        R"({"type":"welcome","clientId":"c-3f2a","role":"observer","serverSeq":0,)"
-        R"("snapshot":{"decks":{"A":{"trackId":null,"playing":false,"positionSeconds":0,)"
-        R"("gain":1.0,"playbackRate":1.0,"pitchOffsetSemitones":0,"loop":null}}},)"
-        R"("peers":[],"source":"https://github.com/NagareNegishi/DJ-App"})");
+    auto msg = parseWireMessage(R"({"type":"welcome","clientId":"c-3f2a","role":"observer","serverSeq":0,)"
+                                R"("snapshot":{"decks":{"A":{"trackId":null,"playing":false,"positionSeconds":0,)"
+                                R"("gain":1.0,"playbackRate":1.0,"pitchOffsetSemitones":0,"loop":null}}},)"
+                                R"("peers":[],"source":"https://github.com/NagareNegishi/DJ-App"})");
     auto seq = djapp::messageServerSeq(msg);
     REQUIRE(seq.has_value());
     CHECK(*seq == 0);
@@ -485,13 +488,12 @@ TEST_CASE("messageServerSeq reads serverSeq off welcome-first-join.json (0)", "[
 TEST_CASE("messageServerSeq reads serverSeq off welcome-populated-room.json (42)",
           "[Serialization][envelope][messageServerSeq]")
 {
-    auto msg = parseWireMessage(
-        R"({"type":"welcome","clientId":"c-3f2a","role":"observer","serverSeq":42,)"
-        R"("snapshot":{"decks":{"A":{"trackId":null,"playing":false,"positionSeconds":0,)"
-        R"("gain":1.0,"playbackRate":1.0,"pitchOffsetSemitones":0,"loop":null}}},)"
-        R"("peers":[{"clientId":"c-9b01","name":"aki","role":"controller"},)"
-        R"({"clientId":"c-71cd","name":"mika","role":"observer"}],)"
-        R"("source":"https://github.com/NagareNegishi/DJ-App"})");
+    auto msg = parseWireMessage(R"({"type":"welcome","clientId":"c-3f2a","role":"observer","serverSeq":42,)"
+                                R"("snapshot":{"decks":{"A":{"trackId":null,"playing":false,"positionSeconds":0,)"
+                                R"("gain":1.0,"playbackRate":1.0,"pitchOffsetSemitones":0,"loop":null}}},)"
+                                R"("peers":[{"clientId":"c-9b01","name":"aki","role":"controller"},)"
+                                R"({"clientId":"c-71cd","name":"mika","role":"observer"}],)"
+                                R"("source":"https://github.com/NagareNegishi/DJ-App"})");
     auto seq = djapp::messageServerSeq(msg);
     REQUIRE(seq.has_value());
     CHECK(*seq == 42);

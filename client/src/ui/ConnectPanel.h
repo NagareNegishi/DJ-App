@@ -6,8 +6,8 @@
 // setters below; it never talks to SyncTransport/StateManager directly.
 
 #include "model/Types.h"
-#include "sync/SyncTransport.h" // ConnectionInfo
 #include "sync/SyncPublisher.h" // Role
+#include "sync/SyncTransport.h" // ConnectionInfo
 #include <functional>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <vector>
@@ -18,7 +18,11 @@ namespace djapp
 class ConnectPanel : public juce::Component
 {
   public:
-    struct PeerInfo { juce::String clientId, name; Role role; };
+    struct PeerInfo
+    {
+        juce::String clientId, name;
+        Role role;
+    };
 
     ConnectPanel();
 
@@ -55,4 +59,4 @@ class ConnectPanel : public juce::Component
                                        // read-only display needs
 };
 
-}
+} // namespace djapp
