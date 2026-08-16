@@ -65,6 +65,14 @@ class MainComponent : public juce::Component
     juce::String ownClientId_;
     bool connected_ = false;
 
+    // One log line per classification per connection, reset on each new connect
+    // transition — mirrors WebSocketTransport's own logOnce discipline one layer
+    // down, so a hostile/broken server can't forge unbounded log lines via
+    // repeated "error" frames or grow the client's log by spamming peerJoined
+    // past the room's max size.
+    bool loggedServerError_ = false;
+    bool loggedPeerCapExceeded_ = false;
+
     // ConnectPanel is a dumb view with no getter for what it's currently
     // displaying; roleChanged/peerJoined/peerLeft need to read-modify-write
     // the peer list, so this class keeps the copy of record.

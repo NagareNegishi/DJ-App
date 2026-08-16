@@ -466,6 +466,11 @@ juce::var buildRequestSnapshot()
     return juce::var(obj.get());
 }
 
+bool isValidPeerName(const juce::String& name)
+{
+    return isValidHelloName(name);
+}
+
 juce::String messageType(const juce::var& message)
 {
     auto* obj = requireObject(message);

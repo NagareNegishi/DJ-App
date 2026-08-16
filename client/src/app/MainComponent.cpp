@@ -25,6 +25,51 @@ Role roleFromWireString(const juce::String& s)
     return s == "controller" ? Role::controller : Role::observer;
 }
 
+// Whether any known peer currently holds controller; used to distinguish
+// "no one is in control" (deck controls should be open to an observer) from
+// "someone else is in control" (deck controls stay locked).
+bool anyPeerControls(const std::vector<ConnectPanel::PeerInfo>& peers)
+{
+    return std::any_of(peers.begin(), peers.end(),
+                        [](const ConnectPanel::PeerInfo& peer) { return peer.role == Role::controller; });
+}
+
+// 02-protocol.md's Room and control model: max 8 clients.
+constexpr std::size_t kMaxPeers = 8;
+
+// Adds `peer` to `peers`, or updates an existing entry with the same clientId in
+// place. Rejects (silently skips) a peer whose name fails the same shape check
+// outbound hello names get, and refuses to grow `peers` past the protocol's max
+// room size — a malicious server forging peerJoined frames must not be able to
+// inject forged multiline names or grow this list without bound.
+void addOrUpdatePeer(std::vector<ConnectPanel::PeerInfo>& peers, ConnectPanel::PeerInfo peer,
+                     bool& loggedCapExceeded)
+{
+    if (!isValidPeerName(peer.name))
+        return;
+
+    for (auto& existing : peers)
+    {
+        if (existing.clientId == peer.clientId)
+        {
+            existing = std::move(peer);
+            return;
+        }
+    }
+
+    if (peers.size() >= kMaxPeers)
+    {
+        if (!loggedCapExceeded)
+        {
+            loggedCapExceeded = true;
+            juce::Logger::writeToLog("MainComponent: dropping peer, room already at max size");
+        }
+        return;
+    }
+
+    peers.push_back(std::move(peer));
+}
+
 } // namespace
 
 MainComponent::MainComponent()
@@ -56,7 +101,14 @@ MainComponent::MainComponent()
 
     addAndMakeVisible(connectPanel_);
     connectPanel_.onConnectRequested = [this](const ConnectionInfo& info) { handleConnectRequested(info); };
-    connectPanel_.onDisconnectRequested = [this] { transport_->disconnect(); };
+    connectPanel_.onDisconnectRequested = [this]
+    {
+        // WebSocketTransport::disconnect() flips its alive flag before stopping the
+        // socket, so a self-initiated disconnect never fires onConnectionChange the
+        // way a server-side drop would — drive the same transition here ourselves.
+        transport_->disconnect();
+        handleConnectionChange(false, "disconnected");
+    };
     connectPanel_.onClaimRequested = [this] { transport_->sendClaimControl(); };
     connectPanel_.onReleaseRequested = [this] { transport_->sendReleaseControl(); };
 
@@ -115,7 +167,7 @@ void MainComponent::handleWelcome(const juce::var& welcome)
             peer.clientId = peerObj->getProperty("clientId").toString();
             peer.name = peerObj->getProperty("name").toString();
             peer.role = roleFromWireString(peerObj->getProperty("role").toString());
-            peers_.push_back(std::move(peer));
+            addOrUpdatePeer(peers_, std::move(peer), loggedPeerCapExceeded_);
         }
     }
     connectPanel_.setPeers(peers_);
@@ -157,6 +209,7 @@ void MainComponent::handleServerEvent(const juce::var& msg)
                 if (peer.clientId == clientId)
                     peer.role = role;
             connectPanel_.setPeers(peers_);
+            applyRoleToUI();
         }
         return;
     }
@@ -170,7 +223,7 @@ void MainComponent::handleServerEvent(const juce::var& msg)
         peer.clientId = obj->getProperty("clientId").toString();
         peer.name = obj->getProperty("name").toString();
         peer.role = roleFromWireString(obj->getProperty("role").toString());
-        peers_.push_back(std::move(peer));
+        addOrUpdatePeer(peers_, std::move(peer), loggedPeerCapExceeded_);
         connectPanel_.setPeers(peers_);
         return;
     }
@@ -182,13 +235,21 @@ void MainComponent::handleServerEvent(const juce::var& msg)
                                     [&](const ConnectPanel::PeerInfo& peer) { return peer.clientId == clientId; }),
                     peers_.end());
         connectPanel_.setPeers(peers_);
+        applyRoleToUI();
         return;
     }
 
     if (type == "error")
     {
-        juce::Logger::writeToLog("MainComponent: server error " + obj->getProperty("code").toString() + ": " +
-                                 obj->getProperty("message").toString());
+        // "code" is drawn from a small fixed whitelist (02-protocol.md) and is safe to
+        // log verbatim; "message" is server-controlled free text and must never be
+        // logged (log-line forging / disk-fill via an attacker-chosen ~4KB frame).
+        if (!loggedServerError_)
+        {
+            loggedServerError_ = true;
+            juce::Logger::writeToLog("MainComponent: server sent an error frame (code: " +
+                                     obj->getProperty("code").toString() + ")");
+        }
         return;
     }
 }
@@ -199,7 +260,13 @@ void MainComponent::handleConnectionChange(bool connected, juce::String reason)
     syncPublisher_.setConnected(connected);
     connectPanel_.setConnectionStatus(connected, reason);
 
-    if (!connected)
+    if (connected)
+    {
+        // Fresh connection: the once-per-connection log guards below start over.
+        loggedServerError_ = false;
+        loggedPeerCapExceeded_ = false;
+    }
+    else
     {
         role_ = Role::observer;
         ownClientId_.clear();
@@ -218,8 +285,10 @@ void MainComponent::applyRoleToUI()
 
     // Deck/track-list enablement is not role alone: solo local playback (never
     // connected) must keep working exactly as it did at M3-M6, and role only
-    // gates once actually connected.
-    const bool controlsEnabled = !connected_ || role_ == Role::controller;
+    // gates once actually connected. When connected, controls are open unless
+    // some *other* client currently holds controller (self holding it is
+    // already covered by role_ == Role::controller).
+    const bool controlsEnabled = !connected_ || role_ == Role::controller || !anyPeerControls(peers_);
     deckA_.setControlsEnabled(controlsEnabled);
     trackList_.setEnabled(controlsEnabled);
 }

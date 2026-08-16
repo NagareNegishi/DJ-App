@@ -53,6 +53,12 @@ constexpr int kProtocolVersion = 1; // shared/protocol/PROTOCOL-VERSION
 // to connect with this input.
 Result<juce::var> buildHello(const juce::String& name, const juce::String& room);
 
+// Same shape rule outbound hello names are held to (1-32 chars, printable, no
+// control chars) — reused for validating inbound peer names (welcome.peers,
+// peerJoined) so a hostile server can't inject control characters/newlines
+// into the peer list display via a forged name.
+bool isValidPeerName(const juce::String& name);
+
 juce::var buildDelta(const StateDelta& delta); // {type:"delta", deck, changes:{...}}
 juce::var buildClaimControl();
 juce::var buildReleaseControl();
