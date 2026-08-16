@@ -47,6 +47,7 @@ add_library(dj-app-core STATIC
     src/engine/JuceAudioEngine.cpp
     src/engine/EngineAdapter.cpp
     src/state/StateManager.cpp
+    src/state/PositionClock.cpp
     src/sync/NullTransport.cpp
     src/sync/SyncPublisher.cpp
 )
