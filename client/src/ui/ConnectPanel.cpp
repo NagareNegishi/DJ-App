@@ -10,6 +10,9 @@ ConnectPanel::ConnectPanel()
     nameLabel_.setText("Name", juce::dontSendNotification);
 
     urlField_.setText("ws://127.0.0.1:8765");
+    roomField_.setPasswordCharacter('*'); // the room code is the system's only access
+                                           // credential (06-security.md); don't leave it
+                                           // visible in cleartext for the whole session
 
     peerListDisplay_.setMultiLine(true);
     peerListDisplay_.setReadOnly(true);

@@ -156,7 +156,8 @@ void DeckComponent::refreshWidgets(const PlaybackState& state)
     else
     {
         const auto meta = repository_.getTrackMetadata(state.trackId);
-        titleLabel_.setText(meta.has_value() ? meta->title : state.trackId, juce::dontSendNotification);
+        titleLabel_.setText(meta.has_value() ? meta->title : "missing track: " + state.trackId,
+                            juce::dontSendNotification);
         duration = meta.has_value() ? meta->durationSeconds : 0.0;
     }
 
