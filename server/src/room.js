@@ -10,6 +10,12 @@ import { validateHello, validateDelta, validateEnvelope, isPlainObject } from '.
 
 const CLIENT_ID_ATTEMPTS = 100;
 
+// AGPL-3.0 §13: a network server must offer users the Corresponding Source of the
+// version they are interacting with. Sent on every welcome rather than left to
+// out-of-band documentation, since that is the one message every connected client
+// actually receives.
+const SOURCE_URL = 'https://github.com/NagareNegishi/DJ-App';
+
 /** Close code to use for a hello whose validation failed, keyed by validate.js reason. */
 const HANDSHAKE_CLOSE_CODES = {
   'protocol version mismatch': CLOSE_CODES.versionMismatch,
@@ -102,6 +108,7 @@ export function createRoom({ roomCode, maxClients, logger, protocolVersion = PRO
       serverSeq,
       snapshot: { decks: snapshotOf().decks },
       peers,
+      source: SOURCE_URL,
     });
     broadcast({ type: 'peerJoined', clientId, name: conn.name, role }, { except: conn });
 
@@ -236,14 +243,9 @@ export function createRoom({ roomCode, maxClients, logger, protocolVersion = PRO
       const { id } = conn;
       clients.delete(id);
       broadcast({ type: 'peerLeft', clientId: id });
-      if (controllerId === id) {
-        controllerId = null;
-        // peerLeft already implies the departed client is no longer controller; the
-        // explicit roleChanged gives clients that only track roles a "control is free"
-        // signal. No auto-promotion — a human claims it.
-        broadcast({ type: 'roleChanged', clientId: id, role: 'observer' });
-        logger.info('role-changed', { clientId: id, role: 'observer' });
-      }
+      // No roleChanged here: peerLeft already removes the departed id from every peer
+      // list, and no other peer's role changes. No auto-promotion — a human claims it.
+      if (controllerId === id) controllerId = null;
       logger.info('client-left', { clientId: id });
     },
 

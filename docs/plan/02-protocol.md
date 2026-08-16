@@ -23,7 +23,8 @@ client → server   (within 5 s of TCP open, else close 4000)
 server → client   (on success)
   {"type":"welcome","clientId":"c-3f2a","role":"observer","serverSeq":42,
    "snapshot":{"decks":{"A":{<full PlaybackState>}}},
-   "peers":[{"clientId":"c-9b01","name":"aki","role":"controller"}]}
+   "peers":[{"clientId":"c-9b01","name":"aki","role":"controller"}],
+   "source":"https://github.com/NagareNegishi/DJ-App"}
 
 server → all others
   {"type":"peerJoined","clientId":"c-3f2a","name":"nagare","role":"observer"}
@@ -45,10 +46,10 @@ Failure closes: wrong/missing `protocolVersion` ⇒ close **4001**; wrong `room`
 
 | type | fields | notes |
 |---|---|---|
-| `welcome` | `clientId`, `role`, `serverSeq`, `snapshot`, `peers[]` | Once, in response to valid hello |
+| `welcome` | `clientId`, `role`, `serverSeq`, `snapshot`, `peers[]`, `source` (string) | Once, in response to valid hello. `source`: AGPL §13 corresponding-source pointer; sent once per connection |
 | `delta` | `serverSeq` (int, monotonic per room), `sourceClientId`, `deck`, `changes` | Broadcast to **all clients except the source** (source already applied optimistically) |
 | `snapshot` | `serverSeq`, `decks:{A:{...},B?:{...}}` | Full canonical state; recipient replaces local state wholesale |
-| `roleChanged` | `clientId`, `role` ("controller"\|"observer") | Broadcast to everyone incl. subject, on claim/release/controller-disconnect |
+| `roleChanged` | `clientId`, `role` ("controller"\|"observer") | Broadcast to everyone incl. subject, on claim/release only |
 | `peerJoined` | `clientId`, `name`, `role` | Broadcast to others |
 | `peerLeft` | `clientId` | Broadcast to others |
 | `error` | `code`, `message` (human-readable, no internals) | Non-fatal; connection stays open unless stated |
@@ -81,5 +82,5 @@ Token bucket per connection: **60 messages/s sustained, burst 120**. On exhausti
 
 - One room per server process. Room code generated at startup (`crypto.randomUUID()`) and printed to stdout, overridable via `DJ_ROOM_CODE` env var.
 - Max **8** clients (`DJ_MAX_CLIENTS`).
-- Exactly zero or one controller. First `claimControl` wins. Controller disconnect ⇒ control becomes unclaimed and `roleChanged` (role `observer` for the departed id is implied by `peerLeft`; broadcast carries no new controller). No auto-promotion — a human clicks "claim".
+- Exactly zero or one controller. First `claimControl` wins. Controller disconnect ⇒ control becomes unclaimed; no `roleChanged` is sent for the departing client, because `peerLeft` already removes them from every peer list and no other peer's role changes. A client determines "no controller is currently held" by the absence of any peer with `role: "controller"` after processing `peerLeft` — not from a dedicated signal. No auto-promotion — a human clicks "claim".
 - Server state per deck starts at Field-reference defaults; deck `"B"` appears in snapshots only after the first delta touches it.
