@@ -1,5 +1,6 @@
 #include "Serialization.h"
 #include <cmath>
+#include <limits>
 
 namespace djapp
 {
@@ -31,6 +32,29 @@ bool isValidTrackId(const juce::String& s)
         return false;
 
     return true;
+}
+
+// 02-protocol.md's `hello` fields: "printable, no control chars". Rejects C0
+// controls, DEL, and the C1 block; does not attempt full Unicode category
+// matching (e.g. bidi overrides) the way the server's regex does — this is a
+// pre-send sanity check, not the security boundary (the server re-validates
+// every hello independently).
+bool isPrintableNoControlChars(const juce::String& s)
+{
+    for (auto c : s)
+        if (c <= 0x1F || (c >= 0x7F && c <= 0x9F))
+            return false;
+    return true;
+}
+
+bool isValidHelloName(const juce::String& name)
+{
+    return name.isNotEmpty() && name.length() <= 32 && isPrintableNoControlChars(name);
+}
+
+bool isValidHelloRoom(const juce::String& room)
+{
+    return room.isNotEmpty() && room.length() <= 64;
 }
 
 bool asFiniteNumber(const juce::var& v, double& out)
@@ -374,6 +398,159 @@ template <> Result<StateDelta> fromVar<StateDelta>(const juce::var& v)
     }
 
     return makeOk<R>(delta);
+}
+
+Result<juce::var> buildHello(const juce::String& name, const juce::String& room)
+{
+    if (!isValidHelloName(name))
+        return makeFail<juce::var>("hello name must be 1-32 printable characters with no control characters");
+
+    if (!isValidHelloRoom(room))
+        return makeFail<juce::var>("hello room must be 1-64 characters");
+
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    obj->setProperty("type", "hello");
+    obj->setProperty("protocolVersion", kProtocolVersion);
+    obj->setProperty("name", name);
+    obj->setProperty("room", room);
+    return makeOk<juce::var>(juce::var(obj.get()));
+}
+
+juce::var buildDelta(const StateDelta& delta)
+{
+    juce::DynamicObject::Ptr result = new juce::DynamicObject();
+    result->setProperty("type", "delta");
+
+    juce::DynamicObject::Ptr changes = new juce::DynamicObject();
+
+    // toVar(delta) already produces the flat {deck, ...present fields} shape;
+    // `deck` moves to the envelope's top level, everything else nests under
+    // "changes" to match the wire shape (shared/protocol/fixtures/
+    // client-to-server/valid/delta-*.json). Bound to a named local: a temporary
+    // here would be destroyed at the end of this declaration (before the loop
+    // below runs), leaving flatObj dangling.
+    const juce::var flat = toVar(delta);
+    if (auto* flatObj = flat.getDynamicObject())
+    {
+        for (auto& prop : flatObj->getProperties())
+        {
+            if (prop.name == juce::Identifier("deck"))
+                result->setProperty(prop.name, prop.value);
+            else
+                changes->setProperty(prop.name, prop.value);
+        }
+    }
+
+    result->setProperty("changes", juce::var(changes.get()));
+    return juce::var(result.get());
+}
+
+juce::var buildClaimControl()
+{
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    obj->setProperty("type", "claimControl");
+    return juce::var(obj.get());
+}
+
+juce::var buildReleaseControl()
+{
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    obj->setProperty("type", "releaseControl");
+    return juce::var(obj.get());
+}
+
+juce::var buildRequestSnapshot()
+{
+    juce::DynamicObject::Ptr obj = new juce::DynamicObject();
+    obj->setProperty("type", "requestSnapshot");
+    return juce::var(obj.get());
+}
+
+juce::String messageType(const juce::var& message)
+{
+    auto* obj = requireObject(message);
+    if (obj == nullptr || !obj->hasProperty("type"))
+        return {};
+
+    const auto typeVar = obj->getProperty("type");
+    if (!typeVar.isString())
+        return {};
+
+    return typeVar.toString();
+}
+
+Result<StateDelta> parseDeltaMessage(const juce::var& message)
+{
+    auto* obj = requireObject(message);
+    if (obj == nullptr || !obj->hasProperty("deck"))
+        return makeFail<StateDelta>("delta message is missing deck");
+
+    auto* changesObj = obj->getProperty("changes").getDynamicObject();
+    if (changesObj == nullptr)
+        return makeFail<StateDelta>("delta message's changes must be an object");
+
+    // Reads exactly `deck` and the keys of `changes` — nothing else off the incoming
+    // message — so no extra top-level field (serverSeq, sourceClientId, ...) can leak
+    // into the flattened object; fromVar<StateDelta> strictly rejects unknown keys.
+    juce::DynamicObject::Ptr flattened = new juce::DynamicObject();
+    flattened->setProperty("deck", obj->getProperty("deck"));
+
+    for (auto& prop : changesObj->getProperties())
+        flattened->setProperty(prop.name, prop.value);
+
+    return fromVar<StateDelta>(juce::var(flattened.get()));
+}
+
+std::optional<int> messageServerSeq(const juce::var& message)
+{
+    auto* obj = requireObject(message);
+    if (obj == nullptr || !obj->hasProperty("serverSeq"))
+        return std::nullopt;
+
+    double d = 0;
+    if (!asFiniteNumber(obj->getProperty("serverSeq"), d))
+        return std::nullopt;
+
+    if (d < 0 || std::floor(d) != d || d > static_cast<double>(std::numeric_limits<int>::max()))
+        return std::nullopt;
+
+    return static_cast<int>(d);
+}
+
+juce::String describeCloseCode(int code)
+{
+    switch (code)
+    {
+    case 4000:
+        return "handshake failed";
+    case 4001:
+        return "protocol version mismatch";
+    case 4002:
+        return "room is full";
+    case 4003:
+        return "disconnected for sending too many messages";
+    case 4004:
+        return "wrong room code";
+    case 1001:
+        return "server is shutting down";
+    case 1008:
+        return "disconnected: protocol violation";
+    case 1009:
+        return "disconnected: message too large";
+    case 1011:
+        return "server encountered an internal error";
+    default:
+        return "connection closed";
+    }
+}
+
+Result<juce::String> serializeForSend(const juce::var& message)
+{
+    const auto text = juce::JSON::toString(message, true);
+    if (text.getNumBytesAsUTF8() > 4096)
+        return makeFail<juce::String>("message exceeds the 4096-byte wire limit");
+
+    return makeOk<juce::String>(text);
 }
 
 } // namespace djapp

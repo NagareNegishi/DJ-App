@@ -157,35 +157,6 @@ std::optional<juce::var> resolvePointer(const juce::var& document, const juce::S
     return current;
 }
 
-// Stand-in for the envelope parser M7's transport will bring: the wire delta nests changed
-// fields under `changes`, while the client's StateDelta JSON form is flat. When the real
-// parser lands, route this suite through it and delete this helper.
-// nullopt means the value cannot be a wire delta at all — the caller records that as a parse
-// failure; a non-object `changes` is never spread.
-std::optional<juce::var> flattenWireDelta(const juce::var& wireDelta)
-{
-    auto* object = wireDelta.getDynamicObject();
-
-    if (object == nullptr || !object->hasProperty("deck"))
-        return std::nullopt;
-
-    const auto changes = object->getProperty("changes");
-    auto* changesObject = changes.getDynamicObject();
-
-    if (changesObject == nullptr)
-        return std::nullopt;
-
-    auto* flattened = new juce::DynamicObject();
-    flattened->setProperty("deck", object->getProperty("deck"));
-
-    const auto& properties = changesObject->getProperties();
-
-    for (int i = 0; i < properties.size(); ++i)
-        flattened->setProperty(properties.getName(i), properties.getValueAt(i));
-
-    return juce::var(flattened);
-}
-
 struct ParseOutcome
 {
     bool parsed = false;
@@ -201,12 +172,7 @@ ParseOutcome parsePayload(const juce::var& target, const std::string& as)
         return {result.ok, result.error};
     }
 
-    const auto flattened = flattenWireDelta(target);
-
-    if (!flattened.has_value())
-        return {false, "value at pointer is not a wire delta (no deck, or changes is not an object)"};
-
-    const auto result = djapp::fromVar<djapp::StateDelta>(*flattened);
+    const auto result = djapp::parseDeltaMessage(target);
     return {result.ok, result.error};
 }
 

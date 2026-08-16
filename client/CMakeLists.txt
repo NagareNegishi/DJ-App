@@ -73,6 +73,22 @@ target_link_libraries(dj-app-core PUBLIC
     juce::juce_recommended_warning_flags
 )
 
+# IXWebSocket (BSD-3): the real WebSocket transport, client-only — never linked into
+# dj-app-core, so model/state/tests stay free of it. Pinned by commit hash, not a
+# movable tag name (06-security.md Supply-chain drift); this hash is what the v11.4.6
+# tag resolves to. USE_TLS OFF: prototype is ws:// only (see WebSocketTransport.cpp).
+# Cache-seeded before the subdirectory's own `option(USE_TLS ...)` runs, so that
+# option() call becomes a no-op instead of overriding this.
+set(USE_TLS OFF CACHE BOOL "Disable TLS: prototype is ws:// only" FORCE)
+
+include(FetchContent)
+FetchContent_Declare(
+    ixwebsocket
+    GIT_REPOSITORY https://github.com/machinezone/IXWebSocket.git
+    GIT_TAG 2efe037c9cc96fd536774f17bdb5215161ee5087
+)
+FetchContent_MakeAvailable(ixwebsocket)
+
 # Define the GUI app target.
 # juce_add_gui_app wires up a normal CMake executable target plus JUCE-specific
 # build steps (resource compilation, platform-specific bundling on macOS, etc.).
@@ -93,6 +109,7 @@ target_sources(dj-app-client PRIVATE
     src/ui/TrackListComponent.cpp
     src/ui/DeckComponent.cpp
     src/engine/AudioDeviceHub.cpp
+    src/sync/WebSocketTransport.cpp
 )
 
 # Direct module includes are preferred over JuceHeader.h
@@ -115,6 +132,7 @@ target_link_libraries(dj-app-client
         dj-app-core
         juce::juce_gui_basics
         juce::juce_audio_devices
+        ixwebsocket
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_warning_flags
