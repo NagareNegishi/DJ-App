@@ -81,11 +81,9 @@ MainComponent::MainComponent()
     trackList_.setTracks(repository_.listAvailableTracks());
     trackList_.onTrackSelected = [this](const TrackMetadata& track)
     {
-        // Second line of defense against an observer double-clicking a track:
-        // setEnabled(controlsEnabled) below is the visible one; this guard is
-        // the one that actually matters (06-security.md: client-side disabling
-        // is UX, not security).
-        if (role_ != Role::controller)
+        // Second line of defense against an observer double-clicking a track
+        // (06-security.md: client-side disabling is UX, not security).
+        if (!canControlLocally())
             return;
 
         StateDelta delta;
@@ -275,6 +273,13 @@ void MainComponent::handleConnectionChange(bool connected, juce::String reason)
     }
 }
 
+bool MainComponent::canControlLocally() const
+{
+    // Solo playback (never connected) is always allowed; once connected, only
+    // the controller (or a room with no controller yet) may act.
+    return !connected_ || role_ == Role::controller || !anyPeerControls(peers_);
+}
+
 void MainComponent::applyRoleToUI()
 {
     connectPanel_.setRole(role_);
@@ -282,12 +287,7 @@ void MainComponent::applyRoleToUI()
     syncPublisher_.setRole(role_); // the only other role-gated consumer; without this the
                                    // controller would never actually forward its own deltas
 
-    // Deck/track-list enablement is not role alone: solo local playback (never
-    // connected) must keep working exactly as it did at M3-M6, and role only
-    // gates once actually connected. When connected, controls are open unless
-    // some *other* client currently holds controller (self holding it is
-    // already covered by role_ == Role::controller).
-    const bool controlsEnabled = !connected_ || role_ == Role::controller || !anyPeerControls(peers_);
+    const bool controlsEnabled = canControlLocally();
     deckA_.setControlsEnabled(controlsEnabled);
     trackList_.setEnabled(controlsEnabled);
 }

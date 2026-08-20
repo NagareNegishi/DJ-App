@@ -43,6 +43,7 @@ class MainComponent : public juce::Component
     void handleServerEvent(const juce::var& msg);
     void handleConnectionChange(bool connected, juce::String reason);
     void applyRoleToUI();
+    bool canControlLocally() const;
     void applyDeckSnapshot(DeckId deck, const juce::var& playbackStateVar);
     void applySnapshot(const juce::var& snapshotDecksVar);
 
