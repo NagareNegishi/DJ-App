@@ -238,3 +238,24 @@ Each entry: date, what the plan said, what was done instead, why.
   it just means the extension isn't negotiated, with no interop effect on the `ws` server.
   State deltas are small JSON, so compression buys nothing here. Avoids adding a zlib
   install step to `docs/setup.md` for a feature the prototype doesn't need.
+
+## 2026-08-21 — em dash in `TEST_CASE` names breaks CTest's Windows filter, not the code under test
+
+- **Plan said**: `05-testing.md` gives no character-set restriction on test names; nothing in
+  the plan anticipated this.
+- **Actual**: six `TEST_CASE` names in `SerializationEnvelopeTest.cpp` used a literal em dash
+  ("—", U+2014). `ctest --test-dir client/build/windows` reported all six as `Failed` on the
+  Windows host (218/224 in the container, six red on Windows), but the per-test log showed
+  `No test cases matched` against a mangled filter string (`ΓÇö`/`G��` in place of the dash) —
+  CTest passes each Catch2 test's exact name as a command-line filter, and that non-ASCII byte
+  sequence gets mis-transcoded somewhere in CMake/CTest's Windows console-codepage handling
+  before reaching the binary. The code and assertions underneath were never exercised; every
+  other em dash in the test tree lives in a `//` comment and was unaffected, confirming this
+  is a name-encoding artifact, not a real MSVC-vs-GCC behavior difference.
+- **Change**: replaced the em dash with a plain ASCII hyphen in those six test-name strings
+  only (comments left as-is). Rebuilt and reran in the container: 18/18 passing, unchanged
+  from before.
+- **Why**: cheaper and more robust than chasing the Windows encoding pipeline (console
+  codepage, CMake's `catch_discover_tests` name handling) — ASCII-only test names sidestep the
+  whole class of problem. Recorded here so a future non-ASCII test name doesn't reintroduce the
+  same silent-looking-real-but-isn't failure on the next Windows host checklist.
