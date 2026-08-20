@@ -61,15 +61,21 @@ export function createServer({ config, logger, room }) {
 
   // WebSocket handshakes are exempt from the same-origin policy, so any page an
   // operator happens to load can open a socket to loopback with no preflight.
-  // Our client is IXWebSocket and sends no Origin, so refusing the header
-  // outright costs nothing and closes every browser-driven path into the room.
-  // The callback form is what gets a 403 on the wire — refusing by return value
+  // IXWebSocket always sends Origin: ws://<host>:<port> of the server it dialed,
+  // which a browser's page-origin Origin can never match, so admitting only that
+  // exact value still closes every browser-driven path into the room. The
+  // callback form is what gets a 403 on the wire - refusing by return value
   // makes ws answer 401, which invites a client to retry with credentials.
   const verifyClient = (info, done) => {
     // info.origin is ws's own version-aware field: populated from Origin on a
     // hybi-13 handshake and from Sec-WebSocket-Origin on the older hybi-08 one,
     // which info.req.headers.origin misses entirely.
     if (info.origin === undefined) {
+      done(true);
+      return;
+    }
+    const { port } = wss.address();
+    if (info.origin === `ws://${config.host}:${port}`) {
       done(true);
       return;
     }

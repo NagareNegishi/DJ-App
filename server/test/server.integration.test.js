@@ -311,10 +311,26 @@ test('an upgrade request carrying an Origin header is refused with HTTP 403', as
 test('an upgrade request with no Origin header is admitted', async (t) => {
   // verifyClient reads ws's own version-aware info.origin rather than req.headers.origin
   // (which only exists for a hybi-13 handshake); a handshake that never sent Origin at
-  // all — every non-browser client, including our own IXWebSocket client — must still be
-  // let through, not refused for a header it never had reason to send.
+  // all must still be let through, not refused for a header it never had reason to send.
   const { server, port } = await startServer();
   const client = connect(port);
+  t.after(async () => {
+    client.dispose();
+    await server.close();
+  });
+
+  const welcome = await handshake(client, 'nagare');
+
+  assert.equal(welcome.type, 'welcome');
+});
+
+test('an upgrade request whose Origin matches the server itself is admitted', async (t) => {
+  // Our real client is IXWebSocket, which unconditionally sends
+  // Origin: <scheme>://<host>:<port> of the URL it dialed - i.e. this server's own
+  // address, not "no Origin". verifyClient must admit exactly that value rather than
+  // refusing every handshake that carries an Origin header at all.
+  const { server, port } = await startServer();
+  const client = connect(port, { origin: `ws://127.0.0.1:${port}` });
   t.after(async () => {
     client.dispose();
     await server.close();
