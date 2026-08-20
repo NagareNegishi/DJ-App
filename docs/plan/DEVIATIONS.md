@@ -222,3 +222,19 @@ Each entry: date, what the plan said, what was done instead, why.
   permanently wrong and the code was changed to match the document instead. Version stays at
   1 by the same reasoning as the `trackId` amendment above: no wire format that ever ran is
   invalidated, and there is no deployed v1 peer relying on a per-frame error.
+
+## 2026-08-21 — `client/CMakeLists.txt` also needs `USE_ZLIB OFF` for IXWebSocket
+
+- **Plan said**: `04-client.md` documents `USE_TLS=OFF` as the only IXWebSocket build
+  option the client needs to set.
+- **Actual**: IXWebSocket's `CMakeLists.txt` independently defaults `USE_ZLIB` to `ON`
+  (permessage-deflate compression), which calls `find_package(ZLIB REQUIRED)`. System
+  zlib is present via apt on the devcontainer, so this passed unnoticed there; a bare
+  Windows Build Tools host has no system zlib, so `cmake -S client -B client/build/windows`
+  failed at configure with `Could NOT find ZLIB`.
+- **Change**: cache-seed `USE_ZLIB OFF` next to the existing `USE_TLS OFF` seed in
+  `client/CMakeLists.txt`, same mechanism.
+- **Why**: compression is transport-layer only and invisible to `02-protocol.md`; disabling
+  it just means the extension isn't negotiated, with no interop effect on the `ws` server.
+  State deltas are small JSON, so compression buys nothing here. Avoids adding a zlib
+  install step to `docs/setup.md` for a feature the prototype doesn't need.
