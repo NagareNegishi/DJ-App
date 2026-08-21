@@ -68,7 +68,7 @@ class DeckComponent : public juce::Component, private juce::Timer
     bool anchorPlaying_ = false;
     std::optional<LoopPoints> anchorLoop_;
     bool anchorRepeat_ = false; // M9: whole-track wrap for currentDisplayPositionSeconds()
-                               // when there's no active loop region
+                                // when there's no active loop region
 
     std::optional<double> pendingLoopInSeconds_; // the raw capture itself is never sent over the
                                                  // wire, but arming or cancelling can still trigger a synced loop

@@ -971,7 +971,7 @@ TEST_CASE("BufferPlaybackSource an active loop takes precedence over repeat rega
         source.setRepeat(repeat);
         source.setPlaying(true);
 
-        source.requestSeek(0.129); // sample index 129, just before outSeconds
+        source.requestSeek(0.129);         // sample index 129, just before outSeconds
         renderBlock(source, 2, blockSize); // applies the seek
 
         float maxSample = -1.0f;
@@ -1040,7 +1040,7 @@ TEST_CASE("BufferPlaybackSource setLoop clamps outSeconds to the loaded buffer's
     source.setLoop(djapp::LoopPoints{0.05, 5.0}); // requested sample range [50, 5000)
     source.setPlaying(true);
 
-    source.requestSeek(0.09); // sample index 90, close to the buffer's true end
+    source.requestSeek(0.09);          // sample index 90, close to the buffer's true end
     renderBlock(source, 2, blockSize); // applies the seek
 
     bool sawWrapBackBelow60 = false;

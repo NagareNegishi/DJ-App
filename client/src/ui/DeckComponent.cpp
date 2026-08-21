@@ -43,8 +43,7 @@ juce::Path makeRepeatGlyph()
     arrowHead.addTriangle(tipX - tangentX * headLength - tangentY * headWidth,
                           tipY - tangentY * headLength + tangentX * headWidth,
                           tipX + tangentX * headLength - tangentY * headWidth,
-                          tipY + tangentY * headLength + tangentX * headWidth,
-                          tipX, tipY);
+                          tipY + tangentY * headLength + tangentX * headWidth, tipX, tipY);
     path.addPath(arrowHead);
     return path;
 }
@@ -193,7 +192,8 @@ double DeckComponent::currentDisplayPositionSeconds() const
     if (anchorLoop_.has_value())
     {
         const double duration = positionSlider_.getMaximum();
-        const double clampedIn = duration > 0.0 && anchorLoop_->inSeconds > duration ? duration : anchorLoop_->inSeconds;
+        const double clampedIn =
+            duration > 0.0 && anchorLoop_->inSeconds > duration ? duration : anchorLoop_->inSeconds;
         const double clampedOut =
             duration > 0.0 && anchorLoop_->outSeconds > duration ? duration : anchorLoop_->outSeconds;
         position = wrapPositionWithinRange(position, clampedIn, clampedOut);
