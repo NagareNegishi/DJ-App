@@ -1,8 +1,10 @@
 #pragma once
 
 // model/ — the crossfader's equal-power gain curve, pulled out as its own pure
-// header so ui/MixerComponent and engine/EngineAdapter share the exact same
-// math instead of two copies kept in sync by comment alone.
+// header so it's testable in isolation from engine/EngineAdapter, its one
+// production consumer. Kept out of engine/ rather than inlined there for the
+// same reason model/Ranges.h and model/ControlGating.h live here: pure math,
+// no JUCE/engine dependency, covered by a plain Catch2 suite.
 
 #include <algorithm>
 #include <cmath>
