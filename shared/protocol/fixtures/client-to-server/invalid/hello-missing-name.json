@@ -2,7 +2,7 @@
   "description": "hello omitting the required name field",
   "message": {
     "type": "hello",
-    "protocolVersion": 1,
+    "protocolVersion": 2,
     "room": "demo-room"
   },
   "reason": "missing required field name",

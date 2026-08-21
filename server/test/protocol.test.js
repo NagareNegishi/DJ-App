@@ -22,8 +22,8 @@ import {
   DEFAULT_DECK_STATE,
 } from '../src/protocol.js';
 
-test('the protocol version is 1', () => {
-  assert.equal(PROTOCOL_VERSION, 1);
+test('the protocol version is 2', () => {
+  assert.equal(PROTOCOL_VERSION, 2);
 });
 
 test('the frame limit is 4096 bytes', () => {
@@ -109,6 +109,7 @@ test('the default deck state is the Field reference defaults', () => {
     playbackRate: 1.0,
     pitchOffsetSemitones: 0,
     loop: null,
+    repeat: true,
   });
 });
 

@@ -1,0 +1,10 @@
+{
+  "description": "delta disabling whole-track auto-replay on a deck",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "repeat": false
+    }
+  }
+}

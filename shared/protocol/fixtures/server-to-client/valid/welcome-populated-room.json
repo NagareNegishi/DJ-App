@@ -14,7 +14,8 @@
           "gain": 1.0,
           "playbackRate": 1.0,
           "pitchOffsetSemitones": 0,
-          "loop": null
+          "loop": null,
+          "repeat": true
         }
       }
     },

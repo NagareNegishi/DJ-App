@@ -2,7 +2,7 @@
   "description": "hello with the minimum required fields",
   "message": {
     "type": "hello",
-    "protocolVersion": 1,
+    "protocolVersion": 2,
     "name": "nagare",
     "room": "demo-room"
   }

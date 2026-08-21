@@ -17,6 +17,7 @@ const CHANGE_FIELDS = [
   'playbackRate',
   'pitchOffsetSemitones',
   'loop',
+  'repeat',
 ];
 
 const NUMERIC_CHANGE_FIELDS = ['positionSeconds', 'gain', 'playbackRate', 'pitchOffsetSemitones'];
@@ -148,6 +149,11 @@ export function validateChanges(changes) {
   if (hasField(changes, 'playing')) {
     if (typeof changes.playing !== 'boolean') return fail('playing must be a boolean');
     value.playing = changes.playing;
+  }
+
+  if (hasField(changes, 'repeat')) {
+    if (typeof changes.repeat !== 'boolean') return fail('repeat must be a boolean');
+    value.repeat = changes.repeat;
   }
 
   for (const name of NUMERIC_CHANGE_FIELDS) {
