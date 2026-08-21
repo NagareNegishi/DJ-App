@@ -1,5 +1,6 @@
 #include "MainComponent.h"
 
+#include "model/ControlGating.h"
 #include "model/Ranges.h"
 #include "model/Serialization.h"
 #include "sync/WebSocketTransport.h"
@@ -275,9 +276,7 @@ void MainComponent::handleConnectionChange(bool connected, juce::String reason)
 
 bool MainComponent::canControlLocally() const
 {
-    // Solo playback (never connected) is always allowed; once connected, only
-    // the controller (or a room with no controller yet) may act.
-    return !connected_ || role_ == Role::controller || !anyPeerControls(peers_);
+    return controlsEnabledLocally(connected_, role_ == Role::controller, anyPeerControls(peers_));
 }
 
 void MainComponent::applyRoleToUI()

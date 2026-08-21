@@ -259,3 +259,54 @@ Each entry: date, what the plan said, what was done instead, why.
   codepage, CMake's `catch_discover_tests` name handling) — ASCII-only test names sidestep the
   whole class of problem. Recorded here so a future non-ASCII test name doesn't reintroduce the
   same silent-looking-real-but-isn't failure on the next Windows host checklist.
+
+## 2026-08-21 — a track double-click did nothing before ever connecting
+
+- **Plan said**: `04-client.md`/`07-milestones.md` carry M7's requirement that solo local
+  playback (never connected) keeps working unchanged from M3-M6; nothing in the plan
+  anticipated a regression here.
+- **Actual**: `MainComponent`'s track-list click handler gated on `role_ != Role::controller`
+  directly. `role_` defaults to `Role::observer` and only ever becomes `controller` after a
+  successful claim, so a user who had never connected at all — solo mode, where control
+  should always be open — got silently refused on every double-click. The M7 host checklist's
+  Step 4 (deck controls start enabled solo) passed because `setEnabled` reads a separate,
+  correct `controlsEnabled` computation; only the click handler's own guard was wrong, which is
+  why this was invisible until someone actually double-clicked a track before connecting.
+- **Change**: `645e7ac` replaced the handler's local `role_ != Role::controller` check with the
+  same `canControlLocally()` used for `setEnabled`. That method's logic — `!connected_ ||
+  role_ == Role::controller || !anyPeerControls(peers_)` — was then pulled out into
+  `model/ControlGating.h::controlsEnabledLocally(connected, isLocalController,
+  anyPeerIsController)`, a pure boolean function with no `Role`/`PeerInfo`/JUCE dependency, so
+  it could be pinned by a Catch2 suite (`tests/model/ControlGatingTest.cpp`) instead of relying
+  solely on the next host checklist to notice a regression — `app/` itself stays
+  host-checklist-only per `05-testing.md`.
+- **Why**: two call sites computing the same "can I act locally" decision from two different
+  expressions is exactly the kind of single-fact-two-writers gap `03-server.md`'s `role`
+  deviation (2026-08-14, above) already named for the server side; here it showed up on the
+  client instead. Extracting the shared boolean function removes the second copy rather than
+  fixing it in place, so the two call sites can't diverge again.
+
+## 2026-08-21 — the server's origin check refused the client's own handshake
+
+- **Plan said**: `06-security.md` lists Origin checking as optional, deferred until "browsers
+  ever become clients" — not yet true at M7. `server.js`'s `verifyClient` (added `0852914`,
+  ahead of that need) refused any handshake carrying an `Origin` header at all, on the stated
+  assumption that "Our client is IXWebSocket and sends no Origin."
+- **Actual**: IXWebSocket's handshake code (`IXWebSocketHandshake.cpp:132-136`) unconditionally
+  sends `Origin: <scheme>://<host>:<port>` of the URL it dialed, unless the caller overrides it
+  via `extraHeaders` — which `WebSocketTransport.cpp` never does. Every real connection from
+  the C++ client therefore carried an `Origin: ws://127.0.0.1:8765` header and was refused with
+  403, discovered when both windows failed to connect during the M7 host checklist's Step 5.
+  The integration suite never caught this: it tested an evil origin (refused) and no origin at
+  all (admitted), never the real client's actual header.
+- **Change**: `verifyClient` now admits a handshake whose `Origin` exactly equals
+  `ws://<config.host>:<bound port>` — the server's own address, which is what IXWebSocket
+  always sends when dialing this server directly — and still refuses anything else. A browser's
+  Origin instead names the page's own origin, which can never equal the server's own bind
+  address, so the browser-hijack case the check exists for is still closed. Added
+  `server.test/server.integration.test.js`'s "an upgrade request whose Origin matches the
+  server itself is admitted" alongside the existing evil-origin and no-origin cases.
+- **Why**: the header-absence check was written against an assumption about a third-party
+  library that was never verified against its actual source, the same class of gap as the
+  zlib and em-dash entries above — untested assumptions about dependency/host behavior that
+  only surface on a real Windows-host run against a real client.
