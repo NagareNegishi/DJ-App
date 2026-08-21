@@ -16,6 +16,7 @@ class MixerComponent : public juce::Component
 {
   public:
     explicit MixerComponent(CrossfaderState& crossfader);
+    ~MixerComponent() override;
 
     void setControlsEnabled(bool enabled); // role-based gate, mirrors DeckComponent::setControlsEnabled
 
@@ -24,6 +25,7 @@ class MixerComponent : public juce::Component
   private:
     CrossfaderState& crossfader_;
     juce::Slider slider_;
+    int listenerToken_ = 0;
 };
 
 } // namespace djapp

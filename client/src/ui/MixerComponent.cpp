@@ -11,6 +11,14 @@ MixerComponent::MixerComponent(CrossfaderState& crossfader) : crossfader_(crossf
     slider_.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
     slider_.setValue(crossfader_.getPosition(), juce::dontSendNotification);
     slider_.onValueChange = [this] { crossfader_.setPosition(static_cast<float>(slider_.getValue())); };
+
+    listenerToken_ = crossfader_.addListener(
+        [this](float position) { slider_.setValue(position, juce::dontSendNotification); });
+}
+
+MixerComponent::~MixerComponent()
+{
+    crossfader_.removeListener(listenerToken_);
 }
 
 void MixerComponent::setControlsEnabled(bool enabled)
