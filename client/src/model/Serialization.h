@@ -45,7 +45,7 @@ template <> Result<StateDelta> fromVar<StateDelta>(const juce::var& v);
 // (de)serialization above. Pure — no I/O, no IXWebSocket — consumed by
 // sync/WebSocketTransport (M7).
 
-constexpr int kProtocolVersion = 1; // shared/protocol/PROTOCOL-VERSION
+constexpr int kProtocolVersion = 2; // shared/protocol/PROTOCOL-VERSION
 
 // Validates `name`/`room` against 02-protocol.md's `hello` field constraints
 // (`name`: string 1-32, printable, no control chars; `room`: string 1-64)

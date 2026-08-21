@@ -34,6 +34,7 @@ struct PlaybackState
     float playbackRate = 1.0f;
     float pitchOffsetSemitones = 0.0f; // stored+synced, not rendered until M9
     std::optional<LoopPoints> loop;
+    bool repeat = true;
 };
 
 enum class DeckId
@@ -66,11 +67,13 @@ struct StateDelta
     std::optional<float> playbackRate;
     std::optional<float> pitchOffsetSemitones;
     std::optional<std::optional<LoopPoints>> loop; // outer=absent?, inner=null vs value
+    std::optional<bool> repeat;
 
     bool empty() const
     {
         return !trackId.has_value() && !playing.has_value() && !positionSeconds.has_value() && !gain.has_value() &&
-               !playbackRate.has_value() && !pitchOffsetSemitones.has_value() && !loop.has_value();
+               !playbackRate.has_value() && !pitchOffsetSemitones.has_value() && !loop.has_value() &&
+               !repeat.has_value();
     }
 };
 

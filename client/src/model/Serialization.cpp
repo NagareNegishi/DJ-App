@@ -216,6 +216,7 @@ juce::var toVar(const PlaybackState& state)
     obj->setProperty("playbackRate", static_cast<double>(state.playbackRate));
     obj->setProperty("pitchOffsetSemitones", static_cast<double>(state.pitchOffsetSemitones));
     obj->setProperty("loop", state.loop.has_value() ? loopToVar(*state.loop) : juce::var());
+    obj->setProperty("repeat", state.repeat);
     return juce::var(obj.get());
 }
 
@@ -238,6 +239,8 @@ juce::var toVar(const StateDelta& delta)
         obj->setProperty("pitchOffsetSemitones", static_cast<double>(*delta.pitchOffsetSemitones));
     if (delta.loop.has_value())
         obj->setProperty("loop", delta.loop->has_value() ? loopToVar(**delta.loop) : juce::var());
+    if (delta.repeat.has_value())
+        obj->setProperty("repeat", *delta.repeat);
 
     return juce::var(obj.get());
 }
@@ -250,8 +253,8 @@ template <> Result<PlaybackState> fromVar<PlaybackState>(const juce::var& v)
     if (obj == nullptr)
         return makeFail<R>("expected an object");
 
-    if (!hasOnlyKnownKeys(
-            *obj, {"trackId", "playing", "positionSeconds", "gain", "playbackRate", "pitchOffsetSemitones", "loop"}))
+    if (!hasOnlyKnownKeys(*obj, {"trackId", "playing", "positionSeconds", "gain", "playbackRate",
+                                 "pitchOffsetSemitones", "loop", "repeat"}))
         return makeFail<R>("unknown field in PlaybackState");
 
     PlaybackState state;
@@ -312,6 +315,14 @@ template <> Result<PlaybackState> fromVar<PlaybackState>(const juce::var& v)
         state.loop = *loopResult;
     }
 
+    if (obj->hasProperty("repeat"))
+    {
+        auto r = parseBool(obj->getProperty("repeat"));
+        if (!r)
+            return makeFail<R>(r.error);
+        state.repeat = *r;
+    }
+
     return makeOk<R>(state);
 }
 
@@ -324,7 +335,7 @@ template <> Result<StateDelta> fromVar<StateDelta>(const juce::var& v)
         return makeFail<R>("expected an object");
 
     if (!hasOnlyKnownKeys(*obj, {"deck", "trackId", "playing", "positionSeconds", "gain", "playbackRate",
-                                 "pitchOffsetSemitones", "loop"}))
+                                 "pitchOffsetSemitones", "loop", "repeat"}))
         return makeFail<R>("unknown field in StateDelta");
 
     if (!obj->hasProperty("deck"))
@@ -395,6 +406,14 @@ template <> Result<StateDelta> fromVar<StateDelta>(const juce::var& v)
         if (!loopResult.ok)
             return makeFail<R>(loopResult.error);
         delta.loop = *loopResult;
+    }
+
+    if (obj->hasProperty("repeat"))
+    {
+        auto r = parseBool(obj->getProperty("repeat"));
+        if (!r)
+            return makeFail<R>(r.error);
+        delta.repeat = *r;
     }
 
     return makeOk<R>(delta);
