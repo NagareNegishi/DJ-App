@@ -222,3 +222,141 @@ Each entry: date, what the plan said, what was done instead, why.
   permanently wrong and the code was changed to match the document instead. Version stays at
   1 by the same reasoning as the `trackId` amendment above: no wire format that ever ran is
   invalidated, and there is no deployed v1 peer relying on a per-frame error.
+
+## 2026-08-21 — `client/CMakeLists.txt` also needs `USE_ZLIB OFF` for IXWebSocket
+
+- **Plan said**: `04-client.md` documents `USE_TLS=OFF` as the only IXWebSocket build
+  option the client needs to set.
+- **Actual**: IXWebSocket's `CMakeLists.txt` independently defaults `USE_ZLIB` to `ON`
+  (permessage-deflate compression), which calls `find_package(ZLIB REQUIRED)`. System
+  zlib is present via apt on the devcontainer, so this passed unnoticed there; a bare
+  Windows Build Tools host has no system zlib, so `cmake -S client -B client/build/windows`
+  failed at configure with `Could NOT find ZLIB`.
+- **Change**: cache-seed `USE_ZLIB OFF` next to the existing `USE_TLS OFF` seed in
+  `client/CMakeLists.txt`, same mechanism.
+- **Why**: compression is transport-layer only and invisible to `02-protocol.md`; disabling
+  it just means the extension isn't negotiated, with no interop effect on the `ws` server.
+  State deltas are small JSON, so compression buys nothing here. Avoids adding a zlib
+  install step to `docs/setup.md` for a feature the prototype doesn't need.
+
+## 2026-08-21 — em dash in `TEST_CASE` names breaks CTest's Windows filter, not the code under test
+
+- **Plan said**: `05-testing.md` gives no character-set restriction on test names; nothing in
+  the plan anticipated this.
+- **Actual**: six `TEST_CASE` names in `SerializationEnvelopeTest.cpp` used a literal em dash
+  ("—", U+2014). `ctest --test-dir client/build/windows` reported all six as `Failed` on the
+  Windows host (218/224 in the container, six red on Windows), but the per-test log showed
+  `No test cases matched` against a mangled filter string (`ΓÇö`/`G��` in place of the dash) —
+  CTest passes each Catch2 test's exact name as a command-line filter, and that non-ASCII byte
+  sequence gets mis-transcoded somewhere in CMake/CTest's Windows console-codepage handling
+  before reaching the binary. The code and assertions underneath were never exercised; every
+  other em dash in the test tree lives in a `//` comment and was unaffected, confirming this
+  is a name-encoding artifact, not a real MSVC-vs-GCC behavior difference.
+- **Change**: replaced the em dash with a plain ASCII hyphen in those six test-name strings
+  only (comments left as-is). Rebuilt and reran in the container: 18/18 passing, unchanged
+  from before.
+- **Why**: cheaper and more robust than chasing the Windows encoding pipeline (console
+  codepage, CMake's `catch_discover_tests` name handling) — ASCII-only test names sidestep the
+  whole class of problem. Recorded here so a future non-ASCII test name doesn't reintroduce the
+  same silent-looking-real-but-isn't failure on the next Windows host checklist.
+
+## 2026-08-21 - a track double-click did nothing before ever connecting
+
+- **Plan said**: `04-client.md`/`07-milestones.md` carry M7's requirement that solo local
+  playback (never connected) keeps working unchanged from M3-M6; nothing in the plan
+  anticipated a regression here.
+- **Actual**: `MainComponent`'s track-list click handler gated on `role_ != Role::controller`
+  directly. `role_` defaults to `Role::observer` and only ever becomes `controller` after a
+  successful claim, so a user who had never connected at all - solo mode, where control
+  should always be open - got silently refused on every double-click. The M7 host checklist's
+  Step 4 (deck controls start enabled solo) passed because `setEnabled` reads a separate,
+  correct `controlsEnabled` computation; only the click handler's own guard was wrong, which is
+  why this was invisible until someone actually double-clicked a track before connecting.
+- **Change**: `645e7ac` replaced the handler's local `role_ != Role::controller` check with the
+  same `canControlLocally()` used for `setEnabled`. That method's logic - `!connected_ ||
+  role_ == Role::controller || !anyPeerControls(peers_)` - was then pulled out into
+  `model/ControlGating.h::controlsEnabledLocally(connected, isLocalController,
+  anyPeerIsController)`, a pure boolean function with no `Role`/`PeerInfo`/JUCE dependency, so
+  it could be pinned by a Catch2 suite (`tests/model/ControlGatingTest.cpp`) instead of relying
+  solely on the next host checklist to notice a regression - `app/` itself stays
+  host-checklist-only per `05-testing.md`.
+- **Why**: two call sites computing the same "can I act locally" decision from two different
+  expressions is exactly the kind of single-fact-two-writers gap `03-server.md`'s `role`
+  deviation (2026-08-14, above) already named for the server side; here it showed up on the
+  client instead. Extracting the shared boolean function removes the second copy rather than
+  fixing it in place, so the two call sites can't diverge again.
+
+## 2026-08-21 - the server's origin check refused the client's own handshake
+
+- **Plan said**: `06-security.md` lists Origin checking as optional, deferred until "browsers
+  ever become clients" - not yet true at M7. `server.js`'s `verifyClient` (added `0852914`,
+  ahead of that need) refused any handshake carrying an `Origin` header at all, on the stated
+  assumption that "Our client is IXWebSocket and sends no Origin."
+- **Actual**: IXWebSocket's handshake code (`IXWebSocketHandshake.cpp:132-136`) unconditionally
+  sends `Origin: <scheme>://<host>:<port>` of the URL it dialed, unless the caller overrides it
+  via `extraHeaders` - which `WebSocketTransport.cpp` never does. Every real connection from
+  the C++ client therefore carried an `Origin: ws://127.0.0.1:8765` header and was refused with
+  403, discovered when both windows failed to connect during the M7 host checklist's Step 5.
+  The integration suite never caught this: it tested an evil origin (refused) and no origin at
+  all (admitted), never the real client's actual header.
+- **Change**: `verifyClient` now admits a handshake whose `Origin` exactly equals
+  `ws://<config.host>:<bound port>` - the server's own address, which is what IXWebSocket
+  always sends when dialing this server directly - and still refuses anything else. A browser's
+  Origin instead names the page's own origin, which can never equal the server's own bind
+  address, so the browser-hijack case the check exists for is still closed. Added
+  `server.test/server.integration.test.js`'s "an upgrade request whose Origin matches the
+  server itself is admitted" alongside the existing evil-origin and no-origin cases.
+- **Why**: the header-absence check was written against an assumption about a third-party
+  library that was never verified against its actual source, the same class of gap as the
+  zlib and em-dash entries above - untested assumptions about dependency/host behavior that
+  only surface on a real Windows-host run against a real client.
+
+## 2026-08-21 - the crossfader stays local-only state, not synced in the protocol
+
+- **Plan said**: `07-milestones.md`'s M8 task 2 leaves the crossfader's protocol status as
+  "decide by effort" - synced properly (a protocol field, version bump to 2, fixture
+  updates) unless that is trivial, in which case do it; otherwise accept and document a
+  display-only mismatch across users.
+- **Actual**: built as local-only state (`state/CrossfaderState`), never sent to the server
+  or other clients. A protocol v2 bump would touch `shared/protocol/fixtures/`, both
+  `PROTOCOL_VERSION` constants, and both sides' serialization for a field with no natural
+  home in the per-deck `PlaybackState`/`StateDelta` shape, since the crossfader is a
+  mixer-level concept, not a deck-level one - not the trivial case the milestone text
+  carves out.
+- **Change**: none to the protocol; `PROTOCOL_VERSION` and `shared/protocol/PROTOCOL-VERSION`
+  stay at 1. Each client renders its own local crossfader position; two users can show
+  different fader positions for the same room, and only the resulting audio (each client's
+  own local gain) is ever a shared fact in practice, since gain itself isn't synced either.
+- **Why**: applied `docs/decisions.md` §5's own tie-breaker for exactly this shape of
+  "decide by effort" call - a change is not trivial once it touches the protocol version,
+  fixtures, and both sides' wire handling. Confirmed with the user as one of three
+  crossfader design decisions this milestone (`build-orchestration/build-log/2026-08-21-m8-second-deck-mixer.md`);
+  the other two (crossfader as its own state class rather than a raw callback value, and
+  gating the control with the other deck controls for a non-controller) are implementation
+  choices with no plan text to deviate from, so they aren't recorded here.
+
+## 2026-08-21 - claiming control didn't resync the room to the new controller's actual state
+
+- **Plan said**: `07-milestones.md`'s M7 acceptance line and the M7 host checklist's Step 12
+  both expect that once control transfers, the other window's controls "mirror window B's new
+  track/playback within ~100 ms, symmetric to Steps 6-8."
+- **Actual**: `MainComponent`'s `roleChanged` handler, on learning this client just became
+  controller, only flipped local role state (`role_`, `applyRoleToUI()`). `SyncPublisher` only
+  forwards a delta produced by a genuine local UI action taken while already controller, so a
+  client that had been playing solo (unsynced, since nobody controlled) at its own position and
+  rate never told anyone what it was doing the moment it claimed. The room's canonical state
+  stayed whatever the previous controller last reported; the new controller's peers only caught
+  up field-by-field, as each one happened to be touched by a later UI action, discovered on the
+  M7 host checklist's Step 12 as a multi-second gap instead of the expected mirror.
+- **Change**: on the observer-to-controller transition, `MainComponent::pushFullResync()` now
+  sends one delta carrying every field of the client's current `PlaybackState`
+  (`model/FullResyncDelta.h::fullResyncDelta`), straight through `transport_->sendDelta(...)`
+  rather than `stateManager_.applyDelta(...)`. Routing it through `stateManager_` would also
+  notify this client's own `EngineAdapter`, which reloads the track and resets position to 0 on
+  any `trackId`-bearing delta - an audible restart of playback that had not actually changed,
+  right as this client claims control.
+- **Why**: no protocol or wire-format change was needed - this reuses the existing `delta`
+  message type, so the fix is entirely client-side. The field-mapping half
+  (`fullResyncDelta`) was pulled into `model/` and covered by
+  `tests/model/FullResyncDeltaTest.cpp`, since `app/` itself stays host-checklist-only per
+  `05-testing.md`.

@@ -368,7 +368,7 @@ TEST_CASE("parseDeltaMessage rejects an invalid deck value (hand-built, no match
 // ---------------------------------------------------------------------------------------
 
 TEST_CASE(
-    "parseDeltaMessage accepts delta-gain-above-max.json (expect.client: accept — range is clamp's job, not parse's)",
+    "parseDeltaMessage accepts delta-gain-above-max.json (expect.client: accept - range is clamp's job, not parse's)",
     "[Serialization][envelope][parseDeltaMessage]")
 {
     auto msg = parseWireMessage(
@@ -380,7 +380,7 @@ TEST_CASE(
     CHECK(*result.value.gain == Catch::Approx(5.0)); // unclamped: clamping is not this function's job
 }
 
-TEST_CASE("parseDeltaMessage rejects delta-gain-not-a-number.json (expect.client: reject — gain sent as a string)",
+TEST_CASE("parseDeltaMessage rejects delta-gain-not-a-number.json (expect.client: reject - gain sent as a string)",
           "[Serialization][envelope][parseDeltaMessage]")
 {
     auto msg = parseWireMessage(
@@ -390,7 +390,7 @@ TEST_CASE("parseDeltaMessage rejects delta-gain-not-a-number.json (expect.client
     REQUIRE(result.error.isNotEmpty());
 }
 
-TEST_CASE("parseDeltaMessage rejects delta-loop-in-after-out.json (expect.client: reject — inSeconds not < outSeconds)",
+TEST_CASE("parseDeltaMessage rejects delta-loop-in-after-out.json (expect.client: reject - inSeconds not < outSeconds)",
           "[Serialization][envelope][parseDeltaMessage]")
 {
     auto msg = parseWireMessage(R"({"type":"delta","serverSeq":13,"sourceClientId":"c-9b01","deck":"A",)"
@@ -400,7 +400,7 @@ TEST_CASE("parseDeltaMessage rejects delta-loop-in-after-out.json (expect.client
     REQUIRE(result.error.isNotEmpty());
 }
 
-TEST_CASE("parseDeltaMessage rejects delta-playing-string.json (expect.client: reject — playing sent as a string)",
+TEST_CASE("parseDeltaMessage rejects delta-playing-string.json (expect.client: reject - playing sent as a string)",
           "[Serialization][envelope][parseDeltaMessage]")
 {
     auto msg = parseWireMessage(R"({"type":"delta","serverSeq":10,"sourceClientId":"c-9b01","deck":"A",)"
@@ -410,7 +410,7 @@ TEST_CASE("parseDeltaMessage rejects delta-playing-string.json (expect.client: r
     REQUIRE(result.error.isNotEmpty());
 }
 
-TEST_CASE("parseDeltaMessage rejects delta-track-id-dot-dot.json (expect.client: reject — trackId contains \"..\")",
+TEST_CASE("parseDeltaMessage rejects delta-track-id-dot-dot.json (expect.client: reject - trackId contains \"..\")",
           "[Serialization][envelope][parseDeltaMessage]")
 {
     auto msg = parseWireMessage(
@@ -421,7 +421,7 @@ TEST_CASE("parseDeltaMessage rejects delta-track-id-dot-dot.json (expect.client:
 }
 
 TEST_CASE(
-    "parseDeltaMessage rejects delta-unknown-field-in-changes.json (expect.client: reject — \"volume\" is undefined)",
+    "parseDeltaMessage rejects delta-unknown-field-in-changes.json (expect.client: reject - \"volume\" is undefined)",
     "[Serialization][envelope][parseDeltaMessage]")
 {
     auto msg = parseWireMessage(

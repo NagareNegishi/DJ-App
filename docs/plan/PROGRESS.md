@@ -86,3 +86,17 @@ that adds the line (see `git log`).
   the room code is still the only membership gate and handshakes are still
   unthrottled, and `02-protocol.md` still does not pin the `roleChanged` payload
   or ordering on controller disconnect.
+- 2026-08-21 · **M7 — Multi-user sync on one deck** · container green: `client/build/linux`
+  builds clean, `ctest` 239/239; `server` suite 669/669. Host checklist
+  (`checklists/M7-host.md`) confirmed on Windows, all 16 steps pass: claim/release control
+  gates the non-controller's deck correctly, load/play/seek/gain/rate/loop all mirror to
+  the observer within ~100 ms from its own local file copy, the 5 s drift resync is
+  invisible on a healthy connection, controller disconnect frees control without a ghost
+  peer, a track missing from one instance's `assets/tracks` shows a legible
+  `missing track: <id>` label and stays silent while still reflecting other state, and
+  reconnect-after-server-drop works with no separate reconnect button. Five bugs found and
+  fixed during the host pass, each recorded in `DEVIATIONS.md` under 2026-08-21: a missing
+  `USE_ZLIB OFF` build flag for IXWebSocket, an em dash in `TEST_CASE` names breaking
+  CTest's Windows filter, a track double-click that did nothing before ever connecting, a
+  server origin check that rejected the client's own handshake, and claiming control not
+  resyncing the room to the new controller's already-playing state.

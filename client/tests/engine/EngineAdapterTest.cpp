@@ -9,7 +9,9 @@
 
 #include "engine/AudioEngine.h"
 #include "engine/EngineAdapter.h"
+#include "model/CrossfaderCurve.h"
 #include "repository/AudioRepository.h"
+#include "state/CrossfaderState.h"
 #include "state/StateManager.h"
 
 namespace djapp
@@ -656,6 +658,150 @@ TEST_CASE("EngineAdapter checkForSelfStop's corrective delta carries only deck a
     CHECK_FALSE(observed.playbackRate.has_value());
     CHECK_FALSE(observed.pitchOffsetSemitones.has_value());
     CHECK_FALSE(observed.loop.has_value());
+}
+
+// --- White-box cases for attachCrossfader/pushEffectiveGain, added after
+// reading EngineAdapter.h/.cpp and CrossfaderState.h/.cpp directly. ---
+
+TEST_CASE("EngineAdapter attachCrossfader pushes the effective gain for the crossfader's actual "
+          "current position, not the default center",
+          "[engine][EngineAdapter][whitebox]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    CrossfaderState crossfader;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    StateDelta gainDelta = makeDelta(DeckId::A);
+    gainDelta.gain = 2.0f;
+    manager.applyDelta(gainDelta, DeltaSource::local);
+    REQUIRE(engine.lastGain == 2.0f);
+
+    // Full-A position: gainA == 1.0, distinct from the default center's ~0.707,
+    // so a wrong "always use 0.5" implementation would be caught here.
+    crossfader.setPosition(0.0f);
+    adapter.attachCrossfader(crossfader);
+
+    CHECK(engine.calls.back() == "setGain");
+    CHECK(engine.lastGain == 2.0f); // 2.0 * gainA(0.0) == 2.0 * 1.0
+}
+
+TEST_CASE("EngineAdapter maps DeckId::B to the crossfader's gainB, not gainA", "[engine][EngineAdapter][whitebox]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    CrossfaderState crossfader;
+    EngineAdapter adapter(manager, DeckId::B, engine, repository);
+
+    // Full-B position: gainB == 1.0, gainA == 0.0. Deck B must observe gainB;
+    // an accidental gainA read here would push ~0 instead of the full 1.0 *
+    // state.gain(1.0 default) == 1.0.
+    crossfader.setPosition(1.0f);
+    adapter.attachCrossfader(crossfader);
+
+    CHECK(engine.lastGain == 1.0f);
+}
+
+TEST_CASE("EngineAdapter: a track-load delta (trackId present, gain absent) does not touch gain, "
+          "and the crossfader-composed gain still reads the post-load gain correctly on the next "
+          "crossfader move -- it does not go stale or reset to 1.0",
+          "[engine][EngineAdapter][whitebox]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    auto buffer = std::make_shared<LoadedAudio>();
+    repository.buffers["track-1"] = buffer;
+    CrossfaderState crossfader;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    crossfader.setPosition(0.0f); // full A: gainA == 1.0
+    adapter.attachCrossfader(crossfader);
+    REQUIRE(engine.lastGain == 1.0f); // 1.0 (default gain) * 1.0
+
+    StateDelta gainDelta = makeDelta(DeckId::A);
+    gainDelta.gain = 2.0f; // gainMax (Ranges.h): the highest value that survives clamping unchanged
+    manager.applyDelta(gainDelta, DeltaSource::local);
+    REQUIRE(engine.lastGain == 2.0f);
+
+    const std::size_t callsBeforeLoad = engine.calls.size();
+    StateDelta loadDelta = makeDelta(DeckId::A);
+    loadDelta.trackId = std::string("track-1"); // no .gain field on this delta
+    manager.applyDelta(loadDelta, DeltaSource::local);
+
+    // Only "load" happened; the load delta itself must not touch gain.
+    REQUIRE(engine.calls.size() == callsBeforeLoad + 1);
+    CHECK(engine.calls.back() == "load");
+    CHECK(engine.lastGain == 2.0f); // unchanged by the load
+
+    // Move the crossfader to full-B: the multiplier must be recomputed against
+    // the gain the track load left behind (2.0), not a stale or reset value.
+    // Compare against equalPowerCrossfade's own output rather than a hardcoded
+    // 0.0f literal: cos(pi/2) is not guaranteed to be bit-exact zero in float.
+    crossfader.setPosition(1.0f);
+    CHECK(engine.calls.back() == "setGain");
+    CHECK(engine.lastGain == 2.0f * equalPowerCrossfade(1.0f).gainA);
+}
+
+TEST_CASE("EngineAdapter checkForSelfStop's corrective playing:false delta does not touch gain "
+          "at all -- no setGain call, crossfader-composed gain unchanged",
+          "[engine][EngineAdapter][whitebox]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    CrossfaderState crossfader;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    crossfader.setPosition(0.25f);
+    adapter.attachCrossfader(crossfader);
+
+    StateDelta gainDelta = makeDelta(DeckId::A);
+    gainDelta.gain = 2.0f;
+    manager.applyDelta(gainDelta, DeltaSource::local);
+    const float gainAfterSet = engine.lastGain;
+
+    StateDelta playDelta = makeDelta(DeckId::A);
+    playDelta.playing = true;
+    manager.applyDelta(playDelta, DeltaSource::local);
+    REQUIRE(engine.playing);
+
+    engine.playing = false; // simulate the audio thread's own self-stop
+    adapter.checkForSelfStop();
+
+    CHECK_FALSE(manager.getState(DeckId::A).playing);
+    CHECK(engine.calls.back() == "pause");
+    CHECK(engine.lastGain == gainAfterSet); // untouched by the correction
+}
+
+TEST_CASE("EngineAdapter attachCrossfader called twice (by mistake) on the same crossfader replaces "
+          "the first listener registration instead of leaking it, so a single later crossfader "
+          "move pushes gain exactly once",
+          "[engine][EngineAdapter][whitebox]")
+{
+    // attachCrossfader removes any existing crossfader listener registration before
+    // installing the new one, so a second attachCrossfader call on the same crossfader
+    // leaves exactly one live registration (see EngineAdapter.cpp attachCrossfader).
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    CrossfaderState crossfader;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    adapter.attachCrossfader(crossfader);
+    adapter.attachCrossfader(crossfader); // mistaken second attach
+
+    const std::size_t callsBeforeMove = engine.calls.size();
+    crossfader.setPosition(0.9f); // a single logical move
+
+    std::size_t setGainCallsFromThisMove = 0;
+    for (std::size_t i = callsBeforeMove; i < engine.calls.size(); ++i)
+        if (engine.calls[i] == "setGain")
+            ++setGainCallsFromThisMove;
+
+    CHECK(setGainCallsFromThisMove == 1);
 }
 
 } // namespace djapp

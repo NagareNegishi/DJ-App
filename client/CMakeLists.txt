@@ -47,7 +47,9 @@ add_library(dj-app-core STATIC
     src/engine/JuceAudioEngine.cpp
     src/engine/EngineAdapter.cpp
     src/state/StateManager.cpp
+    src/state/CrossfaderState.cpp
     src/state/PositionClock.cpp
+    src/state/DeckPositionClocks.cpp
     src/sync/NullTransport.cpp
     src/sync/SyncPublisher.cpp
 )
@@ -77,9 +79,12 @@ target_link_libraries(dj-app-core PUBLIC
 # dj-app-core, so model/state/tests stay free of it. Pinned by commit hash, not a
 # movable tag name (06-security.md Supply-chain drift); this hash is what the v11.4.6
 # tag resolves to. USE_TLS OFF: prototype is ws:// only (see WebSocketTransport.cpp).
-# Cache-seeded before the subdirectory's own `option(USE_TLS ...)` runs, so that
-# option() call becomes a no-op instead of overriding this.
+# USE_ZLIB OFF: only enables the permessage-deflate compression extension, not needed
+# for small state deltas, and avoids requiring a system zlib (present via apt on Linux,
+# absent on a bare Windows Build Tools host). Both cache-seeded before the subdirectory's
+# own option() calls run, so those calls become no-ops instead of overriding this.
 set(USE_TLS OFF CACHE BOOL "Disable TLS: prototype is ws:// only" FORCE)
+set(USE_ZLIB OFF CACHE BOOL "Disable zlib: avoid requiring it as a host dependency" FORCE)
 
 include(FetchContent)
 FetchContent_Declare(
@@ -108,6 +113,7 @@ target_sources(dj-app-client PRIVATE
     src/app/MainComponent.cpp
     src/ui/TrackListComponent.cpp
     src/ui/DeckComponent.cpp
+    src/ui/MixerComponent.cpp
     src/ui/ConnectPanel.cpp
     src/engine/AudioDeviceHub.cpp
     src/sync/WebSocketTransport.cpp

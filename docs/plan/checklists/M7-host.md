@@ -13,11 +13,17 @@ This repo is checked out at `C:\Users\nagi\Desktop\DJ-App` on this host.
 
 Same toolchain and test-audio-file setup as `M3-host.md`/`M5-host.md` — if
 `client\assets\tracks\demo1.wav` and `manifest.json` are already present, skip to Steps.
-You'll need **two copies of the same audio files** reachable by each client instance —
+You'll need **two copies of the same audio files** reachable by each client instance -
 either two full checkouts of the repo, or one checkout with the client run twice against
 the same `client\assets\tracks\` (both instances read the same manifest; that's fine and
-matches "each rendering audio locally from their own copy of the files" — it's still each
+matches "each rendering audio locally from their own copy of the files" - it's still each
 instance's own independent decode/playback, just pointed at the same files on disk).
+
+Step 14 below is the one exception: it needs the two instances to see *different* track
+files, which a single checkout can't provide (`client\assets\tracks\` is baked into the
+binary at compile time via `CLIENT_SOURCE_DIR`, so both instances from one checkout always
+read the identical folder). If you've been running one checkout so far, set up a second
+checkout before Step 14 - see that step for the exact commands.
 
 The server runs **in the container**, not on the host — this checklist is the first one
 that needs both sides running simultaneously.
@@ -119,18 +125,28 @@ that needs both sides running simultaneously.
       playing, it just means nobody currently has the right to change it until someone
       claims. Window A should **not** show any stray role-change notice for window B's
       departed id — just the peer leaving.
-14. **Missing track.** Restart the window you just closed (relaunch the exe), connect it to
-    the same room with a different display name, but this time **rename or remove one
-    track's file** from that instance's `client\assets\tracks\` before connecting (or point
-    this instance at a `client\assets\tracks\` directory whose manifest is missing an entry
-    the other side has). Have window A claim control and load/play the track this window
-    doesn't have.
-    - Expected: this window shows a "missing track" indication (whatever text/UI the
-      implementation surfaces — confirm it's legible, not a crash or silent blank deck) and
-      stays silent (no audio, no crash) while continuing to receive and reflect every other
-      piece of state (gain/rate/position keep updating even though there's nothing audible
-      to apply them to). Restore the file afterward if you want to keep using this checkout
-      for further testing.
+14. **Missing track.** This step needs window B to not have a track window A has - a single
+    checkout can't do that (`client\assets\tracks\` is baked into the binary at compile
+    time, so both instances from one checkout always read the same folder). Set up a second
+    checkout:
+    ```
+    git clone C:\Users\nagi\Desktop\DJ-App C:\Users\nagi\Desktop\DJ-App-2
+    cd C:\Users\nagi\Desktop\DJ-App-2
+    cmake -S client -B client/build/windows -G Ninja
+    cmake --build client/build/windows
+    ```
+    - `client/assets/tracks/*` is gitignored except `manifest.example.json`, so the fresh
+      clone already has no `manifest.json` and no `demo1.wav` - nothing to delete.
+    - Relaunch the window you closed in Step 13 from the **second checkout's** exe, connect
+      it to the same room with a different display name. Window A keeps running from the
+      original checkout, unchanged, still has `demo1.wav`.
+    - Have window A claim control and load/play `demo1`.
+    - Expected: window B's deck shows `missing track: demo1`, stays silent (no audio, no
+      crash), and keeps reflecting every other piece of state. The position slider stays
+      pinned at 0 (no known duration to size it), but the time label's elapsed-seconds text
+      keeps counting up in step with window A regardless - that's the state genuinely
+      syncing, not a bug. Restore the file in the second checkout afterward if you want to
+      keep using it for further testing.
 15. **Reconnect after a drop.** With both windows connected, stop the server process in the
     container (Ctrl+C on the `npm start` terminal).
     - Expected: both windows' status areas show a disconnected state within ~30 s (the

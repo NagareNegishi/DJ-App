@@ -54,7 +54,7 @@ Tracks are fully decoded into memory on load rather than streamed from disk. Tha
 | Wire format | JSON text frames | binary/CBOR | Human-debuggable (`wscat`), trivially fixture-testable; bandwidth is negligible at ≤ 8 clients × ≤ 60 msg/s |
 | Delta broadcast | to everyone *except* sender | echo-to-all | Matches the architecture doc and the optimistic-update principle; halves controller traffic. Sequence-gap detection + snapshot request covers the (unlikely, TCP) resync case |
 | Room security | single room, startup-generated join code | open server / full auth | One shared secret is the right amount of security for a LAN prototype and costs ~10 lines |
-| Crossfader sync (M8) | decide at implementation | — | Syncing it properly needs a protocol v2 bump; plan says measure the effort then, and record the call either way |
+| Crossfader sync (M8) | local-only, not synced | protocol v2 field | Syncing it properly needs a protocol v2 bump touching fixtures and both sides' wire handling for a mixer-level concept with no home in per-deck state — not the trivial case that would have justified doing it now. See `DEVIATIONS.md` 2026-08-21 |
 
 ## 6. Explicitly *not* decided (unchanged from `docs/stack.md`)
 

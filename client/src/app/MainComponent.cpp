@@ -1,5 +1,7 @@
 #include "MainComponent.h"
 
+#include "model/ControlGating.h"
+#include "model/FullResyncDelta.h"
 #include "model/Ranges.h"
 #include "model/Serialization.h"
 #include "sync/WebSocketTransport.h"
@@ -73,30 +75,31 @@ void addOrUpdatePeer(std::vector<ConnectPanel::PeerInfo>& peers, ConnectPanel::P
 
 MainComponent::MainComponent()
     : repository_(tracksRootDir()), engineAdapterA_(stateManager_, DeckId::A, engineA_, repository_),
-      positionClock_(stateManager_, engineA_, DeckId::A), transport_(std::make_unique<WebSocketTransport>()),
-      syncPublisher_(stateManager_, *transport_),
-      deckA_(stateManager_, DeckId::A, repository_, [this] { return computeResumePositionSeconds(); })
+      engineAdapterB_(stateManager_, DeckId::B, engineB_, repository_),
+      positionClock_(stateManager_, engineA_, DeckId::A), positionClockB_(stateManager_, engineB_, DeckId::B),
+      deckPositionClocks_(positionClock_, positionClockB_), transport_(std::make_unique<WebSocketTransport>()),
+      syncPublisher_(stateManager_, *transport_), deckA_(stateManager_, DeckId::A, repository_, [this]
+                                                         { return computeResumePositionSeconds(engineA_, DeckId::A); }),
+      deckB_(stateManager_, DeckId::B, repository_,
+             [this] { return computeResumePositionSeconds(engineB_, DeckId::B); }),
+      mixer_(crossfaderState_)
 {
+    engineAdapterA_.attachCrossfader(crossfaderState_);
+    engineAdapterB_.attachCrossfader(crossfaderState_);
+
     addAndMakeVisible(trackList_);
     trackList_.setTracks(repository_.listAvailableTracks());
-    trackList_.onTrackSelected = [this](const TrackMetadata& track)
-    {
-        // Second line of defense against an observer double-clicking a track:
-        // setEnabled(controlsEnabled) below is the visible one; this guard is
-        // the one that actually matters (06-security.md: client-side disabling
-        // is UX, not security).
-        if (role_ != Role::controller)
-            return;
+    trackList_.onTrackSelected = [this](const TrackMetadata& track) { loadTrackToDeck(loadTargetDeck_, track.id); };
 
-        StateDelta delta;
-        delta.deck = DeckId::A;
-        delta.trackId = track.id;
-        delta.playing = false;       // a fresh load always starts stopped
-        delta.positionSeconds = 0.0; // AudioEngine::load resets to 0; keep the model in agreement
-        stateManager_.applyDelta(delta, DeltaSource::local);
+    addAndMakeVisible(loadTargetToggle_);
+    loadTargetToggle_.onClick = [this]
+    {
+        loadTargetDeck_ = loadTargetDeck_ == DeckId::A ? DeckId::B : DeckId::A;
+        loadTargetToggle_.setButtonText(loadTargetDeck_ == DeckId::A ? "-> A" : "-> B");
     };
 
     deviceHub_.addSource(engineA_.source());
+    deviceHub_.addSource(engineB_.source());
 
     addAndMakeVisible(connectPanel_);
     connectPanel_.onConnectRequested = [this](const ConnectionInfo& info) { handleConnectRequested(info); };
@@ -112,20 +115,37 @@ MainComponent::MainComponent()
     connectPanel_.onReleaseRequested = [this] { transport_->sendReleaseControl(); };
 
     addAndMakeVisible(deckA_);
+    addAndMakeVisible(deckB_);
+    addAndMakeVisible(mixer_);
 
     setSize(800, 600);
 }
 
-double MainComponent::computeResumePositionSeconds()
+double MainComponent::computeResumePositionSeconds(AudioEngine& engine, DeckId deck)
 {
-    double resumePosition = engineA_.getCurrentPosition();
-    const auto meta = repository_.getTrackMetadata(stateManager_.getState(DeckId::A).trackId);
+    double resumePosition = engine.getCurrentPosition();
+    const auto meta = repository_.getTrackMetadata(stateManager_.getState(deck).trackId);
     const double duration = meta.has_value() ? meta->durationSeconds : 0.0;
     // AudioEngine can stop itself at end-of-track without telling StateManager, so
     // resuming at the same stale position would immediately stop again — reset to 0 instead.
-    if (duration > 0.0 && !engineA_.isPlaying() && resumePosition >= duration - 0.05)
+    if (duration > 0.0 && !engine.isPlaying() && resumePosition >= duration - 0.05)
         resumePosition = 0.0;
     return resumePosition;
+}
+
+void MainComponent::loadTrackToDeck(DeckId deck, const juce::String& trackId)
+{
+    // Second line of defense against an observer triggering a load
+    // (06-security.md: client-side disabling is UX, not security).
+    if (!canControlLocally())
+        return;
+
+    StateDelta delta;
+    delta.deck = deck;
+    delta.trackId = trackId;
+    delta.playing = false;       // a fresh load always starts stopped
+    delta.positionSeconds = 0.0; // AudioEngine::load resets to 0; keep the model in agreement
+    stateManager_.applyDelta(delta, DeltaSource::local);
 }
 
 void MainComponent::handleConnectRequested(const ConnectionInfo& info)
@@ -199,8 +219,14 @@ void MainComponent::handleServerEvent(const juce::var& msg)
 
         if (clientId == ownClientId_)
         {
+            const bool becameController = role == Role::controller && role_ != Role::controller;
             role_ = role;
             applyRoleToUI();
+            // The room's canonical state may not match what this client was already
+            // playing (e.g. solo, unsynced, before claiming) - catch peers up now
+            // rather than waiting on whichever field the next UI action happens to touch.
+            if (becameController)
+                pushFullResync();
         }
         else
         {
@@ -275,21 +301,34 @@ void MainComponent::handleConnectionChange(bool connected, juce::String reason)
     }
 }
 
+bool MainComponent::canControlLocally() const
+{
+    return controlsEnabledLocally(connected_, role_ == Role::controller, anyPeerControls(peers_));
+}
+
+void MainComponent::pushFullResync()
+{
+    // Sent straight through transport_, not via stateManager_.applyDelta: the latter
+    // would also notify this client's own EngineAdapter, which reloads the track on
+    // any trackId-bearing delta and resets position to 0 - an audible restart of
+    // playback that hasn't actually changed, right as this client claims control.
+    transport_->sendDelta(fullResyncDelta(DeckId::A, stateManager_.getState(DeckId::A)));
+    transport_->sendDelta(fullResyncDelta(DeckId::B, stateManager_.getState(DeckId::B)));
+}
+
 void MainComponent::applyRoleToUI()
 {
     connectPanel_.setRole(role_);
-    positionClock_.setRole(role_);
+    deckPositionClocks_.setRole(role_);
     syncPublisher_.setRole(role_); // the only other role-gated consumer; without this the
                                    // controller would never actually forward its own deltas
 
-    // Deck/track-list enablement is not role alone: solo local playback (never
-    // connected) must keep working exactly as it did at M3-M6, and role only
-    // gates once actually connected. When connected, controls are open unless
-    // some *other* client currently holds controller (self holding it is
-    // already covered by role_ == Role::controller).
-    const bool controlsEnabled = !connected_ || role_ == Role::controller || !anyPeerControls(peers_);
+    const bool controlsEnabled = canControlLocally();
     deckA_.setControlsEnabled(controlsEnabled);
+    deckB_.setControlsEnabled(controlsEnabled);
+    mixer_.setControlsEnabled(controlsEnabled);
     trackList_.setEnabled(controlsEnabled);
+    loadTargetToggle_.setEnabled(controlsEnabled);
 }
 
 void MainComponent::applyDeckSnapshot(DeckId deck, const juce::var& playbackStateVar)
@@ -333,9 +372,12 @@ void MainComponent::resized()
 {
     auto bounds = getLocalBounds();
     connectPanel_.setBounds(bounds.removeFromTop(120));
-    auto controls = bounds.removeFromRight(240).reduced(8);
+    auto controls = bounds.removeFromRight(480).reduced(8);
+    loadTargetToggle_.setBounds(bounds.removeFromBottom(24));
     trackList_.setBounds(bounds);
-    deckA_.setBounds(controls);
+    mixer_.setBounds(controls.removeFromBottom(24));
+    deckA_.setBounds(controls.removeFromLeft(controls.getWidth() / 2).reduced(4));
+    deckB_.setBounds(controls.reduced(4));
 }
 
 } // namespace djapp

@@ -47,3 +47,4 @@ Windows host build (user-driven, from a VS Build Tools Developer Command Prompt)
 - **Security is part of done** (`docs/plan/06-security.md`): validate and clamp all network input on both sides; network data never becomes a file path; server binds localhost by default; keep dependencies pinned.
 - **Testing**: every bug fix ships with a regression test in the same commit; protocol handlers and public model/state functions are covered (`docs/plan/05-testing.md`).
 - **Never commit**: `build/`, `node_modules/`, audio files, secrets. Style per `docs/plan/08-conventions.md` (`.clang-format` at repo root; commit subjects prefixed with the milestone, e.g. `M3:`).
+- **No em dash, ever**: use `-` instead.

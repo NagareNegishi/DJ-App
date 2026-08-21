@@ -11,13 +11,17 @@
 // engine alone can observe and StateManager cannot derive any other way;
 // this poll is expected to be absorbed into or coordinated with
 // state/PositionClock once that lands at M7 — not a general license for the
-// adapter to write more into state. Threading: message-thread-only throughout — handleDelta from the StateManager
+// adapter to write more into state. Optionally composes state.gain with the
+// local-only CrossfaderState (see attachCrossfader) before pushing to the
+// engine; the crossfader itself never touches StateManager or the sync layer.
+// Threading: message-thread-only throughout — handleDelta from the StateManager
 // notification it's always called from, checkForSelfStop/timerCallback from the
 // Timer callback, independent of any notification.
 
 #include "AudioEngine.h"
 #include "model/Types.h"
 #include "repository/AudioRepository.h"
+#include "state/CrossfaderState.h"
 #include "state/StateManager.h"
 #include <juce_events/juce_events.h>
 
@@ -34,15 +38,32 @@ class EngineAdapter : private juce::Timer
     // not there's anything to correct.
     void checkForSelfStop();
 
+    // Optional post-construction attachment (not a constructor parameter: that
+    // would force every existing call site, including tests, to change). Once
+    // attached, this deck's effective gain becomes state.gain times this deck's
+    // side of the crossfader's equal-power curve; immediately pushes the
+    // effective gain for the crossfader's current position so the engine agrees
+    // with the on-screen fader before the user ever touches it.
+    void attachCrossfader(CrossfaderState& crossfader);
+
   private:
     void handleDelta(const StateDelta& applied, const PlaybackState& newState, DeltaSource source);
     void timerCallback() override; // calls checkForSelfStop() at low frequency; see there
+
+    // Single place state.gain and the crossfader multiplier get combined and
+    // pushed to engine_.setGain(...); called both from handleDelta's gain branch
+    // and from the crossfader listener, so the two never compute the product
+    // independently.
+    void pushEffectiveGain(float gain);
 
     StateManager& stateManager_;
     DeckId deck_;
     AudioEngine& engine_;
     AudioRepository& repository_;
     int listenerToken_;
+
+    CrossfaderState* crossfader_ = nullptr;
+    int crossfaderListenerToken_ = 0;
 };
 
 } // namespace djapp
