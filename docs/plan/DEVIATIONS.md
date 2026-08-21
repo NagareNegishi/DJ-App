@@ -260,25 +260,25 @@ Each entry: date, what the plan said, what was done instead, why.
   whole class of problem. Recorded here so a future non-ASCII test name doesn't reintroduce the
   same silent-looking-real-but-isn't failure on the next Windows host checklist.
 
-## 2026-08-21 — a track double-click did nothing before ever connecting
+## 2026-08-21 - a track double-click did nothing before ever connecting
 
 - **Plan said**: `04-client.md`/`07-milestones.md` carry M7's requirement that solo local
   playback (never connected) keeps working unchanged from M3-M6; nothing in the plan
   anticipated a regression here.
 - **Actual**: `MainComponent`'s track-list click handler gated on `role_ != Role::controller`
   directly. `role_` defaults to `Role::observer` and only ever becomes `controller` after a
-  successful claim, so a user who had never connected at all — solo mode, where control
-  should always be open — got silently refused on every double-click. The M7 host checklist's
+  successful claim, so a user who had never connected at all - solo mode, where control
+  should always be open - got silently refused on every double-click. The M7 host checklist's
   Step 4 (deck controls start enabled solo) passed because `setEnabled` reads a separate,
   correct `controlsEnabled` computation; only the click handler's own guard was wrong, which is
   why this was invisible until someone actually double-clicked a track before connecting.
 - **Change**: `645e7ac` replaced the handler's local `role_ != Role::controller` check with the
-  same `canControlLocally()` used for `setEnabled`. That method's logic — `!connected_ ||
-  role_ == Role::controller || !anyPeerControls(peers_)` — was then pulled out into
+  same `canControlLocally()` used for `setEnabled`. That method's logic - `!connected_ ||
+  role_ == Role::controller || !anyPeerControls(peers_)` - was then pulled out into
   `model/ControlGating.h::controlsEnabledLocally(connected, isLocalController,
   anyPeerIsController)`, a pure boolean function with no `Role`/`PeerInfo`/JUCE dependency, so
   it could be pinned by a Catch2 suite (`tests/model/ControlGatingTest.cpp`) instead of relying
-  solely on the next host checklist to notice a regression — `app/` itself stays
+  solely on the next host checklist to notice a regression - `app/` itself stays
   host-checklist-only per `05-testing.md`.
 - **Why**: two call sites computing the same "can I act locally" decision from two different
   expressions is exactly the kind of single-fact-two-writers gap `03-server.md`'s `role`
@@ -286,27 +286,53 @@ Each entry: date, what the plan said, what was done instead, why.
   client instead. Extracting the shared boolean function removes the second copy rather than
   fixing it in place, so the two call sites can't diverge again.
 
-## 2026-08-21 — the server's origin check refused the client's own handshake
+## 2026-08-21 - the server's origin check refused the client's own handshake
 
 - **Plan said**: `06-security.md` lists Origin checking as optional, deferred until "browsers
-  ever become clients" — not yet true at M7. `server.js`'s `verifyClient` (added `0852914`,
+  ever become clients" - not yet true at M7. `server.js`'s `verifyClient` (added `0852914`,
   ahead of that need) refused any handshake carrying an `Origin` header at all, on the stated
   assumption that "Our client is IXWebSocket and sends no Origin."
 - **Actual**: IXWebSocket's handshake code (`IXWebSocketHandshake.cpp:132-136`) unconditionally
   sends `Origin: <scheme>://<host>:<port>` of the URL it dialed, unless the caller overrides it
-  via `extraHeaders` — which `WebSocketTransport.cpp` never does. Every real connection from
+  via `extraHeaders` - which `WebSocketTransport.cpp` never does. Every real connection from
   the C++ client therefore carried an `Origin: ws://127.0.0.1:8765` header and was refused with
   403, discovered when both windows failed to connect during the M7 host checklist's Step 5.
   The integration suite never caught this: it tested an evil origin (refused) and no origin at
   all (admitted), never the real client's actual header.
 - **Change**: `verifyClient` now admits a handshake whose `Origin` exactly equals
-  `ws://<config.host>:<bound port>` — the server's own address, which is what IXWebSocket
-  always sends when dialing this server directly — and still refuses anything else. A browser's
+  `ws://<config.host>:<bound port>` - the server's own address, which is what IXWebSocket
+  always sends when dialing this server directly - and still refuses anything else. A browser's
   Origin instead names the page's own origin, which can never equal the server's own bind
   address, so the browser-hijack case the check exists for is still closed. Added
   `server.test/server.integration.test.js`'s "an upgrade request whose Origin matches the
   server itself is admitted" alongside the existing evil-origin and no-origin cases.
 - **Why**: the header-absence check was written against an assumption about a third-party
   library that was never verified against its actual source, the same class of gap as the
-  zlib and em-dash entries above — untested assumptions about dependency/host behavior that
+  zlib and em-dash entries above - untested assumptions about dependency/host behavior that
   only surface on a real Windows-host run against a real client.
+
+## 2026-08-21 - claiming control didn't resync the room to the new controller's actual state
+
+- **Plan said**: `07-milestones.md`'s M7 acceptance line and the M7 host checklist's Step 12
+  both expect that once control transfers, the other window's controls "mirror window B's new
+  track/playback within ~100 ms, symmetric to Steps 6-8."
+- **Actual**: `MainComponent`'s `roleChanged` handler, on learning this client just became
+  controller, only flipped local role state (`role_`, `applyRoleToUI()`). `SyncPublisher` only
+  forwards a delta produced by a genuine local UI action taken while already controller, so a
+  client that had been playing solo (unsynced, since nobody controlled) at its own position and
+  rate never told anyone what it was doing the moment it claimed. The room's canonical state
+  stayed whatever the previous controller last reported; the new controller's peers only caught
+  up field-by-field, as each one happened to be touched by a later UI action, discovered on the
+  M7 host checklist's Step 12 as a multi-second gap instead of the expected mirror.
+- **Change**: on the observer-to-controller transition, `MainComponent::pushFullResync()` now
+  sends one delta carrying every field of the client's current `PlaybackState`
+  (`model/FullResyncDelta.h::fullResyncDelta`), straight through `transport_->sendDelta(...)`
+  rather than `stateManager_.applyDelta(...)`. Routing it through `stateManager_` would also
+  notify this client's own `EngineAdapter`, which reloads the track and resets position to 0 on
+  any `trackId`-bearing delta - an audible restart of playback that had not actually changed,
+  right as this client claims control.
+- **Why**: no protocol or wire-format change was needed - this reuses the existing `delta`
+  message type, so the fix is entirely client-side. The field-mapping half
+  (`fullResyncDelta`) was pulled into `model/` and covered by
+  `tests/model/FullResyncDeltaTest.cpp`, since `app/` itself stays host-checklist-only per
+  `05-testing.md`.

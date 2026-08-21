@@ -44,6 +44,7 @@ class MainComponent : public juce::Component
     void handleConnectionChange(bool connected, juce::String reason);
     void applyRoleToUI();
     bool canControlLocally() const;
+    void pushFullResync();
     void applyDeckSnapshot(DeckId deck, const juce::var& playbackStateVar);
     void applySnapshot(const juce::var& snapshotDecksVar);
 

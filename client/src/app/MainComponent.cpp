@@ -1,6 +1,7 @@
 #include "MainComponent.h"
 
 #include "model/ControlGating.h"
+#include "model/FullResyncDelta.h"
 #include "model/Ranges.h"
 #include "model/Serialization.h"
 #include "sync/WebSocketTransport.h"
@@ -198,8 +199,14 @@ void MainComponent::handleServerEvent(const juce::var& msg)
 
         if (clientId == ownClientId_)
         {
+            const bool becameController = role == Role::controller && role_ != Role::controller;
             role_ = role;
             applyRoleToUI();
+            // The room's canonical state may not match what this client was already
+            // playing (e.g. solo, unsynced, before claiming) - catch peers up now
+            // rather than waiting on whichever field the next UI action happens to touch.
+            if (becameController)
+                pushFullResync();
         }
         else
         {
@@ -277,6 +284,15 @@ void MainComponent::handleConnectionChange(bool connected, juce::String reason)
 bool MainComponent::canControlLocally() const
 {
     return controlsEnabledLocally(connected_, role_ == Role::controller, anyPeerControls(peers_));
+}
+
+void MainComponent::pushFullResync()
+{
+    // Sent straight through transport_, not via stateManager_.applyDelta: the latter
+    // would also notify this client's own EngineAdapter, which reloads the track on
+    // any trackId-bearing delta and resets position to 0 - an audible restart of
+    // playback that hasn't actually changed, right as this client claims control.
+    transport_->sendDelta(fullResyncDelta(DeckId::A, stateManager_.getState(DeckId::A)));
 }
 
 void MainComponent::applyRoleToUI()
