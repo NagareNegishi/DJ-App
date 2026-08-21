@@ -1,4 +1,5 @@
 #include "DeckComponent.h"
+#include "model/ControlGating.h"
 #include "model/LoopWrap.h"
 #include <cmath>
 
@@ -170,13 +171,14 @@ void DeckComponent::refreshWidgets(const PlaybackState& state)
     rateSlider_.setValue(state.playbackRate, juce::dontSendNotification);
 
     const bool hasTrack = !state.trackId.isEmpty();
-    playPauseButton_.setEnabled(hasTrack && rolePermitsControl_);
-    positionSlider_.setEnabled(hasTrack && rolePermitsControl_);
-    loopInButton_.setEnabled(hasTrack && rolePermitsControl_);
-    loopClearButton_.setEnabled(hasTrack && rolePermitsControl_);
-    loopOutButton_.setEnabled(hasTrack && rolePermitsControl_ && pendingLoopInSeconds_.has_value());
-    gainSlider_.setEnabled(rolePermitsControl_);
-    rateSlider_.setEnabled(rolePermitsControl_);
+    const bool controlEnabled = deckControlEnabled(hasTrack, rolePermitsControl_);
+    playPauseButton_.setEnabled(controlEnabled);
+    positionSlider_.setEnabled(controlEnabled);
+    loopInButton_.setEnabled(controlEnabled);
+    loopClearButton_.setEnabled(controlEnabled);
+    loopOutButton_.setEnabled(controlEnabled && pendingLoopInSeconds_.has_value());
+    gainSlider_.setEnabled(controlEnabled);
+    rateSlider_.setEnabled(controlEnabled);
 }
 
 void DeckComponent::timerCallback()
