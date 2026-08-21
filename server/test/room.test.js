@@ -18,6 +18,7 @@ const DECK_DEFAULTS = {
   playbackRate: 1.0,
   pitchOffsetSemitones: 0,
   loop: null,
+  repeat: true,
 };
 
 const CLIENT_ID_PATTERN = /^c-[0-9a-f]{4}$/;

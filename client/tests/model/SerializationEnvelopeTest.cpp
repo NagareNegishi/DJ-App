@@ -9,6 +9,10 @@
 // guessed). A couple of parseDeltaMessage's narrow-flatten failure conditions have no
 // matching fixture in the corpus and are hand-built instead — each is called out at its
 // call site below.
+//
+// `repeat` (protocol v2, M9, docs/plan/02-protocol.md Field reference table): the spec that
+// added this field states that `client-to-server/valid/delta-all-fields.json` gains a
+// `repeat: true` entry, so the "matches delta-all-fields.json" test below now includes it.
 
 #include "model/Serialization.h"
 #include "model/Types.h"
@@ -178,6 +182,7 @@ TEST_CASE("buildDelta with every field set matches delta-all-fields.json", "[Ser
     delta.playbackRate = 1.5f;
     delta.pitchOffsetSemitones = -3.0f;
     delta.loop = std::optional<djapp::LoopPoints>(djapp::LoopPoints{10.0, 20.0});
+    delta.repeat = true; // spec: delta-all-fields.json gains "repeat": true alongside this field
 
     auto msg = djapp::buildDelta(delta);
     auto* obj = msg.getDynamicObject();
@@ -189,13 +194,14 @@ TEST_CASE("buildDelta with every field set matches delta-all-fields.json", "[Ser
     auto changes = msg.getProperty("changes", juce::var());
     auto* changesObj = changes.getDynamicObject();
     REQUIRE(changesObj != nullptr);
-    REQUIRE(changesObj->getProperties().size() == 7);
+    REQUIRE(changesObj->getProperties().size() == 8);
     REQUIRE(changes.getProperty("trackId", juce::var()).toString() == "demo-track-02");
     REQUIRE((bool)changes.getProperty("playing", juce::var()) == true);
     REQUIRE((double)changes.getProperty("positionSeconds", juce::var()) == Catch::Approx(30.25));
     REQUIRE((double)changes.getProperty("gain", juce::var()) == Catch::Approx(1.25));
     REQUIRE((double)changes.getProperty("playbackRate", juce::var()) == Catch::Approx(1.5));
     REQUIRE((double)changes.getProperty("pitchOffsetSemitones", juce::var()) == Catch::Approx(-3.0));
+    REQUIRE((bool)changes.getProperty("repeat", juce::var()) == true);
 
     auto loopVar = changes.getProperty("loop", juce::var());
     auto* loopObj = loopVar.getDynamicObject();
@@ -261,6 +267,7 @@ TEST_CASE("parseDeltaMessage parses delta-broadcast.json", "[Serialization][enve
     CHECK_FALSE(result.value.playbackRate.has_value());
     CHECK_FALSE(result.value.pitchOffsetSemitones.has_value());
     CHECK_FALSE(result.value.loop.has_value());
+    CHECK_FALSE(result.value.repeat.has_value());
 }
 
 TEST_CASE("parseDeltaMessage parses delta-broadcast-all-fields.json", "[Serialization][envelope][parseDeltaMessage]")
@@ -268,7 +275,7 @@ TEST_CASE("parseDeltaMessage parses delta-broadcast-all-fields.json", "[Serializ
     auto msg = parseWireMessage(R"({"type":"delta","serverSeq":8,"sourceClientId":"c-9b01","deck":"B","changes":{)"
                                 R"("trackId":"demo-track-02","playing":true,"positionSeconds":30.25,"gain":1.25,)"
                                 R"("playbackRate":1.5,"pitchOffsetSemitones":-3,)"
-                                R"("loop":{"inSeconds":10.0,"outSeconds":20.0}}})");
+                                R"("loop":{"inSeconds":10.0,"outSeconds":20.0},"repeat":true}})");
     auto result = djapp::parseDeltaMessage(msg);
     REQUIRE(result.ok);
     CHECK(result.value.deck == djapp::DeckId::B);
@@ -288,6 +295,8 @@ TEST_CASE("parseDeltaMessage parses delta-broadcast-all-fields.json", "[Serializ
     REQUIRE(result.value.loop->has_value());
     CHECK(result.value.loop->value().inSeconds == Catch::Approx(10.0));
     CHECK(result.value.loop->value().outSeconds == Catch::Approx(20.0));
+    REQUIRE(result.value.repeat.has_value());
+    CHECK(*result.value.repeat == true);
 }
 
 TEST_CASE("parseDeltaMessage accepts extra top-level envelope fields (narrow flatten reads only deck/changes)",
@@ -429,6 +438,35 @@ TEST_CASE(
     auto result = djapp::parseDeltaMessage(msg);
     REQUIRE_FALSE(result.ok);
     REQUIRE(result.error.isNotEmpty());
+}
+
+// ---------------------------------------------------------------------------------------
+// parseDeltaMessage — `repeat` (protocol v2, M9), matching
+// client-to-server/invalid/delta-repeat-not-boolean.json's shape (hand-built here since
+// this suite hand-writes parseDeltaMessage reject paths rather than reading the
+// client-to-server corpus, which server-to-client/ParseDeltaMessage never consumes anyway).
+// ---------------------------------------------------------------------------------------
+
+TEST_CASE("parseDeltaMessage rejects a non-boolean repeat in changes (mirrors delta-repeat-not-boolean.json)",
+          "[Serialization][envelope][parseDeltaMessage]")
+{
+    SECTION("repeat sent as a number")
+    {
+        auto msg = parseWireMessage(
+            R"({"type":"delta","serverSeq":20,"sourceClientId":"c-9b01","deck":"A","changes":{"repeat":1}})");
+        auto result = djapp::parseDeltaMessage(msg);
+        REQUIRE_FALSE(result.ok);
+        REQUIRE(result.error.isNotEmpty());
+    }
+
+    SECTION("repeat sent as a string")
+    {
+        auto msg = parseWireMessage(
+            R"({"type":"delta","serverSeq":21,"sourceClientId":"c-9b01","deck":"A","changes":{"repeat":"true"}})");
+        auto result = djapp::parseDeltaMessage(msg);
+        REQUIRE_FALSE(result.ok);
+        REQUIRE(result.error.isNotEmpty());
+    }
 }
 
 // ---------------------------------------------------------------------------------------
@@ -598,4 +636,54 @@ TEST_CASE("serializeForSend fails for a message whose serialized form exceeds 40
     REQUIRE(result.error.isNotEmpty());
     // Result<T>'s contract: value is unused/default-constructed on failure.
     CHECK(result.value.isEmpty());
+}
+
+// ---------------------------------------------------------------------------------------
+// buildDelta / parseDeltaMessage envelope round-trip for `repeat` (protocol v2, M9)
+// ---------------------------------------------------------------------------------------
+
+TEST_CASE("buildDelta -> parseDeltaMessage round-trip preserves repeat", "[Serialization][envelope][repeat]")
+{
+    SECTION("repeat = true survives the envelope round-trip")
+    {
+        djapp::StateDelta delta;
+        delta.deck = djapp::DeckId::A;
+        delta.repeat = true;
+
+        auto built = djapp::buildDelta(delta);
+        // Simulate the wire: server broadcasts add serverSeq/sourceClientId around the same
+        // deck/changes shape buildDelta produced, so parse the built message directly (the
+        // narrow flatten reads only deck/changes, per the parseDeltaMessage tests above).
+        auto result = djapp::parseDeltaMessage(built);
+        REQUIRE(result.ok);
+        CHECK(result.value.deck == djapp::DeckId::A);
+        REQUIRE(result.value.repeat.has_value());
+        CHECK(*result.value.repeat == true);
+    }
+
+    SECTION("repeat = false survives the envelope round-trip")
+    {
+        djapp::StateDelta delta;
+        delta.deck = djapp::DeckId::B;
+        delta.repeat = false;
+
+        auto built = djapp::buildDelta(delta);
+        auto result = djapp::parseDeltaMessage(built);
+        REQUIRE(result.ok);
+        CHECK(result.value.deck == djapp::DeckId::B);
+        REQUIRE(result.value.repeat.has_value());
+        CHECK(*result.value.repeat == false);
+    }
+
+    SECTION("repeat not set on the built delta stays nullopt after round-trip")
+    {
+        djapp::StateDelta delta;
+        delta.deck = djapp::DeckId::A;
+        delta.gain = 1.0f; // some other field engaged so the delta isn't empty
+
+        auto built = djapp::buildDelta(delta);
+        auto result = djapp::parseDeltaMessage(built);
+        REQUIRE(result.ok);
+        CHECK_FALSE(result.value.repeat.has_value());
+    }
 }

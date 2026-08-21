@@ -23,6 +23,7 @@ inline StateDelta fullResyncDelta(DeckId deck, const PlaybackState& state)
     delta.playbackRate = state.playbackRate;
     delta.pitchOffsetSemitones = state.pitchOffsetSemitones;
     delta.loop = state.loop;
+    delta.repeat = state.repeat;
     return delta;
 }
 

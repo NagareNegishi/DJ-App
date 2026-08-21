@@ -36,7 +36,7 @@ Tracks are fully decoded into memory on load rather than streamed from disk. Tha
 | **Threading model** (`plan/01`) | Real-time audio's classic failure mode is a lock or allocation on the audio callback. The plan makes the three thread domains (message/audio/network) and their handoff rules (atomics, marshal-to-message-thread) explicit and binding, instead of leaving them to be discovered via glitches. |
 | **Security baseline** (`plan/06`) | Networked app, public repo. Scope is deliberately modest — validate both directions, never turn network data into file paths, bind localhost by default, room code, size/rate/connection limits, pinned dependencies — with an explicit "out of scope" list so nobody gold-plates. Notably the *client* validates too: the server is not trusted either. |
 | **Testing strategy + CI** (`plan/05`) | Original docs had a `tests/` directory and no plan. Now: Catch2 for C++ (offline-rendered DSP tests included), `node:test` for the server (zero extra dependencies), shared contract fixtures, GitHub Actions, and manual host checklists for what a container genuinely cannot verify (real audio, GUI). |
-| **Milestones with acceptance criteria** (`plan/07`) | "Build order 1–9" became M0–M9 with per-milestone tasks, tests, and verifiable done-conditions — what an implementing agent needs to know when to stop. |
+| **Milestones with acceptance criteria** (`plan/07`) | "Build order 1–9" became M0–M10 with per-milestone tasks, tests, and verifiable done-conditions — what an implementing agent needs to know when to stop. |
 | **Conventions** (`plan/08`) | clang-format file, naming, error-handling policy, commit style, and living-docs rules (DEVIATIONS.md, PROGRESS.md, CLAUDE.md commands kept current). |
 
 ## 4. Notable reordering
@@ -58,12 +58,12 @@ Tracks are fully decoded into memory on load rather than streamed from disk. Tha
 
 ## 6. Explicitly *not* decided (unchanged from `docs/stack.md`)
 
-The stack doc's deferrals stand, with their original triggers: time-stretch library (SoundTouch vs Rubber Band vs Signalsmith), beat detection (aubio et al. — note aubio is GPL, so that integration requires a recorded license decision first), ASIO, extra audio formats, production server language. Beat alignment (M9) additionally gets a mandatory design-review gate before any code, because it is the one milestone with real algorithmic risk and a license landmine.
+The stack doc's deferrals stand, with their original triggers: time-stretch library (SoundTouch vs Rubber Band vs Signalsmith), beat detection (aubio et al. — note aubio is GPL, so that integration requires a recorded license decision first), ASIO, extra audio formats, production server language. Beat alignment (M10) additionally gets a mandatory design-review gate before any code, because it is the one milestone with real algorithmic risk and a license landmine.
 
 ## 7. Risks accepted knowingly
 
 - **`ws://` unencrypted for the prototype**, mitigated by localhost-default binding and the room code; the TLS path (reverse proxy) is documented but unbuilt.
-- **Playback-rate changes shift pitch** until M9 — correct behavior for a prototype without a time-stretcher; `pitchOffsetSemitones` is carried in the state/protocol from day one so adding rendering later is not a breaking change.
+- **Playback-rate changes shift pitch** until M10 — correct behavior for a prototype without a time-stretcher; `pitchOffsetSemitones` is carried in the state/protocol from day one so adding rendering later is not a breaking change.
 - **Observer playhead drift** up to the 5-second correction interval.
 - **Self-stop correction is role-blind** (M5 bugfix, `EngineAdapter::checkForSelfStop`): every client, not just the controller, locally corrects its own `playing` flag when its engine stops itself at end-of-track. Until M6/M7 add real rooms and a `playing`-bearing resync, an observer whose local copy of a track ends slightly out of step with the controller's has no automatic way to reconcile that local correction against the room. Accepted for the prototype, same category as playhead drift above; revisit once role-awareness is actually exercised by a live multi-client session.
 - **`state.positionSeconds` stays stale after a self-stop correction**: the same fix corrects `playing` only, not position — `MainComponent::computeResumePositionSeconds()` still reads the engine directly for resume decisions regardless, so nothing currently consumes the stale value, but a future direct reader of `StateManager`'s position (e.g. a multi-user broadcast) would see it. Deferred to M7's `PositionClock`, which resyncs position properly.

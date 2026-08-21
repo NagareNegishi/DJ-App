@@ -77,7 +77,7 @@ for (const { file, fixture } of validEntries) {
     // A valid hello names its own room code; the server it would meet is configured
     // with that code.
     const expected = {
-      protocolVersion: 1,
+      protocolVersion: 2,
       roomCode: typeof fixture.message?.room === 'string' ? fixture.message.room : FIXTURE_ROOM_CODE,
     };
     const result = validateClientFrame(fixture.message, expected);
@@ -110,7 +110,7 @@ for (const { file, fixture } of invalidEntries) {
 
   test(`invalid fixture ${file} is rejected by validate.js`, () => {
     const result = validateClientFrame(fixture.message, {
-      protocolVersion: 1,
+      protocolVersion: 2,
       roomCode: FIXTURE_ROOM_CODE,
     });
     assert.equal(result.ok, false, 'the server must reject this fixture');
@@ -120,7 +120,7 @@ for (const { file, fixture } of invalidEntries) {
   if (Object.hasOwn(fixture, 'closeCode')) {
     test(`invalid fixture ${file} is rejected with the close code it declares`, () => {
       const result = validateClientFrame(fixture.message, {
-        protocolVersion: 1,
+        protocolVersion: 2,
         roomCode: FIXTURE_ROOM_CODE,
       });
       assert.equal(result.ok, false);

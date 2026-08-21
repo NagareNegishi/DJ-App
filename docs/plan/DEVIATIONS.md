@@ -360,3 +360,31 @@ Each entry: date, what the plan said, what was done instead, why.
   (`fullResyncDelta`) was pulled into `model/` and covered by
   `tests/model/FullResyncDeltaTest.cpp`, since `app/` itself stays host-checklist-only per
   `05-testing.md`.
+
+## 2026-08-21 - a loop region past the track's end can no longer be silently overridden by repeat
+
+- **Plan said**: `04-client.md`'s original M9 text (`engine/` section, `BufferPlaybackSource`
+  bullet) specified that at end-of-track, a loop whose `outSeconds` is at or beyond the track's
+  actual duration "never intercepts first," so the whole-track repeat wrap fires instead (head
+  wraps to sample 0), leaving an armed-looking loop region silently inert.
+- **Actual**: a pre-build design review of the M9 engine unit flagged that this produces a
+  confusing user-facing moment - the deck's loop controls show a loop as set, but the audio
+  repeats the whole track instead of looping the small region, with no indication why. Since
+  loop points are never checked against the track's real length at parse/clamp time (`Ranges.h`
+  only bounds them to the protocol-wide `[0, 86400]` range), this is reachable from an ordinary
+  loop-out click if the loop's out point happens to land past a track's actual decoded length
+  (e.g. a stale loop synced from a peer with a longer copy of the same file).
+- **Change**: `BufferPlaybackSource::setLoop` now clamps both `inSamples` and `outSamples` to
+  the loaded track's actual last renderable frame (only once a track is loaded -
+  `messageThreadCurrentBuffer_` is non-null; before that, the pre-existing `messageThreadSampleRate_
+  > 0.0` guard already keeps the loop inactive). An active loop therefore always intercepts
+  before the whole-track boundary is ever reached, regardless of `repeat`.
+  `ui/DeckComponent::currentDisplayPositionSeconds` mirrors the same clamp against the track's
+  displayed duration, so the position slider/time readout never wrap at a point the audio
+  engine doesn't actually reach.
+- **Why**: confirmed with the user during this session's build - the fix is message-thread-only
+  (`setLoop` is called from user gestures or synced deltas, never the audio callback), so it
+  carries no real-time performance cost, and it closes a confusing edge case cheaply rather than
+  leaving it as a documented limitation. `04-client.md`'s `BufferPlaybackSource` bullet has been
+  updated to describe the clamped behavior instead of the "never intercepts" wording it
+  originally specified.

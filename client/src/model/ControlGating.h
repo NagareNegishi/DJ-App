@@ -14,4 +14,10 @@ inline bool controlsEnabledLocally(bool connected, bool isLocalController, bool 
     return !connected || isLocalController || !anyPeerIsController;
 }
 
+// Shared by every DeckComponent widget so their enabled state can't diverge.
+inline bool deckControlEnabled(bool hasTrack, bool rolePermitsControl)
+{
+    return hasTrack && rolePermitsControl;
+}
+
 } // namespace djapp

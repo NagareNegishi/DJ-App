@@ -2,7 +2,7 @@
 // table in docs/plan/02-protocol.md and must remain checkable against it line by line —
 // nothing that is not part of the wire contract belongs in this file.
 
-export const PROTOCOL_VERSION = 1;
+export const PROTOCOL_VERSION = 2;
 
 export const MAX_FRAME_BYTES = 4096;
 
@@ -64,4 +64,5 @@ export const DEFAULT_DECK_STATE = Object.freeze({
   playbackRate: 1.0,
   pitchOffsetSemitones: 0,
   loop: null,
+  repeat: true,
 });

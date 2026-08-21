@@ -2,7 +2,7 @@
   "description": "hello with an empty name",
   "message": {
     "type": "hello",
-    "protocolVersion": 1,
+    "protocolVersion": 2,
     "name": "",
     "room": "demo-room"
   },

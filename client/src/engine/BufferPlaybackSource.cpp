@@ -38,6 +38,10 @@ void BufferPlaybackSource::load(std::shared_ptr<const LoadedAudio> audio)
     // thread never renders even one block of the new buffer at a stale
     // position left over from the previous track.
     // Order matters: value first (relaxed), flag second (release) — see class header.
+    // repeat_ is deliberately NOT reset here: unlike the loop slot below (denominated in
+    // the previous track's sample rate, must be cleared) and the seek-to-0 reset above,
+    // repeat is a track-independent user preference/synced setting that must survive a
+    // track change unchanged.
     pendingSeekSamples_.store(0.0, std::memory_order_relaxed);
     seekPending_.store(true, std::memory_order_release);
 
@@ -89,9 +93,24 @@ void BufferPlaybackSource::setLoop(std::optional<LoopPoints> loop)
         state.active = true;
         state.inSamples = loop->inSeconds * messageThreadSampleRate_;
         state.outSamples = loop->outSeconds * messageThreadSampleRate_;
+
+        if (messageThreadCurrentBuffer_)
+        {
+            const double lastRenderableFrame =
+                static_cast<double>(messageThreadCurrentBuffer_->buffer.getNumSamples() - 1);
+            state.inSamples = std::min(state.inSamples, lastRenderableFrame);
+            state.outSamples = std::min(state.outSamples, lastRenderableFrame);
+        }
     }
     loopSlots_[inactiveSlot] = state;
     activeLoopSlot_.store(inactiveSlot, std::memory_order_release);
+}
+
+void BufferPlaybackSource::setRepeat(bool repeat)
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+
+    repeat_.store(repeat, std::memory_order_relaxed);
 }
 
 void BufferPlaybackSource::requestSeek(double seconds)
@@ -155,6 +174,7 @@ void BufferPlaybackSource::getNextAudioBlock(const juce::AudioSourceChannelInfo&
     const double sourceSampleRate = audio->sampleRate > 0.0 ? audio->sampleRate : deviceSampleRate;
     const float rate = rate_.load(std::memory_order_relaxed);
     const float gain = gain_.load(std::memory_order_relaxed);
+    const bool repeat = repeat_.load(std::memory_order_relaxed);
     const double increment = deviceSampleRate > 0.0 ? static_cast<double>(rate) * (sourceSampleRate / deviceSampleRate)
                                                     : static_cast<double>(rate);
 
@@ -182,15 +202,26 @@ void BufferPlaybackSource::getNextAudioBlock(const juce::AudioSourceChannelInfo&
     bool stillPlaying = true;
     int sample = 0;
 
+    // -1: linear interpolation below reads src[index0] and src[index0 + 1], so the last
+    // renderable head position is numSourceFrames - 2 ... i.e. this is the exclusive upper
+    // bound both the stop test and the repeat wrap must agree on.
+    const double lastRenderableFrame = static_cast<double>(numSourceFrames - 1);
+
     for (; sample < bufferToFill.numSamples; ++sample)
     {
         if (loop.active)
             pos = wrapPositionWithinRange(pos, loop.inSamples, loop.outSamples);
 
-        // -1: linear interpolation below reads src[index0] and src[index0 + 1],
-        // so the last renderable head position is numSourceFrames - 2 — the
-        // final sample has no successor to interpolate against.
-        if (pos < 0.0 || pos >= static_cast<double>(numSourceFrames - 1))
+        // Whole-track repeat only ever overrides the forward (end-of-track) boundary, never a
+        // negative position, and only once the region loop above (if any) has NOT already brought
+        // pos back under the boundary this same iteration. wrapPositionWithinRange is a no-op
+        // whenever its range is degenerate (rangeEnd <= rangeStart, e.g. a 0- or 1-frame buffer),
+        // so a corrupt/tiny buffer falls straight through to the unchanged stop test below instead
+        // of ever looping forever here — this loop is still bounded by `numSamples` regardless.
+        if (repeat && pos >= lastRenderableFrame)
+            pos = wrapPositionWithinRange(pos, 0.0, lastRenderableFrame);
+
+        if (pos < 0.0 || pos >= lastRenderableFrame)
         {
             stillPlaying = false;
             break;

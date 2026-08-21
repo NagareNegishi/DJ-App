@@ -20,6 +20,7 @@ const DECK_DEFAULTS = {
   playbackRate: 1.0,
   pitchOffsetSemitones: 0,
   loop: null,
+  repeat: true,
 };
 
 const DEFAULT_RATE_LIMIT = { sustainedPerSecond: 60, burst: 120, banAfterMs: 5000 };

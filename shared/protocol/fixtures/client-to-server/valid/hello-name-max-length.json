@@ -2,7 +2,7 @@
   "description": "hello with a name at the 32-character maximum",
   "message": {
     "type": "hello",
-    "protocolVersion": 1,
+    "protocolVersion": 2,
     "name": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
     "room": "demo-room"
   }

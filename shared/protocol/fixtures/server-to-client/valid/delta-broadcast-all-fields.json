@@ -15,7 +15,8 @@
       "loop": {
         "inSeconds": 10.0,
         "outSeconds": 20.0
-      }
+      },
+      "repeat": false
     }
   },
   "payloads": [

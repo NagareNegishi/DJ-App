@@ -20,7 +20,7 @@ Target `dj-app-tests` (see `04-client.md` CMake notes). Mirror `src/` structure 
 - **Serialization:** round-trip `PlaybackState`/`StateDelta` ↔ JSON; strict-parse rejection of unknown fields, wrong types, `NaN`/`Infinity`, out-of-range values; `loop:null` vs absent-loop distinction.
 - **Ranges:** clamp behavior at and beyond every boundary in the `02-protocol.md` Field reference.
 - **StateManager:** merge semantics (only present fields change), listener notification order and payload, source tagging (local vs remote), empty-delta drop, `playing:true` position injection.
-- **BufferPlaybackSource (offline render):** rate 1.0 reproduces source samples; rate 2.0 consumes the buffer in half the blocks; gain scales output; seek positions the head; loop wraps at `outSeconds`; end-of-buffer stops and clears; paused renders silence. Use small synthetic buffers (e.g., ramp signals) so assertions are exact or within an interpolation epsilon.
+- **BufferPlaybackSource (offline render):** rate 1.0 reproduces source samples; rate 2.0 consumes the buffer in half the blocks; gain scales output; seek positions the head; loop wraps at `outSeconds`; paused renders silence; **repeat on (M9):** end-of-track wraps the head to 0 and stays playing, output past the wrap resumes from the track's start sample; **repeat off (M9):** end-of-track stops and clears, matching the pre-M9 default. Use small synthetic buffers (e.g., ramp signals) so assertions are exact or within an interpolation epsilon.
 - **Repository:** manifest parsing, invalid-entry skipping, path-traversal rejection (`../`, `/abs`, `a\b`), missing-file handling, cache identity (same `shared_ptr` on repeat load).
 
 Run: `ctest --test-dir client/build/linux --output-on-failure`.
@@ -42,7 +42,7 @@ A change that breaks one side's fixture run means the wire contract drifted — 
 
 ## Manual host checklists
 
-Kept as `docs/plan/checklists/M<k>-host.md`, created by the milestone that needs them (M1, M3, M5, M7, M8 per `07-milestones.md`). Each is a numbered list of user actions with expected observations ("click play → audio starts within ~50 ms, playhead moves"). The agent prepares builds + instructions; the user executes on Windows and reports. A milestone requiring a checklist is not done until the user confirms it passed.
+Kept as `docs/plan/checklists/M<k>-host.md`, created by the milestone that needs them (M1, M3, M5, M7, M8, M9 per `07-milestones.md`). Each is a numbered list of user actions with expected observations ("click play → audio starts within ~50 ms, playhead moves"). The agent prepares builds + instructions; the user executes on Windows and reports. A milestone requiring a checklist is not done until the user confirms it passed.
 
 ## CI (`.github/workflows/ci.yml`, created at M0)
 

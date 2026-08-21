@@ -2,7 +2,7 @@
   "description": "hello carrying a field the protocol does not define",
   "message": {
     "type": "hello",
-    "protocolVersion": 1,
+    "protocolVersion": 2,
     "name": "nagare",
     "room": "demo-room",
     "clientVersion": "0.1.0"

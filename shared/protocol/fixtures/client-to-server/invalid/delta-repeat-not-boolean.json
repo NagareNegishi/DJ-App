@@ -1,0 +1,14 @@
+{
+  "description": "delta sending repeat as a string rather than a boolean",
+  "message": {
+    "type": "delta",
+    "deck": "A",
+    "changes": {
+      "repeat": "yes"
+    }
+  },
+  "reason": "repeat is not a boolean",
+  "expect": {
+    "server": "reject"
+  }
+}

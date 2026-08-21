@@ -100,3 +100,33 @@ that adds the line (see `git log`).
   CTest's Windows filter, a track double-click that did nothing before ever connecting, a
   server origin check that rejected the client's own handshake, and claiming control not
   resyncing the room to the new controller's already-playing state.
+- 2026-08-21 · **M8 — Second deck + mixer** · container green: `client/build/linux`
+  builds clean, `ctest` 270/270; `server` suite 673/673. Host checklist
+  (`checklists/M8-host.md`) confirmed on Windows, all 18 steps pass: deck B loads,
+  plays, and mirrors to an observer exactly like deck A (the `-> A`/`-> B` load-target
+  toggle switches which deck a track-list double-click targets); both decks audible
+  together with the crossfader centered; the equal-power crossfade is silent at each
+  far end and correct at center; the crossfader gates off for a non-controller like
+  every other control while staying local-only (never synced) per this milestone's
+  recorded protocol decision (`DEVIATIONS.md`, 2026-08-21); the 5 s drift resync stays
+  invisible on deck B specifically, not just deck A, confirming the fix below. Landed
+  across two build-log sessions
+  (`build-orchestration/build-log/2026-08-21-m8-second-deck-mixer.md`,
+  `...-m8-review-fixes.md`): two whitebox-pinned bugs fixed exactly as specified
+  (`EngineAdapter::attachCrossfader` double-registering its listener on reattach,
+  `CrossfaderState::setPosition` double-notifying on a reentrant call), then a review
+  layer (five advisers) found one real bug - `MainComponent::applyRoleToUI` only set
+  the new controller's role on deck A's `PositionClock`, never deck B's, so deck B's
+  periodic resync silently never fired for any observer - fixed via a new
+  `state/DeckPositionClocks` wrapper (covered by `DeckPositionClocksTest.cpp`) that
+  fans one `setRole` call to both decks instead of `MainComponent` hand-duplicating
+  the call site. A sixth bug surfaced by this session's own host-checklist Step 3 (not
+  the review layer): `DeckComponent`'s gain and rate sliders stayed enabled with no
+  track loaded, the only two of seven deck widgets that skipped the `hasTrack` check
+  every sibling control already had. Fixed by extracting the shared decision into
+  `model/ControlGating.h::deckControlEnabled`, covered by `ControlGatingTest.cpp`, so
+  the seven call sites can't diverge again - the same fix shape as M7's
+  `controlsEnabledLocally` extraction. `docs/plan/07-milestones.md` gained a new M9
+  (track repeat/auto-replay, closing a gap from the original plan) inserted right
+  after this milestone, renumbering the former M9 (beat alignment) to M10 throughout
+  the plan docs.

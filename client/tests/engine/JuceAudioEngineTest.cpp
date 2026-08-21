@@ -171,6 +171,7 @@ TEST_CASE("JuceAudioEngine::setLoop forwards and causes the render to wrap", "[e
     engine.source().prepareToPlay(blockSize, sampleRate);
     engine.load(makeRampAudio(sourceLength, sampleRate));
     engine.setLoop(djapp::LoopPoints{0.1, 0.13}); // sample range [100, 130)
+    engine.setRepeat(false);                      // pins the pre-M9 self-stop at end-of-track, not the new default
     engine.seek(0.1);
     engine.play();
 

@@ -484,4 +484,56 @@ TEST_CASE("StateManager keeps deck A and deck B independent", "[state][StateMana
     CHECK(afterB.trackId == beforeB.trackId);
 }
 
+// --- White-box: M9's `repeat` field, added after reading StateManager.cpp's
+// applyDelta directly. The design review specifically flagged the risk of forgetting
+// to add `repeat` to StateDelta::empty()'s check (which would silently drop a
+// repeat-only delta); the case below confirms that risk did NOT materialize. The case
+// after it pins a second, distinct risk in the same merge block: empty() correctly
+// counts `repeat`, but the field-by-field copy further down in applyDelta (the block
+// that copies trackId/playing/positionSeconds/gain/playbackRate/pitchOffsetSemitones/
+// loop into `state`) has no corresponding `if (delta.repeat.has_value()) state.repeat =
+// *delta.repeat;` line at all.
+
+TEST_CASE("StateManager does not drop a repeat-only delta as empty", "[state][StateManager][whitebox]")
+{
+    StateManager manager;
+
+    int notifyCount = 0;
+    std::optional<bool> observedRepeat;
+    manager.addListener(
+        [&](const StateDelta& applied, const PlaybackState&, DeltaSource)
+        {
+            ++notifyCount;
+            observedRepeat = applied.repeat;
+        });
+
+    StateDelta delta = makeDelta(DeckId::A);
+    delta.repeat = false;
+    CHECK_FALSE(delta.empty()); // the specific risk the design review called out
+
+    manager.applyDelta(delta, DeltaSource::local);
+
+    CHECK(notifyCount == 1);
+    REQUIRE(observedRepeat.has_value());
+    CHECK_FALSE(*observedRepeat);
+}
+
+TEST_CASE("StateManager merges a repeat-only delta into the deck's stored PlaybackState.repeat",
+          "[state][StateManager][whitebox]")
+{
+    StateManager manager;
+
+    StateDelta toFalse = makeDelta(DeckId::A);
+    toFalse.repeat = false;
+    manager.applyDelta(toFalse, DeltaSource::local);
+
+    CHECK(manager.getState(DeckId::A).repeat == false);
+
+    StateDelta toTrue = makeDelta(DeckId::A);
+    toTrue.repeat = true;
+    manager.applyDelta(toTrue, DeltaSource::local);
+
+    CHECK(manager.getState(DeckId::A).repeat == true);
+}
+
 } // namespace djapp

@@ -52,6 +52,8 @@ void StateManager::applyDelta(StateDelta delta, DeltaSource source)
         state.pitchOffsetSemitones = *delta.pitchOffsetSemitones;
     if (delta.loop.has_value())
         state.loop = *delta.loop; // outer engaged: inner nullopt clears the loop, inner value sets it
+    if (delta.repeat.has_value())
+        state.repeat = *delta.repeat;
 
     // Listeners may add or remove registrations (including their own) from within
     // their callback; TokenListenerList's walk re-looks-up the current token via

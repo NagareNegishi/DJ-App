@@ -37,3 +37,11 @@ TEST_CASE("ControlGating: connected, not controller, a peer controls is disabled
 {
     REQUIRE_FALSE(djapp::controlsEnabledLocally(true, false, true));
 }
+
+TEST_CASE("ControlGating: a deck widget needs both a track and role permission", "[controlgating]")
+{
+    REQUIRE(djapp::deckControlEnabled(true, true));
+    REQUIRE_FALSE(djapp::deckControlEnabled(false, true));
+    REQUIRE_FALSE(djapp::deckControlEnabled(true, false));
+    REQUIRE_FALSE(djapp::deckControlEnabled(false, false));
+}

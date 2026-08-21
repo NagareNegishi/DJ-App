@@ -352,6 +352,7 @@ void MainComponent::applyDeckSnapshot(DeckId deck, const juce::var& playbackStat
     delta.playbackRate = state.playbackRate;
     delta.pitchOffsetSemitones = state.pitchOffsetSemitones;
     delta.loop = state.loop; // outer optional set explicit ("field present"); inner is null-vs-value
+    delta.repeat = state.repeat;
 
     stateManager_.applyDelta(delta, DeltaSource::remote);
 }

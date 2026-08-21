@@ -2,7 +2,7 @@
   "description": "hello with a control character embedded in the name",
   "message": {
     "type": "hello",
-    "protocolVersion": 1,
+    "protocolVersion": 2,
     "name": "na\u0007gare",
     "room": "demo-room"
   },

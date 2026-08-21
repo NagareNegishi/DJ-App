@@ -87,6 +87,9 @@ void EngineAdapter::handleDelta(const StateDelta& applied, const PlaybackState& 
     if (applied.loop.has_value())
         engine_.setLoop(*applied.loop);
 
+    if (applied.repeat.has_value())
+        engine_.setRepeat(*applied.repeat);
+
     if (applied.playing.has_value())
     {
         *applied.playing ? engine_.play() : engine_.pause();
