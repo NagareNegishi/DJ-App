@@ -13,12 +13,14 @@
 #include "engine/EngineAdapter.h"
 #include "engine/JuceAudioEngine.h"
 #include "repository/LocalFileRepository.h"
+#include "state/CrossfaderState.h"
 #include "state/PositionClock.h"
 #include "state/StateManager.h"
 #include "sync/SyncPublisher.h"
 #include "sync/SyncTransport.h"
 #include "ui/ConnectPanel.h"
 #include "ui/DeckComponent.h"
+#include "ui/MixerComponent.h"
 #include "ui/TrackListComponent.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <memory>
@@ -35,7 +37,7 @@ class MainComponent : public juce::Component
     void resized() override;
 
   private:
-    double computeResumePositionSeconds();
+    double computeResumePositionSeconds(AudioEngine& engine, DeckId deck);
 
     void handleConnectRequested(const ConnectionInfo& info);
     void handleWelcome(const juce::var& welcome);
@@ -53,15 +55,26 @@ class MainComponent : public juce::Component
 
     AudioDeviceHub deviceHub_;
     JuceAudioEngine engineA_;
+    JuceAudioEngine engineB_;
 
     StateManager stateManager_;
+    // Declared before engineAdapterA_/engineAdapterB_/mixer_: member init order
+    // follows declaration order, mixer_'s constructor reads
+    // crossfaderState_.getPosition() and the adapters get attached to it in the
+    // constructor body, so this must exist first regardless of initializer list order.
+    CrossfaderState crossfaderState_;
     EngineAdapter engineAdapterA_;
+    EngineAdapter engineAdapterB_;
     PositionClock positionClock_;
+    PositionClock positionClockB_;
     std::unique_ptr<SyncTransport> transport_;
     SyncPublisher syncPublisher_;
 
     ConnectPanel connectPanel_;
     DeckComponent deckA_;
+    DeckComponent deckB_;
+    MixerComponent mixer_;
+    juce::TextButton loadToBButton_{"Load -> B"};
 
     Role role_ = Role::observer;
     juce::String ownClientId_;

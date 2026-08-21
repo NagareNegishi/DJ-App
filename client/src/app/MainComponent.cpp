@@ -75,10 +75,18 @@ void addOrUpdatePeer(std::vector<ConnectPanel::PeerInfo>& peers, ConnectPanel::P
 
 MainComponent::MainComponent()
     : repository_(tracksRootDir()), engineAdapterA_(stateManager_, DeckId::A, engineA_, repository_),
-      positionClock_(stateManager_, engineA_, DeckId::A), transport_(std::make_unique<WebSocketTransport>()),
-      syncPublisher_(stateManager_, *transport_),
-      deckA_(stateManager_, DeckId::A, repository_, [this] { return computeResumePositionSeconds(); })
+      engineAdapterB_(stateManager_, DeckId::B, engineB_, repository_),
+      positionClock_(stateManager_, engineA_, DeckId::A), positionClockB_(stateManager_, engineB_, DeckId::B),
+      transport_(std::make_unique<WebSocketTransport>()), syncPublisher_(stateManager_, *transport_),
+      deckA_(stateManager_, DeckId::A, repository_,
+             [this] { return computeResumePositionSeconds(engineA_, DeckId::A); }),
+      deckB_(stateManager_, DeckId::B, repository_,
+             [this] { return computeResumePositionSeconds(engineB_, DeckId::B); }),
+      mixer_(crossfaderState_)
 {
+    engineAdapterA_.attachCrossfader(crossfaderState_);
+    engineAdapterB_.attachCrossfader(crossfaderState_);
+
     addAndMakeVisible(trackList_);
     trackList_.setTracks(repository_.listAvailableTracks());
     trackList_.onTrackSelected = [this](const TrackMetadata& track)
@@ -96,7 +104,28 @@ MainComponent::MainComponent()
         stateManager_.applyDelta(delta, DeltaSource::local);
     };
 
+    addAndMakeVisible(loadToBButton_);
+    loadToBButton_.onClick = [this]
+    {
+        // Second line of defense against an observer clicking this button
+        // (06-security.md: client-side disabling is UX, not security).
+        if (!canControlLocally())
+            return;
+
+        const auto track = trackList_.getSelectedTrack();
+        if (!track.has_value())
+            return;
+
+        StateDelta delta;
+        delta.deck = DeckId::B;
+        delta.trackId = track->id;
+        delta.playing = false;       // a fresh load always starts stopped
+        delta.positionSeconds = 0.0; // AudioEngine::load resets to 0; keep the model in agreement
+        stateManager_.applyDelta(delta, DeltaSource::local);
+    };
+
     deviceHub_.addSource(engineA_.source());
+    deviceHub_.addSource(engineB_.source());
 
     addAndMakeVisible(connectPanel_);
     connectPanel_.onConnectRequested = [this](const ConnectionInfo& info) { handleConnectRequested(info); };
@@ -112,18 +141,20 @@ MainComponent::MainComponent()
     connectPanel_.onReleaseRequested = [this] { transport_->sendReleaseControl(); };
 
     addAndMakeVisible(deckA_);
+    addAndMakeVisible(deckB_);
+    addAndMakeVisible(mixer_);
 
     setSize(800, 600);
 }
 
-double MainComponent::computeResumePositionSeconds()
+double MainComponent::computeResumePositionSeconds(AudioEngine& engine, DeckId deck)
 {
-    double resumePosition = engineA_.getCurrentPosition();
-    const auto meta = repository_.getTrackMetadata(stateManager_.getState(DeckId::A).trackId);
+    double resumePosition = engine.getCurrentPosition();
+    const auto meta = repository_.getTrackMetadata(stateManager_.getState(deck).trackId);
     const double duration = meta.has_value() ? meta->durationSeconds : 0.0;
     // AudioEngine can stop itself at end-of-track without telling StateManager, so
     // resuming at the same stale position would immediately stop again — reset to 0 instead.
-    if (duration > 0.0 && !engineA_.isPlaying() && resumePosition >= duration - 0.05)
+    if (duration > 0.0 && !engine.isPlaying() && resumePosition >= duration - 0.05)
         resumePosition = 0.0;
     return resumePosition;
 }
@@ -293,6 +324,7 @@ void MainComponent::pushFullResync()
     // any trackId-bearing delta and resets position to 0 - an audible restart of
     // playback that hasn't actually changed, right as this client claims control.
     transport_->sendDelta(fullResyncDelta(DeckId::A, stateManager_.getState(DeckId::A)));
+    transport_->sendDelta(fullResyncDelta(DeckId::B, stateManager_.getState(DeckId::B)));
 }
 
 void MainComponent::applyRoleToUI()
@@ -304,7 +336,10 @@ void MainComponent::applyRoleToUI()
 
     const bool controlsEnabled = canControlLocally();
     deckA_.setControlsEnabled(controlsEnabled);
+    deckB_.setControlsEnabled(controlsEnabled);
+    mixer_.setControlsEnabled(controlsEnabled);
     trackList_.setEnabled(controlsEnabled);
+    loadToBButton_.setEnabled(controlsEnabled);
 }
 
 void MainComponent::applyDeckSnapshot(DeckId deck, const juce::var& playbackStateVar)
@@ -348,9 +383,12 @@ void MainComponent::resized()
 {
     auto bounds = getLocalBounds();
     connectPanel_.setBounds(bounds.removeFromTop(120));
-    auto controls = bounds.removeFromRight(240).reduced(8);
+    auto controls = bounds.removeFromRight(480).reduced(8);
+    loadToBButton_.setBounds(bounds.removeFromBottom(24));
     trackList_.setBounds(bounds);
-    deckA_.setBounds(controls);
+    mixer_.setBounds(controls.removeFromBottom(24));
+    deckA_.setBounds(controls.removeFromLeft(controls.getWidth() / 2).reduced(4));
+    deckB_.setBounds(controls.reduced(4));
 }
 
 } // namespace djapp
