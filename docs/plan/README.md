@@ -19,7 +19,7 @@ A fresh agent session must be able to build the entire project from these docume
 | `04-client.md` | C++/JUCE client specification, layer by layer |
 | `05-testing.md` | Test strategy, frameworks, CI pipeline |
 | `06-security.md` | Security requirements (binding, not advisory) |
-| `07-milestones.md` | Ordered milestones M0–M9 with tasks and acceptance criteria |
+| `07-milestones.md` | Ordered milestones M0–M10 with tasks and acceptance criteria |
 | `08-conventions.md` | Code style, commit style, documentation rules |
 
 Read `01`, `07`, and `08` before writing any code. Read the others when the active milestone touches them (`07` tells you which).

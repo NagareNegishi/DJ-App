@@ -29,7 +29,7 @@ struct PlaybackState {
     double positionSeconds = 0;
     float gain = 1.0f;
     float playbackRate = 1.0f;
-    float pitchOffsetSemitones = 0.0f;    // stored+synced, not rendered until M9
+    float pitchOffsetSemitones = 0.0f;    // stored+synced, not rendered until M10
     std::optional<LoopPoints> loop;
 };
 

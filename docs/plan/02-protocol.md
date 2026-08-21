@@ -69,7 +69,7 @@ Failure closes: wrong/missing `protocolVersion` ⇒ close **4001**; wrong `room`
 | `positionSeconds` | number | finite, `0 ≤ x ≤ 86400` | `0` | client additionally clamps to track duration |
 | `gain` | number | finite, `0.0 ≤ x ≤ 2.0` | `1.0` | linear amplitude |
 | `playbackRate` | number | finite, `0.5 ≤ x ≤ 2.0` | `1.0` | prototype: rate affects pitch (no timestretch) |
-| `pitchOffsetSemitones` | number | finite, `-12 ≤ x ≤ 12` | `0` | **accepted, stored, synced, but not rendered** until TimeStretcher exists (M9); UI does not expose it before then |
+| `pitchOffsetSemitones` | number | finite, `-12 ≤ x ≤ 12` | `0` | **accepted, stored, synced, but not rendered** until TimeStretcher exists (M10); UI does not expose it before then |
 | `loop` | object or null | `{"inSeconds":a,"outSeconds":b}`, finite, `0 ≤ a < b ≤ 86400` | `null` | `null` clears the loop |
 
 Validation policy: **server rejects** out-of-spec values (`error{bad-message}`, delta dropped whole — no partial application); **client clamps** incoming values into range as defense-in-depth, and clamps its own outgoing values before send. Numbers must be JSON numbers, finite (reject `NaN`/`Infinity` — JSON.parse already excludes them; client-side parser must too).

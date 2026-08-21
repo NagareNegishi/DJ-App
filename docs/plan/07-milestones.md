@@ -132,10 +132,25 @@ Note on ordering vs `docs/architecture.md`: the data model is built **before** r
 
 ---
 
-## M9 — Beat alignment (design-gate, then build)
+## M9 — Track repeat (auto-replay)
+
+**Goal:** a track loops back to its start on end-of-track instead of stopping, by default, with a per-deck toggle to turn it off. This closes a gap from the original plan — DJ playback stopping dead at track end was never actually the intended default.
+
+**Tasks**
+1. Add `repeat` (boolean, default `true`) to `PlaybackState`/`changes` in `02-protocol.md`'s field reference table; bump the protocol version; update server + client + `shared/protocol/fixtures/` in this same milestone (`CLAUDE.md`'s protocol-change rule). Sync it like `playing`/`loop` — unlike M8's crossfader, whether a track stops or repeats is an actual audio difference every connected user hears, so this isn't local-only state.
+2. `BufferPlaybackSource`: on reaching end-of-track, wrap to position 0 and keep playing when `repeat` is set, instead of the current self-stop (`playing=false`, hold at end). Reuse the existing wrap-at-boundary mechanics `LoopWrap`/`LoopWrapTest.cpp` already established for in/out loop points, applied to the whole-track boundary instead of a captured region.
+3. `DeckComponent`: a per-deck repeat toggle button. Use a small drawn icon (`juce::Path`/`juce::DrawableButton` — a standard circular-arrow repeat glyph), not a new asset dependency or icon library; this is the app's first icon-based control, every other button so far is text-only. Route its enabled state through `deckControlEnabled` like every other deck widget.
+4. Unit tests: `BufferPlaybackSource` end-of-track-with-repeat-on wraps to 0 and keeps playing; repeat-off preserves the existing self-stop behavior; `Serialization`/protocol fixture coverage for `repeat`'s default, valid, and invalid values.
+5. Checklist `M9-host.md`: default-on repeat confirmed audibly (track loops past its natural end without user action); toggling repeat off lets a track stop normally at end; toggle state mirrors to observers within ~100 ms, same as every other synced control.
+
+**Acceptance:** all suites green; **Host checklist** M9 confirmed.
+
+---
+
+## M10 — Beat alignment (design-gate, then build)
 
 **Goal:** tempo-match + phase-align deck B to deck A. **Hard; deliberately last; do not start early.**
 
-This milestone begins with a **design review, not code**: write `docs/plan/09-beatsync-design.md` covering: `TimeStretcher` interface (rate change without pitch change) + `BeatDetector` interface; library choice per `docs/stack.md` triggers (default: SoundTouch for stretch — LGPL, dynamic-link it; aubio for beats — GPL, license decision required and must be recorded in `docs/decisions.md` follow-ups before integrating); where stretching sits in `BufferPlaybackSource`; sync-button semantics (match BPM, then nudge phase to nearest beat); what `pitchOffsetSemitones` finally does. Get user sign-off on that design, then implement behind the existing interfaces with the same test discipline.
+This milestone begins with a **design review, not code**: write `docs/plan/10-beatsync-design.md` covering: `TimeStretcher` interface (rate change without pitch change) + `BeatDetector` interface; library choice per `docs/stack.md` triggers (default: SoundTouch for stretch — LGPL, dynamic-link it; aubio for beats — GPL, license decision required and must be recorded in `docs/decisions.md` follow-ups before integrating); where stretching sits in `BufferPlaybackSource`; sync-button semantics (match BPM, then nudge phase to nearest beat); what `pitchOffsetSemitones` finally does. Get user sign-off on that design, then implement behind the existing interfaces with the same test discipline.
 
 **Acceptance:** design doc approved; implementation green + host checklist with two beat-matched tracks.
