@@ -130,3 +130,18 @@ that adds the line (see `git log`).
   (track repeat/auto-replay, closing a gap from the original plan) inserted right
   after this milestone, renumbering the former M9 (beat alignment) to M10 throughout
   the plan docs.
+- 2026-08-21 · **M9 — Track repeat (auto-replay)** · container green: `client/build/linux`
+  builds clean, `ctest` 294/294; `server` suite 682/682. Protocol bumped to v2 (`repeat`
+  field). Host checklist (`checklists/M9-host.md`) confirmed on Windows, all 17 steps pass:
+  repeat defaults on, loops seamlessly at end-of-track, the toggle switches the pre-M9
+  stop-at-end behavior on and off, an armed loop takes priority over repeat, and the toggle
+  mirrors to an observer within ~100 ms. Two review passes during the build caught the same
+  bug shape four times - `repeat` missing from every full-`PlaybackState`-copy path
+  (`StateManager::applyDelta`'s merge, snapshot apply, claim-control resync,
+  `SyncPublisher::mergeField`) while every incremental delta path already carried it - each
+  fixed the same way. The host checklist then caught a fifth, UI-only case: an observer's
+  repeat icon never repainted, since `juce::Button::setToggleState()` no-ops while disabled
+  and the button is disabled on every observer refresh; fixed by force-enabling around the
+  call (`DEVIATIONS.md`, 2026-08-21). No automated test for that last one - `dj-app-tests`
+  excludes `juce_gui_basics` by design, and widget behavior stays host-checklist-only per
+  `05-testing.md`.

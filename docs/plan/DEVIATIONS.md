@@ -388,3 +388,23 @@ Each entry: date, what the plan said, what was done instead, why.
   leaving it as a documented limitation. `04-client.md`'s `BufferPlaybackSource` bullet has been
   updated to describe the clamped behavior instead of the "never intercepts" wording it
   originally specified.
+
+## 2026-08-21 - the repeat toggle's icon didn't repaint on an observer
+
+- **Plan said**: `CLAUDE.md` requires every bug fix to ship with a regression test in the
+  same commit.
+- **Actual**: found on M9 host checklist Step 12 - the observer's playback correctly stopped
+  when the controller turned repeat off, but its repeat icon never flipped. Cause:
+  `juce::Button::setToggleState()` no-ops while the button is disabled, and an observer's
+  `repeatButton_` is disabled on every `refreshWidgets()` call - reordering `setEnabled`/
+  `setToggleState` doesn't help, since it's still disabled either way. `repeatButton_` is the
+  only synced control built on `juce::Button` rather than `juce::Slider` (no such gate), so
+  gain/rate never hit this.
+- **Change**: `refreshWidgets()` force-enables `repeatButton_`, sets the toggle, then restores
+  its real enabled state (`dontSendNotification` throughout, so `onClick` never fires). No
+  regression test: `dj-app-tests` excludes `juce_gui_basics` by design
+  (`client/src/model/ControlGating.h:3-5`), and `05-testing.md` puts widget behavior under host
+  checklists, not Catch2 - this bug lived entirely in JUCE `Button` semantics on a real widget.
+- **Why**: confirmed with the user, matching the same `ui/`-is-host-checklist-only precedent as
+  the M7 claim-control and M9 loop-clamp deviations above. M9 Step 12 already exercises this
+  path and will catch a regression.
