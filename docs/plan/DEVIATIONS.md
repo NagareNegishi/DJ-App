@@ -311,6 +311,30 @@ Each entry: date, what the plan said, what was done instead, why.
   zlib and em-dash entries above - untested assumptions about dependency/host behavior that
   only surface on a real Windows-host run against a real client.
 
+## 2026-08-21 - the crossfader stays local-only state, not synced in the protocol
+
+- **Plan said**: `07-milestones.md`'s M8 task 2 leaves the crossfader's protocol status as
+  "decide by effort" - synced properly (a protocol field, version bump to 2, fixture
+  updates) unless that is trivial, in which case do it; otherwise accept and document a
+  display-only mismatch across users.
+- **Actual**: built as local-only state (`state/CrossfaderState`), never sent to the server
+  or other clients. A protocol v2 bump would touch `shared/protocol/fixtures/`, both
+  `PROTOCOL_VERSION` constants, and both sides' serialization for a field with no natural
+  home in the per-deck `PlaybackState`/`StateDelta` shape, since the crossfader is a
+  mixer-level concept, not a deck-level one - not the trivial case the milestone text
+  carves out.
+- **Change**: none to the protocol; `PROTOCOL_VERSION` and `shared/protocol/PROTOCOL-VERSION`
+  stay at 1. Each client renders its own local crossfader position; two users can show
+  different fader positions for the same room, and only the resulting audio (each client's
+  own local gain) is ever a shared fact in practice, since gain itself isn't synced either.
+- **Why**: applied `docs/decisions.md` §5's own tie-breaker for exactly this shape of
+  "decide by effort" call - a change is not trivial once it touches the protocol version,
+  fixtures, and both sides' wire handling. Confirmed with the user as one of three
+  crossfader design decisions this milestone (`build-orchestration/build-log/2026-08-21-m8-second-deck-mixer.md`);
+  the other two (crossfader as its own state class rather than a raw callback value, and
+  gating the control with the other deck controls for a non-controller) are implementation
+  choices with no plan text to deviate from, so they aren't recorded here.
+
 ## 2026-08-21 - claiming control didn't resync the room to the new controller's actual state
 
 - **Plan said**: `07-milestones.md`'s M7 acceptance line and the M7 host checklist's Step 12
