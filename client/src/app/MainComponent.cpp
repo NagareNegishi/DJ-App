@@ -90,39 +90,13 @@ MainComponent::MainComponent()
 
     addAndMakeVisible(trackList_);
     trackList_.setTracks(repository_.listAvailableTracks());
-    trackList_.onTrackSelected = [this](const TrackMetadata& track)
+    trackList_.onTrackSelected = [this](const TrackMetadata& track) { loadTrackToDeck(loadTargetDeck_, track.id); };
+
+    addAndMakeVisible(loadTargetToggle_);
+    loadTargetToggle_.onClick = [this]
     {
-        // Second line of defense against an observer double-clicking a track
-        // (06-security.md: client-side disabling is UX, not security).
-        if (!canControlLocally())
-            return;
-
-        StateDelta delta;
-        delta.deck = DeckId::A;
-        delta.trackId = track.id;
-        delta.playing = false;       // a fresh load always starts stopped
-        delta.positionSeconds = 0.0; // AudioEngine::load resets to 0; keep the model in agreement
-        stateManager_.applyDelta(delta, DeltaSource::local);
-    };
-
-    addAndMakeVisible(loadToBButton_);
-    loadToBButton_.onClick = [this]
-    {
-        // Second line of defense against an observer clicking this button
-        // (06-security.md: client-side disabling is UX, not security).
-        if (!canControlLocally())
-            return;
-
-        const auto track = trackList_.getSelectedTrack();
-        if (!track.has_value())
-            return;
-
-        StateDelta delta;
-        delta.deck = DeckId::B;
-        delta.trackId = track->id;
-        delta.playing = false;       // a fresh load always starts stopped
-        delta.positionSeconds = 0.0; // AudioEngine::load resets to 0; keep the model in agreement
-        stateManager_.applyDelta(delta, DeltaSource::local);
+        loadTargetDeck_ = loadTargetDeck_ == DeckId::A ? DeckId::B : DeckId::A;
+        loadTargetToggle_.setButtonText(loadTargetDeck_ == DeckId::A ? "-> A" : "-> B");
     };
 
     deviceHub_.addSource(engineA_.source());
@@ -158,6 +132,21 @@ double MainComponent::computeResumePositionSeconds(AudioEngine& engine, DeckId d
     if (duration > 0.0 && !engine.isPlaying() && resumePosition >= duration - 0.05)
         resumePosition = 0.0;
     return resumePosition;
+}
+
+void MainComponent::loadTrackToDeck(DeckId deck, const juce::String& trackId)
+{
+    // Second line of defense against an observer triggering a load
+    // (06-security.md: client-side disabling is UX, not security).
+    if (!canControlLocally())
+        return;
+
+    StateDelta delta;
+    delta.deck = deck;
+    delta.trackId = trackId;
+    delta.playing = false;       // a fresh load always starts stopped
+    delta.positionSeconds = 0.0; // AudioEngine::load resets to 0; keep the model in agreement
+    stateManager_.applyDelta(delta, DeltaSource::local);
 }
 
 void MainComponent::handleConnectRequested(const ConnectionInfo& info)
@@ -340,7 +329,7 @@ void MainComponent::applyRoleToUI()
     deckB_.setControlsEnabled(controlsEnabled);
     mixer_.setControlsEnabled(controlsEnabled);
     trackList_.setEnabled(controlsEnabled);
-    loadToBButton_.setEnabled(controlsEnabled);
+    loadTargetToggle_.setEnabled(controlsEnabled);
 }
 
 void MainComponent::applyDeckSnapshot(DeckId deck, const juce::var& playbackStateVar)
@@ -385,7 +374,7 @@ void MainComponent::resized()
     auto bounds = getLocalBounds();
     connectPanel_.setBounds(bounds.removeFromTop(120));
     auto controls = bounds.removeFromRight(480).reduced(8);
-    loadToBButton_.setBounds(bounds.removeFromBottom(24));
+    loadTargetToggle_.setBounds(bounds.removeFromBottom(24));
     trackList_.setBounds(bounds);
     mixer_.setBounds(controls.removeFromBottom(24));
     deckA_.setBounds(controls.removeFromLeft(controls.getWidth() / 2).reduced(4));

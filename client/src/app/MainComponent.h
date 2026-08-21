@@ -39,6 +39,7 @@ class MainComponent : public juce::Component
 
   private:
     double computeResumePositionSeconds(AudioEngine& engine, DeckId deck);
+    void loadTrackToDeck(DeckId deck, const juce::String& trackId);
 
     void handleConnectRequested(const ConnectionInfo& info);
     void handleWelcome(const juce::var& welcome);
@@ -78,11 +79,12 @@ class MainComponent : public juce::Component
     DeckComponent deckA_;
     DeckComponent deckB_;
     MixerComponent mixer_;
-    juce::TextButton loadToBButton_{"Load -> B"};
+    juce::TextButton loadTargetToggle_{"-> A"};
 
     Role role_ = Role::observer;
     juce::String ownClientId_;
     bool connected_ = false;
+    DeckId loadTargetDeck_ = DeckId::A;
 
     // One log line per classification per connection, reset on each new connect
     // transition — mirrors WebSocketTransport's own logOnce discipline one layer
