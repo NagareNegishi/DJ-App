@@ -94,6 +94,13 @@ resolve). Lesson for future sessions: **commit blackbox-tester output into the m
 immediately after copying it out of `.agent-scope/`**, before cutting any further worktrees -
 don't let it sit as uncommitted working-tree state.
 
+## Unresolved (closed 2026-08-21, see `2026-08-21-m8-review-fixes.md`)
+
+Both bugs below are fixed as of the following session's build-log; the write-up
+stays as-is below as the record of what the whitebox pass found and why, since
+it remains accurate history. Treat "Unresolved" in this section's own heading
+as stale - read the linked follow-up for current status.
+
 ## Unresolved - for the next session to fix directly, no re-diagnosis needed
 
 Both bugs are pinned by passing tests that currently assert the *buggy* behavior as
