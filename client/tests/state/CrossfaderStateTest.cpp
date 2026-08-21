@@ -254,13 +254,11 @@ TEST_CASE("CrossfaderState: a listener calling setPosition again re-entrantly te
     // outer call's 0.8.
     CHECK(crossfader.getPosition() == 0.3f);
 
-    // Whitebox finding: listeners registered after the re-entrant one (tokens 1
-    // and 2) each fire twice for this single outer setPosition(0.8) call -- once
-    // from the nested setPosition(0.3) triggered inside listener 0's callback,
-    // and again from the outer walk resuming afterwards, because the outer walk
-    // reads the live position_ member fresh on each step rather than a value
-    // snapshotted at the start of its own walk. See EngineAdapter/CrossfaderState
-    // whitebox report for this milestone.
+    // Listeners registered after the re-entrant one (tokens 1 and 2) each fire
+    // exactly once for this single outer setPosition(0.8) call: the nested
+    // setPosition(0.3) triggered inside listener 0's callback runs its own full
+    // walk covering them, and the outer walk then notices it has been
+    // superseded and stops rather than resuming and re-notifying them.
     int firedCountFor1 = 0;
     int firedCountFor2 = 0;
     for (const auto& [token, value] : firedOrder)
@@ -270,8 +268,8 @@ TEST_CASE("CrossfaderState: a listener calling setPosition again re-entrantly te
         if (token == 2)
             ++firedCountFor2;
     }
-    CHECK(firedCountFor1 == 2);
-    CHECK(firedCountFor2 == 2);
+    CHECK(firedCountFor1 == 1);
+    CHECK(firedCountFor2 == 1);
     // Both duplicate firings observe the same, already-settled value (0.3), so
     // this does not corrupt state -- just redundant notification.
     for (const auto& [token, value] : firedOrder)

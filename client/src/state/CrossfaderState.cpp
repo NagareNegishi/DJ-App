@@ -14,27 +14,15 @@ void CrossfaderState::setPosition(float position)
         return;
 
     position_ = clamped;
+    const float targetPosition = clamped;
 
-    // Listeners may add or remove registrations (including their own) from within
-    // their callback; walk by token via fresh lookups each step, matching
-    // StateManager::applyDelta's notification discipline.
-    if (!listeners_.empty())
-    {
-        int token = listeners_.begin()->first;
-        for (;;)
-        {
-            if (auto it = listeners_.find(token); it != listeners_.end())
-            {
-                const Listener listenerCopy = it->second;
-                listenerCopy(position_);
-            }
-
-            const auto next = listeners_.upper_bound(token);
-            if (next == listeners_.end())
-                break;
-            token = next->first;
-        }
-    }
+    // A listener that calls setPosition again re-entrantly runs its own full
+    // walk against the new value via TokenListenerList; once that happens
+    // position_ no longer matches targetPosition, so shouldStop tells this
+    // walk to stop rather than resuming and re-notifying listeners the
+    // nested walk already covered.
+    listeners_.notify([&](const Listener& listenerCopy) { listenerCopy(position_); },
+                       [&] { return position_ != targetPosition; });
 }
 
 float CrossfaderState::getPosition() const
@@ -48,16 +36,14 @@ int CrossfaderState::addListener(Listener listener)
 {
     JUCE_ASSERT_MESSAGE_THREAD
 
-    const int token = nextToken_++;
-    listeners_.emplace(token, std::move(listener));
-    return token;
+    return listeners_.addListener(std::move(listener));
 }
 
 void CrossfaderState::removeListener(int token)
 {
     JUCE_ASSERT_MESSAGE_THREAD
 
-    listeners_.erase(token);
+    listeners_.removeListener(token);
 }
 
 } // namespace djapp

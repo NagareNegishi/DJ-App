@@ -54,45 +54,26 @@ void StateManager::applyDelta(StateDelta delta, DeltaSource source)
         state.loop = *delta.loop; // outer engaged: inner nullopt clears the loop, inner value sets it
 
     // Listeners may add or remove registrations (including their own) from within
-    // their callback. Walk by token via fresh lookups each step, rather than
-    // holding a map iterator across the callback, so that erase() on listeners_
-    // mid-notification can never invalidate this loop's iteration state. Tokens
-    // are monotonically increasing, so upper_bound naturally continues in
-    // registration order and picks up newly-added listeners that sort after the
-    // one currently firing.
-    if (!listeners_.empty())
-    {
-        int token = listeners_.begin()->first;
-        for (;;)
-        {
-            if (auto it = listeners_.find(token); it != listeners_.end())
-            {
-                const Listener listenerCopy = it->second;
-                listenerCopy(delta, state, source);
-            }
-
-            const auto next = listeners_.upper_bound(token);
-            if (next == listeners_.end())
-                break;
-            token = next->first;
-        }
-    }
+    // their callback; TokenListenerList's walk re-looks-up the current token via
+    // fresh lookups each step, so that mid-notification changes can never invalidate
+    // this iteration. Tokens are monotonically increasing, so the walk naturally
+    // continues in registration order and picks up newly-added listeners that sort
+    // after the one currently firing.
+    listeners_.notify([&](const Listener& listenerCopy) { listenerCopy(delta, state, source); }, [] { return false; });
 }
 
 int StateManager::addListener(Listener listener)
 {
     JUCE_ASSERT_MESSAGE_THREAD
 
-    const int token = nextToken_++;
-    listeners_.emplace(token, std::move(listener));
-    return token;
+    return listeners_.addListener(std::move(listener));
 }
 
 void StateManager::removeListener(int token)
 {
     JUCE_ASSERT_MESSAGE_THREAD
 
-    listeners_.erase(token);
+    listeners_.removeListener(token);
 }
 
 } // namespace djapp

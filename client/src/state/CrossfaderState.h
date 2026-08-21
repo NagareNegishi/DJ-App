@@ -9,8 +9,8 @@
 // making it a special case architecturally. Threading: message-thread-only;
 // JUCE_ASSERT_MESSAGE_THREAD in every public method.
 
+#include "state/TokenListenerList.h"
 #include <functional>
-#include <map>
 
 namespace djapp
 {
@@ -30,8 +30,7 @@ class CrossfaderState
 
   private:
     float position_ = 0.5f;
-    std::map<int, Listener> listeners_;
-    int nextToken_ = 0;
+    TokenListenerList<Listener> listeners_;
 };
 
 } // namespace djapp

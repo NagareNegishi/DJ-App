@@ -7,9 +7,9 @@
 // Threading: message-thread-only; JUCE_ASSERT_MESSAGE_THREAD in every public method.
 
 #include "model/Types.h"
+#include "state/TokenListenerList.h"
 #include <array>
 #include <functional>
-#include <map>
 
 namespace djapp
 {
@@ -37,8 +37,7 @@ class StateManager
 
   private:
     std::array<PlaybackState, 2> states_; // indexed by DeckId (A, B), both default-constructed
-    std::map<int, Listener> listeners_;   // keys increase monotonically -> registration order preserved
-    int nextToken_ = 0;
+    TokenListenerList<Listener> listeners_;
 };
 
 } // namespace djapp
