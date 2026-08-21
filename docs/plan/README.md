@@ -59,5 +59,5 @@ Use these everywhere; do not re-decide them silently:
 | `ws` | latest 8.x, pinned via `package-lock.json` |
 | Catch2 | v3.8.1 via CMake FetchContent (pin the tag; if unavailable, nearest v3.x and record in DEVIATIONS) |
 | IXWebSocket | latest v11.x tag via FetchContent, pinned (record exact tag in DEVIATIONS if plan-time guess is stale) |
-| Protocol version | 1 |
+| Protocol version | 2 (bumped M9 for `repeat`) |
 | Server default bind | `127.0.0.1:8765` |

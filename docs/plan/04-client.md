@@ -31,6 +31,7 @@ struct PlaybackState {
     float playbackRate = 1.0f;
     float pitchOffsetSemitones = 0.0f;    // stored+synced, not rendered until M10
     std::optional<LoopPoints> loop;
+    bool repeat = true;                   // M9: auto-replay at end-of-track
 };
 
 enum class DeckId { A, B };               // toString "A"/"B", fromString
@@ -44,6 +45,7 @@ struct StateDelta {                        // partial PlaybackState
     std::optional<float> playbackRate;
     std::optional<float> pitchOffsetSemitones;
     std::optional<std::optional<LoopPoints>> loop;  // outer=absent?, inner=null vs value
+    std::optional<bool> repeat;
     bool empty() const;
 };
 ```
@@ -86,6 +88,7 @@ public:
     virtual void setGain(float linearGain) = 0;
     virtual void setPlaybackRate(float rate) = 0;
     virtual void setLoop(std::optional<LoopPoints> loop) = 0;
+    virtual void setRepeat(bool repeat) = 0;   // M9
     virtual double getCurrentPosition() const = 0;
     virtual bool isPlaying() const = 0;
 };
@@ -93,7 +96,7 @@ public:
 
 Two pieces:
 
-1. **`BufferPlaybackSource : juce::AudioSource`** — the pure, unit-testable DSP core. Owns: `shared_ptr<const LoadedAudio>` (swapped only via the atomic-publish pattern from `01-architecture.md` Threading), `std::atomic<bool> playing`, `std::atomic<double> positionSamples`, `std::atomic<float> gain, rate`, atomic loop points. `getNextAudioBlock`: if not playing → clear buffer; else advance read head by `rate × (sourceSampleRate / deviceSampleRate)` per output sample with **linear interpolation**, apply gain, wrap into loop region when a loop is set and the head crosses `outSeconds`, stop (playing=false, hold position at end) at end of buffer. No locks, no allocation, no logging in this method. Mono sources duplicate to both channels; >2ch sources: take first two.
+1. **`BufferPlaybackSource : juce::AudioSource`** — the pure, unit-testable DSP core. Owns: `shared_ptr<const LoadedAudio>` (swapped only via the atomic-publish pattern from `01-architecture.md` Threading), `std::atomic<bool> playing`, `std::atomic<double> positionSamples`, `std::atomic<float> gain, rate`, atomic loop points, `std::atomic<bool> repeat` (M9, default `true`). `getNextAudioBlock`: if not playing → clear buffer; else advance read head by `rate × (sourceSampleRate / deviceSampleRate)` per output sample with **linear interpolation**, apply gain, wrap into loop region when a loop is set and the head crosses `outSeconds`. At end-of-track (no loop active, or the loop's `outSeconds` is at/beyond duration so it never intercepts first): if `repeat` is set, wrap the head to sample 0 and keep `playing`, reusing the same wrap-at-boundary mechanics as `LoopWrap` (`LoopWrapTest.cpp`) applied to the whole-track boundary instead of a captured region; if `repeat` is unset, stop (playing=false, hold position at end) — the pre-M9 behavior. No locks, no allocation, no logging in this method. Mono sources duplicate to both channels; >2ch sources: take first two.
 2. **`JuceAudioEngine : AudioEngine`** — owns one `BufferPlaybackSource` and implements the interface by writing the atomics. Device wiring lives in a separate `AudioDeviceHub` (one per app, not per deck): `juce::AudioDeviceManager` (stereo out, default device) + `juce::AudioSourcePlayer` + a small `juce::MixerAudioSource` that decks plug into. The hub is host-only functionality but must compile everywhere; guard nothing — JUCE handles Linux (ALSA) even if the container has no device (initialise may fail; app must keep running with a visible "no audio device" note rather than crash).
 
 Unit tests render `BufferPlaybackSource` offline (call `prepareToPlay` + `getNextAudioBlock` into a scratch buffer) — no device needed; see `05-testing.md`.
@@ -146,7 +149,7 @@ public:
 
 ## `ui/` — single deck first (M5), mixer at M8
 
-- `DeckComponent`: track title, play/pause button, position slider (seek on release, display-only during play), gain slider (0–2), rate slider (0.5–2.0, center-detent at 1.0), loop in/out/clear buttons, time readout. All controls emit `StateDelta`s into StateManager (never call the engine directly). 30 Hz `juce::Timer` repaint for the playhead.
+- `DeckComponent`: track title, play/pause button, position slider (seek on release, display-only during play), gain slider (0–2), rate slider (0.5–2.0, center-detent at 1.0), loop in/out/clear buttons, repeat toggle (M9: `juce::DrawableButton` with a drawn `juce::Path` circular-arrow glyph, this app's first icon-based control; emits a `repeat` delta on toggle), time readout. All controls emit `StateDelta`s into StateManager (never call the engine directly), and are gated by `deckControlEnabled` like every other deck widget. 30 Hz `juce::Timer` repaint for the playhead.
 - `TrackListComponent`: repository tracks; double-click loads (emits `trackId` delta).
 - `ConnectPanel` (M7): url (default `ws://127.0.0.1:8765`), room code, display name fields; connect/disconnect; status light; "Claim control" / "Release" button; peer list with roles. When role == observer, all deck controls are disabled (visually and functionally).
 - `MixerComponent` (M8): crossfader A/B mapped to per-deck gain multipliers (equal-power curve), second `DeckComponent`.

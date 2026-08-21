@@ -1,4 +1,4 @@
-# 02 — Wire Protocol (v1)
+# 02 — Wire Protocol (v2)
 
 Single source of truth for client↔server communication. Server validation (`03-server.md`), client model serialization (`04-client.md`), and shared fixtures (`05-testing.md`) all implement exactly this document. If the protocol must change, bump the version, update this file first, then both implementations and fixtures in the same milestone.
 
@@ -18,7 +18,7 @@ Every message: `{ "type": "<string>", ... }`. Unknown `type` ⇒ server replies 
 
 ```
 client → server   (within 5 s of TCP open, else close 4000)
-  {"type":"hello","protocolVersion":1,"name":"nagare","room":"<room code>"}
+  {"type":"hello","protocolVersion":2,"name":"nagare","room":"<room code>"}
 
 server → client   (on success)
   {"type":"welcome","clientId":"c-3f2a","role":"observer","serverSeq":42,
@@ -36,7 +36,7 @@ Failure closes: wrong/missing `protocolVersion` ⇒ close **4001**; wrong `room`
 
 | type | fields | notes |
 |---|---|---|
-| `hello` | `protocolVersion` (int, must be 1), `name` (string 1–32, printable, no control chars), `room` (string 1–64) | Must be first message; anything else first ⇒ close 4000 |
+| `hello` | `protocolVersion` (int, must be 2), `name` (string 1–32, printable, no control chars), `room` (string 1–64) | Must be first message; anything else first ⇒ close 4000 |
 | `claimControl` | — | Grants controller role if currently unclaimed; otherwise `error{code:"control-taken"}` |
 | `releaseControl` | — | Only valid from current controller; otherwise `error{code:"not-controller"}` |
 | `delta` | `deck` ("A"\|"B"), `changes` (object, ≥1 field from Field reference) | Only accepted from controller. From others ⇒ `error{code:"not-controller"}` **followed by a `snapshot`** (to repair their optimistic state) |
@@ -71,6 +71,7 @@ Failure closes: wrong/missing `protocolVersion` ⇒ close **4001**; wrong `room`
 | `playbackRate` | number | finite, `0.5 ≤ x ≤ 2.0` | `1.0` | prototype: rate affects pitch (no timestretch) |
 | `pitchOffsetSemitones` | number | finite, `-12 ≤ x ≤ 12` | `0` | **accepted, stored, synced, but not rendered** until TimeStretcher exists (M10); UI does not expose it before then |
 | `loop` | object or null | `{"inSeconds":a,"outSeconds":b}`, finite, `0 ≤ a < b ≤ 86400` | `null` | `null` clears the loop |
+| `repeat` | boolean | — | `true` | whole-track auto-replay on reaching end-of-track; `false` restores the pre-M9 self-stop at end |
 
 Validation policy: **server rejects** out-of-spec values (`error{bad-message}`, delta dropped whole — no partial application); **client clamps** incoming values into range as defense-in-depth, and clamps its own outgoing values before send. Numbers must be JSON numbers, finite (reject `NaN`/`Infinity` — JSON.parse already excludes them; client-side parser must too).
 
