@@ -14,6 +14,7 @@
 #include "engine/JuceAudioEngine.h"
 #include "repository/LocalFileRepository.h"
 #include "state/CrossfaderState.h"
+#include "state/DeckPositionClocks.h"
 #include "state/PositionClock.h"
 #include "state/StateManager.h"
 #include "sync/SyncPublisher.h"
@@ -67,6 +68,9 @@ class MainComponent : public juce::Component
     EngineAdapter engineAdapterB_;
     PositionClock positionClock_;
     PositionClock positionClockB_;
+    // Declared after positionClock_/positionClockB_: it holds references to both
+    // and member init order follows declaration order, so both must exist first.
+    DeckPositionClocks deckPositionClocks_;
     std::unique_ptr<SyncTransport> transport_;
     SyncPublisher syncPublisher_;
 

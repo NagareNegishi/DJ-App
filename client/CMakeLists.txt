@@ -49,6 +49,7 @@ add_library(dj-app-core STATIC
     src/state/StateManager.cpp
     src/state/CrossfaderState.cpp
     src/state/PositionClock.cpp
+    src/state/DeckPositionClocks.cpp
     src/sync/NullTransport.cpp
     src/sync/SyncPublisher.cpp
 )
