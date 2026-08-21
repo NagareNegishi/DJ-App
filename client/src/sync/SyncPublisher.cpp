@@ -31,6 +31,8 @@ void mergeField(StateDelta& pending, const StateDelta& incoming)
         pending.pitchOffsetSemitones = incoming.pitchOffsetSemitones;
     if (incoming.loop.has_value())
         pending.loop = incoming.loop;
+    if (incoming.repeat.has_value())
+        pending.repeat = incoming.repeat;
 }
 
 } // namespace
