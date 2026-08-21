@@ -125,33 +125,28 @@ that needs both sides running simultaneously.
       playing, it just means nobody currently has the right to change it until someone
       claims. Window A should **not** show any stray role-change notice for window B's
       departed id — just the peer leaving.
-14. **Missing track.** This step needs true asymmetry: window A must still have the track,
-    window B must not. A single checkout can't do that - `client\assets\tracks\` is baked
-    into the binary at compile time (`CLIENT_SOURCE_DIR`), so two instances built from the
-    same checkout always read the identical folder. Set up a second checkout first:
+14. **Missing track.** This step needs window B to not have a track window A has - a single
+    checkout can't do that (`client\assets\tracks\` is baked into the binary at compile
+    time, so both instances from one checkout always read the same folder). Set up a second
+    checkout:
     ```
     git clone C:\Users\nagi\Desktop\DJ-App C:\Users\nagi\Desktop\DJ-App-2
     cd C:\Users\nagi\Desktop\DJ-App-2
     cmake -S client -B client/build/windows -G Ninja
     cmake --build client/build/windows
     ```
-    - In the **second checkout only**, delete or rename `client\assets\tracks\demo1.wav`.
-      Leave `manifest.json` untouched - no need to edit it or add a second track.
-      `LocalFileRepository::parseEntry` probes each track's audio file at manifest-load
-      time (`LocalFileRepository.cpp:126-131`) and silently drops any entry whose file
-      won't open, so a missing file alone is enough to make `demo1` absent from this
-      instance's track list; a hand-edited manifest would produce the same result.
-    - Relaunch the window you closed in Step 13 from the **second checkout's** exe
-      (`C:\Users\nagi\Desktop\DJ-App-2\client\build\windows\dj-app-client_artefacts\Debug\DJ App.exe`),
-      connect it to the same room with a different display name. Window A keeps running
-      from the original checkout, unchanged, still has `demo1.wav`.
+    - `client/assets/tracks/*` is gitignored except `manifest.example.json`, so the fresh
+      clone already has no `manifest.json` and no `demo1.wav` - nothing to delete.
+    - Relaunch the window you closed in Step 13 from the **second checkout's** exe, connect
+      it to the same room with a different display name. Window A keeps running from the
+      original checkout, unchanged, still has `demo1.wav`.
     - Have window A claim control and load/play `demo1`.
-    - Expected: window B's deck shows the label `missing track: demo1`
-      (`DeckComponent::refreshWidgets`, `DeckComponent.cpp:158-159` - confirm it's legible,
-      not a crash or silent blank deck) and stays silent (no audio, no crash), while
-      continuing to receive and reflect every other piece of state (gain/rate/position keep
-      updating even though there's nothing audible to apply them to). Restore the file in
-      the second checkout afterward if you want to keep using it for further testing.
+    - Expected: window B's deck shows `missing track: demo1`, stays silent (no audio, no
+      crash), and keeps reflecting every other piece of state. The position slider stays
+      pinned at 0 (no known duration to size it), but the time label's elapsed-seconds text
+      keeps counting up in step with window A regardless - that's the state genuinely
+      syncing, not a bug. Restore the file in the second checkout afterward if you want to
+      keep using it for further testing.
 15. **Reconnect after a drop.** With both windows connected, stop the server process in the
     container (Ctrl+C on the `npm start` terminal).
     - Expected: both windows' status areas show a disconnected state within ~30 s (the
