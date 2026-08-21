@@ -45,6 +45,7 @@ class DeckComponent : public juce::Component, private juce::Timer
     void onLoopInClicked();
     void onLoopOutClicked();
     void onLoopClearClicked();
+    void onRepeatToggled();
     void resetPendingLoopIn();
     void cancelPendingLoopIn();
 
@@ -66,6 +67,8 @@ class DeckComponent : public juce::Component, private juce::Timer
     float anchorRate_ = 1.0f;
     bool anchorPlaying_ = false;
     std::optional<LoopPoints> anchorLoop_;
+    bool anchorRepeat_ = false; // M9: whole-track wrap for currentDisplayPositionSeconds()
+                               // when there's no active loop region
 
     std::optional<double> pendingLoopInSeconds_; // the raw capture itself is never sent over the
                                                  // wire, but arming or cancelling can still trigger a synced loop
@@ -87,6 +90,7 @@ class DeckComponent : public juce::Component, private juce::Timer
     juce::TextButton loopInButton_{"Loop In"};
     juce::TextButton loopOutButton_{"Loop Out"};
     juce::TextButton loopClearButton_{"Clear Loop"};
+    juce::DrawableButton repeatButton_{"Repeat", juce::DrawableButton::ImageFitted};
 };
 
 } // namespace djapp

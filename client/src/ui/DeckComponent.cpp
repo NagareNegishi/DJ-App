@@ -20,6 +20,35 @@ juce::String formatMinutesSeconds(double totalSeconds)
     return juce::String::formatted("%d:%02d", minutes, seconds);
 }
 
+// M9: this app's first icon-based control (everything else is a
+// juce::TextButton), so there's no existing glyph-drawing helper to reuse.
+// A standard "repeat" symbol: an open circular arc with a small triangular
+// arrowhead at its leading end. Drawn in a 24x24 box.
+juce::Path makeRepeatGlyph()
+{
+    constexpr float centreX = 12.0f, centreY = 12.0f, radius = 8.0f;
+    constexpr float startRadians = juce::MathConstants<float>::pi * 0.15f;
+    constexpr float endRadians = juce::MathConstants<float>::pi * 1.75f;
+
+    juce::Path path;
+    path.addCentredArc(centreX, centreY, radius, radius, 0.0f, startRadians, endRadians, true);
+
+    const float tipX = centreX + radius * std::sin(endRadians);
+    const float tipY = centreY - radius * std::cos(endRadians);
+    const float tangentX = std::cos(endRadians);
+    const float tangentY = std::sin(endRadians);
+    constexpr float headLength = 6.0f, headWidth = 5.0f;
+
+    juce::Path arrowHead;
+    arrowHead.addTriangle(tipX - tangentX * headLength - tangentY * headWidth,
+                          tipY - tangentY * headLength + tangentX * headWidth,
+                          tipX + tangentX * headLength - tangentY * headWidth,
+                          tipY + tangentY * headLength + tangentX * headWidth,
+                          tipX, tipY);
+    path.addPath(arrowHead);
+    return path;
+}
+
 } // namespace
 
 DeckComponent::DeckComponent(StateManager& stateManager, DeckId deck, AudioRepository& repository,
@@ -81,6 +110,24 @@ DeckComponent::DeckComponent(StateManager& stateManager, DeckId deck, AudioRepos
     addAndMakeVisible(loopClearButton_);
     loopClearButton_.onClick = [this] { onLoopClearClicked(); };
 
+    addAndMakeVisible(repeatButton_);
+    {
+        juce::DrawablePath offImage;
+        offImage.setPath(makeRepeatGlyph());
+        offImage.setFill(juce::Colours::transparentBlack);
+        offImage.setStrokeFill(juce::Colours::lightgrey);
+        offImage.setStrokeThickness(2.0f);
+
+        juce::DrawablePath onImage;
+        onImage.setPath(makeRepeatGlyph());
+        onImage.setFill(juce::Colours::limegreen);
+        onImage.setStrokeFill(juce::Colours::limegreen);
+        onImage.setStrokeThickness(2.0f);
+
+        repeatButton_.setImages(&offImage, nullptr, nullptr, nullptr, &onImage);
+    }
+    repeatButton_.onClick = [this] { onRepeatToggled(); };
+
     listenerToken_ = stateManager_.addListener(
         [this](const StateDelta& applied, const PlaybackState& newState, DeltaSource)
         {
@@ -95,6 +142,7 @@ DeckComponent::DeckComponent(StateManager& stateManager, DeckId deck, AudioRepos
     anchorRate_ = state.playbackRate;
     anchorPlaying_ = state.playing;
     anchorLoop_ = state.loop;
+    anchorRepeat_ = state.repeat;
     refreshWidgets(state);
 
     startTimerHz(30);
@@ -122,6 +170,7 @@ void DeckComponent::rebaseAnchorAndRefresh(const StateDelta& applied, const Play
     anchorRate_ = newState.playbackRate;
     anchorPlaying_ = newState.playing;
     anchorLoop_ = newState.loop;
+    anchorRepeat_ = newState.repeat;
 
     // A track change invalidates any in-flight loop-arm gesture: the pending
     // in-point and stashed loop were captured against the previous track's
@@ -142,7 +191,15 @@ double DeckComponent::currentDisplayPositionSeconds() const
     }
 
     if (anchorLoop_.has_value())
-        position = wrapPositionWithinRange(position, anchorLoop_->inSeconds, anchorLoop_->outSeconds);
+    {
+        const double duration = positionSlider_.getMaximum();
+        const double clampedIn = duration > 0.0 && anchorLoop_->inSeconds > duration ? duration : anchorLoop_->inSeconds;
+        const double clampedOut =
+            duration > 0.0 && anchorLoop_->outSeconds > duration ? duration : anchorLoop_->outSeconds;
+        position = wrapPositionWithinRange(position, clampedIn, clampedOut);
+    }
+    else if (anchorRepeat_)
+        position = wrapPositionWithinRange(position, 0.0, positionSlider_.getMaximum());
 
     return position;
 }
@@ -169,6 +226,7 @@ void DeckComponent::refreshWidgets(const PlaybackState& state)
 
     gainSlider_.setValue(state.gain, juce::dontSendNotification);
     rateSlider_.setValue(state.playbackRate, juce::dontSendNotification);
+    repeatButton_.setToggleState(state.repeat, juce::dontSendNotification);
 
     const bool hasTrack = !state.trackId.isEmpty();
     const bool controlEnabled = deckControlEnabled(hasTrack, rolePermitsControl_);
@@ -179,6 +237,7 @@ void DeckComponent::refreshWidgets(const PlaybackState& state)
     loopOutButton_.setEnabled(controlEnabled && pendingLoopInSeconds_.has_value());
     gainSlider_.setEnabled(controlEnabled);
     rateSlider_.setEnabled(controlEnabled);
+    repeatButton_.setEnabled(controlEnabled);
 }
 
 void DeckComponent::timerCallback()
@@ -280,6 +339,14 @@ void DeckComponent::onLoopClearClicked()
     stateManager_.applyDelta(delta, DeltaSource::local);
 }
 
+void DeckComponent::onRepeatToggled()
+{
+    StateDelta delta;
+    delta.deck = deck_;
+    delta.repeat = !stateManager_.getState(deck_).repeat;
+    stateManager_.applyDelta(delta, DeltaSource::local);
+}
+
 void DeckComponent::resetPendingLoopIn()
 {
     pendingLoopInSeconds_.reset();
@@ -320,6 +387,8 @@ void DeckComponent::resized()
     bounds.removeFromTop(16);
 
     auto loopRow = bounds.removeFromTop(24);
+    repeatButton_.setBounds(loopRow.removeFromRight(24));
+    loopRow.removeFromRight(4);
     const int loopButtonWidth = loopRow.getWidth() / 3;
     loopInButton_.setBounds(loopRow.removeFromLeft(loopButtonWidth));
     loopOutButton_.setBounds(loopRow.removeFromLeft(loopButtonWidth));
