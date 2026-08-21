@@ -1,4 +1,5 @@
 #include "EngineAdapter.h"
+#include "model/CrossfaderCurve.h"
 #include <juce_events/juce_events.h>
 
 namespace djapp
@@ -16,6 +17,31 @@ EngineAdapter::EngineAdapter(StateManager& stateManager, DeckId deck, AudioEngin
 EngineAdapter::~EngineAdapter()
 {
     stateManager_.removeListener(listenerToken_);
+    if (crossfader_ != nullptr)
+        crossfader_->removeListener(crossfaderListenerToken_);
+}
+
+void EngineAdapter::attachCrossfader(CrossfaderState& crossfader)
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+
+    crossfader_ = &crossfader;
+    crossfaderListenerToken_ =
+        crossfader_->addListener([this](float) { pushEffectiveGain(stateManager_.getState(deck_).gain); });
+
+    pushEffectiveGain(stateManager_.getState(deck_).gain);
+}
+
+void EngineAdapter::pushEffectiveGain(float gain)
+{
+    float multiplier = 1.0f;
+    if (crossfader_ != nullptr)
+    {
+        const auto gains = equalPowerCrossfade(crossfader_->getPosition());
+        multiplier = deck_ == DeckId::A ? gains.gainA : gains.gainB;
+    }
+
+    engine_.setGain(gain * multiplier);
 }
 
 void EngineAdapter::handleDelta(const StateDelta& applied, const PlaybackState& /*newState*/, DeltaSource /*source*/)
@@ -50,7 +76,7 @@ void EngineAdapter::handleDelta(const StateDelta& applied, const PlaybackState& 
         engine_.seek(*applied.positionSeconds);
 
     if (applied.gain.has_value())
-        engine_.setGain(*applied.gain);
+        pushEffectiveGain(*applied.gain);
 
     if (applied.playbackRate.has_value())
         engine_.setPlaybackRate(*applied.playbackRate);
