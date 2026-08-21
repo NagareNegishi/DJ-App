@@ -54,6 +54,13 @@ class FakeAudioEngine final : public AudioEngine
         lastLoop = loop;
     }
 
+    void setRepeat(bool repeat) override
+    {
+        calls.push_back("setRepeat");
+        setRepeatCalled = true;
+        lastRepeat = repeat;
+    }
+
     void play() override
     {
         calls.push_back("play");
@@ -75,6 +82,8 @@ class FakeAudioEngine final : public AudioEngine
     float lastPlaybackRate = 0.0f;
     bool setLoopCalled = false;
     std::optional<LoopPoints> lastLoop;
+    bool setRepeatCalled = false;
+    bool lastRepeat = true;
     // Public so tests can flip it directly to simulate the audio thread's own
     // self-stop, which happens without a pause() call.
     bool playing = false;
@@ -802,6 +811,62 @@ TEST_CASE("EngineAdapter attachCrossfader called twice (by mistake) on the same 
             ++setGainCallsFromThisMove;
 
     CHECK(setGainCallsFromThisMove == 1);
+}
+
+// --- White-box: handleDelta's repeat branch (M9). The FakeAudioEngine above already
+// tracks setRepeatCalled/lastRepeat, but no existing test case ever sets delta.repeat
+// and asserts on them -- these pin that handleDelta's `if (applied.repeat.has_value())`
+// branch (EngineAdapter.cpp) actually reaches engine_.setRepeat with the right value. ---
+
+TEST_CASE("EngineAdapter maps a repeat-only delta to setRepeat alone", "[engine][EngineAdapter][whitebox]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    StateDelta delta = makeDelta(DeckId::A);
+    delta.repeat = false;
+    manager.applyDelta(delta, DeltaSource::local);
+
+    REQUIRE(engine.calls.size() == 1);
+    CHECK(engine.calls[0] == "setRepeat");
+    CHECK(engine.setRepeatCalled);
+    CHECK_FALSE(engine.lastRepeat);
+}
+
+TEST_CASE("EngineAdapter forwards both repeat values to setRepeat with the value the delta carried",
+          "[engine][EngineAdapter][whitebox]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository);
+
+    StateDelta toFalse = makeDelta(DeckId::A);
+    toFalse.repeat = false;
+    manager.applyDelta(toFalse, DeltaSource::local);
+    CHECK_FALSE(engine.lastRepeat);
+
+    StateDelta toTrue = makeDelta(DeckId::A);
+    toTrue.repeat = true;
+    manager.applyDelta(toTrue, DeltaSource::local);
+    CHECK(engine.lastRepeat);
+}
+
+TEST_CASE("EngineAdapter ignores a repeat delta aimed at the other deck", "[engine][EngineAdapter][whitebox]")
+{
+    StateManager manager;
+    FakeAudioEngine engine;
+    FakeAudioRepository repository;
+    EngineAdapter adapter(manager, DeckId::A, engine, repository); // this adapter drives deck A only
+
+    StateDelta delta = makeDelta(DeckId::B);
+    delta.repeat = false;
+    manager.applyDelta(delta, DeltaSource::local);
+
+    CHECK(engine.calls.empty());
+    CHECK_FALSE(engine.setRepeatCalled);
 }
 
 } // namespace djapp

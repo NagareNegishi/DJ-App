@@ -55,6 +55,13 @@ void JuceAudioEngine::setLoop(std::optional<LoopPoints> loop)
     playbackSource_.setLoop(loop);
 }
 
+void JuceAudioEngine::setRepeat(bool repeat)
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+
+    playbackSource_.setRepeat(repeat);
+}
+
 double JuceAudioEngine::getCurrentPosition() const
 {
     JUCE_ASSERT_MESSAGE_THREAD

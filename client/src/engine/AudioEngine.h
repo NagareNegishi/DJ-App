@@ -25,6 +25,12 @@ class AudioEngine
     // A loop with outSeconds <= inSeconds is accepted but never triggers a
     // wrap (silent no-op) — not clamped, rejected, or asserted.
     virtual void setLoop(std::optional<LoopPoints> loop) = 0;
+    // Whole-track boundary: when set, getNextAudioBlock wraps to the start on reaching
+    // end-of-track instead of stopping. Independent of setLoop's captured-region loop — an
+    // active region loop always intercepts first (its wrap is clamped to never reach past the
+    // track's actual end, see BufferPlaybackSource::setLoop), so this only fires when no region
+    // loop is active or once a region loop's own bounds are exhausted.
+    virtual void setRepeat(bool repeat) = 0;
     // Holds steady at the final position once playback self-stops (see isPlaying()).
     virtual double getCurrentPosition() const = 0;
     // May become false on its own at end-of-track or on invalid/absent audio,

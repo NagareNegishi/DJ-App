@@ -117,6 +117,7 @@ TEST_CASE("BufferPlaybackSource consumes a source in half as many blocks at rate
         source.prepareToPlay(blockSize, sampleRate);
         source.load(makeRampAudio(sourceLength, sampleRate));
         source.setPlaybackRate(rate);
+        source.setRepeat(false); // pins the pre-M9 self-stop at end-of-track, not the new default
         source.setPlaying(true);
 
         int blocks = 0;
@@ -240,6 +241,7 @@ TEST_CASE("BufferPlaybackSource stops and renders silence past the end of the bu
     source.load(makeRampAudio(sourceLength, sampleRate));
     source.setGain(1.0f);
     source.setPlaybackRate(1.0f);
+    source.setRepeat(false); // pins the pre-M9 self-stop at end-of-track, not the new default
     source.setPlaying(true);
 
     renderBlock(source, 2, blockSize); // samples 0..29
@@ -596,6 +598,7 @@ TEST_CASE("BufferPlaybackSource ignores a loop whose outSeconds does not exceed 
     // guard should treat this as inactive rather than dividing by a
     // zero/negative-length range or spinning fmod.
     source.setLoop(djapp::LoopPoints{0.05, 0.05});
+    source.setRepeat(false); // pins the pre-M9 self-stop at end-of-track, not the new default
     source.setPlaying(true);
 
     int blocks = 0;
@@ -736,4 +739,354 @@ TEST_CASE("BufferPlaybackSource load() clears the loop that was active on the pr
     CHECK_FALSE(sawWrapOnSecondTrack);
     CHECK(positionKeptAdvancing);
     CHECK(source.getCurrentPositionSeconds() > 0.08);
+}
+
+// --- M9: whole-track repeat ---
+
+TEST_CASE("BufferPlaybackSource repeat wraps to the start of the buffer and keeps playing past the end",
+          "[engine][BufferPlaybackSource]")
+{
+    constexpr double sampleRate = 1000.0;
+    constexpr int sourceLength = 200; // valid interpolation positions: 0..198
+    constexpr int blockSize = 20;
+    constexpr double seekSeconds = 0.17; // sample index 170
+
+    djapp::BufferPlaybackSource source;
+    source.prepareToPlay(blockSize, sampleRate);
+    source.load(makeRampAudio(sourceLength, sampleRate));
+    source.setGain(1.0f);
+    source.setPlaybackRate(1.0f);
+    source.setRepeat(true);
+    source.setPlaying(true);
+
+    source.requestSeek(seekSeconds);
+    auto seeked = renderBlock(source, 2, blockSize); // samples 170..189
+    CHECK(seeked.getSample(0, 0) == Catch::Approx(170.0f).margin(kContentMargin));
+
+    // Reads 190..198 (9 valid samples, index 199 has no successor to
+    // interpolate against), then the end-of-track boundary wraps the head
+    // back to sample 0 mid-block; the remaining 11 samples of this same
+    // render come from the start of the track, all within a single
+    // getNextAudioBlock call.
+    auto wrapped = renderBlock(source, 2, blockSize);
+
+    for (int i = 0; i < 9; ++i)
+        CHECK(wrapped.getSample(0, i) == Catch::Approx(190.0f + (float)i).margin(kContentMargin));
+
+    for (int i = 9; i < blockSize; ++i)
+        CHECK(wrapped.getSample(0, i) == Catch::Approx((float)(i - 9)).margin(kContentMargin));
+
+    CHECK(source.isPlaying());
+
+    const double positionAfterWrap = source.getCurrentPositionSeconds();
+    CHECK(positionAfterWrap == Catch::Approx(0.011).margin(kPositionMargin));
+    CHECK(positionAfterWrap < (double)sourceLength / sampleRate);
+
+    // Confirms playback keeps advancing normally from the wrapped position
+    // instead of getting stuck at the wrap seam.
+    auto afterWrap = renderBlock(source, 2, blockSize);
+    CHECK(source.isPlaying());
+    CHECK(afterWrap.getSample(0, 0) == Catch::Approx(11.0f).margin(kContentMargin));
+    CHECK(source.getCurrentPositionSeconds() > positionAfterWrap);
+}
+
+TEST_CASE("BufferPlaybackSource repeat false preserves the pre-M9 self-stop at end of buffer",
+          "[engine][BufferPlaybackSource]")
+{
+    constexpr double sampleRate = 1000.0;
+    constexpr int sourceLength = 200;
+    constexpr int blockSize = 20;
+    constexpr double seekSeconds = 0.17; // sample index 170
+
+    djapp::BufferPlaybackSource source;
+    source.prepareToPlay(blockSize, sampleRate);
+    source.load(makeRampAudio(sourceLength, sampleRate));
+    source.setGain(1.0f);
+    source.setPlaybackRate(1.0f);
+    source.setRepeat(false);
+    source.setPlaying(true);
+
+    source.requestSeek(seekSeconds);
+    renderBlock(source, 2, blockSize); // samples 170..189
+    REQUIRE(source.isPlaying());
+
+    // 190..198 valid (9 samples), then silence for the rest of the block:
+    // with repeat off the head simply stops instead of wrapping.
+    auto finalBlock = renderBlock(source, 2, blockSize);
+
+    for (int i = 0; i < 9; ++i)
+        CHECK(finalBlock.getSample(0, i) == Catch::Approx(190.0f + (float)i).margin(kContentMargin));
+
+    for (int i = 9; i < blockSize; ++i)
+        CHECK(finalBlock.getSample(0, i) == Catch::Approx(0.0f).margin(kSilenceMargin));
+
+    CHECK_FALSE(source.isPlaying());
+
+    const double positionAtEnd = source.getCurrentPositionSeconds();
+    CHECK(positionAtEnd >= 0.0);
+    CHECK(positionAtEnd <= (double)sourceLength / sampleRate + kPositionMargin);
+
+    // Position holds and rendering stays silent instead of advancing or
+    // wrapping on a further render.
+    auto silentBlock = renderBlock(source, 2, blockSize);
+    for (int i = 0; i < blockSize; ++i)
+        CHECK(silentBlock.getSample(0, i) == Catch::Approx(0.0f).margin(kSilenceMargin));
+
+    CHECK_FALSE(source.isPlaying());
+    CHECK(source.getCurrentPositionSeconds() == Catch::Approx(positionAtEnd).margin(kPositionMargin));
+}
+
+TEST_CASE("BufferPlaybackSource repeat defaults to true on a freshly constructed source",
+          "[engine][BufferPlaybackSource]")
+{
+    constexpr double sampleRate = 1000.0;
+    constexpr int sourceLength = 200;
+    constexpr int blockSize = 20;
+    constexpr double seekSeconds = 0.17; // sample index 170
+
+    djapp::BufferPlaybackSource source;
+    source.prepareToPlay(blockSize, sampleRate);
+    source.load(makeRampAudio(sourceLength, sampleRate));
+    source.setGain(1.0f);
+    source.setPlaybackRate(1.0f);
+    // setRepeat() is never called here: pins that a freshly constructed
+    // source already behaves as if repeat were on.
+    source.setPlaying(true);
+
+    source.requestSeek(seekSeconds);
+    renderBlock(source, 2, blockSize); // samples 170..189
+
+    auto wrapped = renderBlock(source, 2, blockSize);
+
+    for (int i = 0; i < 9; ++i)
+        CHECK(wrapped.getSample(0, i) == Catch::Approx(190.0f + (float)i).margin(kContentMargin));
+
+    for (int i = 9; i < blockSize; ++i)
+        CHECK(wrapped.getSample(0, i) == Catch::Approx((float)(i - 9)).margin(kContentMargin));
+
+    CHECK(source.isPlaying());
+    CHECK(source.getCurrentPositionSeconds() < (double)sourceLength / sampleRate);
+}
+
+TEST_CASE("BufferPlaybackSource repeat true still stops cleanly on a degenerate single-sample buffer",
+          "[engine][BufferPlaybackSource]")
+{
+    constexpr double sampleRate = 1000.0;
+    constexpr int blockSize = 10;
+
+    djapp::BufferPlaybackSource source;
+    source.prepareToPlay(blockSize, sampleRate);
+    source.load(makeRampAudio(1, sampleRate));
+    source.setGain(1.0f);
+    source.setPlaybackRate(1.0f);
+    source.setRepeat(true);
+    source.setPlaying(true);
+
+    // A single sample has no successor to interpolate against, so the very
+    // first render hits the end-of-track condition immediately. With repeat
+    // on, this must still self-stop cleanly (not hang, spin, or fabricate a
+    // wrap out of nothing) exactly as it does with repeat off: reaching
+    // this assertion (the render call returning at all) is most of the
+    // point, with the concrete isPlaying()==false outcome pinning it.
+    auto block = renderBlock(source, 2, blockSize);
+
+    for (int i = 0; i < blockSize; ++i)
+        CHECK(block.getSample(0, i) == Catch::Approx(0.0f).margin(kSilenceMargin));
+
+    CHECK_FALSE(source.isPlaying());
+}
+
+TEST_CASE("BufferPlaybackSource repeat setting survives load() unchanged", "[engine][BufferPlaybackSource]")
+{
+    constexpr double sampleRate = 1000.0;
+    constexpr int firstSourceLength = 300;
+    constexpr int secondSourceLength = 100;
+    constexpr int blockSize = 25;
+
+    SECTION("repeat(false) set before load() stays false after load()")
+    {
+        djapp::BufferPlaybackSource source;
+        source.prepareToPlay(blockSize, sampleRate);
+        source.load(makeRampAudio(firstSourceLength, sampleRate));
+        source.setGain(1.0f);
+        source.setPlaybackRate(1.0f);
+
+        source.setRepeat(false);
+        source.load(makeRampAudio(secondSourceLength, sampleRate));
+        source.setPlaying(true);
+
+        int blocks = 0;
+        while (source.isPlaying() && blocks < 20)
+        {
+            renderBlock(source, 2, blockSize);
+            ++blocks;
+        }
+
+        // If load() had silently reset repeat to its true default, this
+        // would wrap forever and isPlaying() would never go false.
+        CHECK_FALSE(source.isPlaying());
+    }
+
+    SECTION("repeat(true) set before load() stays true after load()")
+    {
+        djapp::BufferPlaybackSource source;
+        source.prepareToPlay(blockSize, sampleRate);
+        source.load(makeRampAudio(firstSourceLength, sampleRate));
+        source.setGain(1.0f);
+        source.setPlaybackRate(1.0f);
+
+        source.setRepeat(true);
+        source.load(makeRampAudio(secondSourceLength, sampleRate));
+        source.setPlaying(true);
+
+        // 100 source samples at blockSize 25 is exhausted within the 4th
+        // render; render a couple more blocks past that so a wrap (if
+        // repeat survived the load) has clearly happened by the time we
+        // check, and the position has settled back down near the start.
+        for (int b = 0; b < 6; ++b)
+            renderBlock(source, 2, blockSize);
+
+        // If load() had silently reset repeat to false, this would have
+        // self-stopped instead of wrapping and continuing to play.
+        CHECK(source.isPlaying());
+        CHECK(source.getCurrentPositionSeconds() < (double)secondSourceLength / sampleRate);
+    }
+}
+
+TEST_CASE("BufferPlaybackSource an active loop takes precedence over repeat regardless of its value",
+          "[engine][BufferPlaybackSource]")
+{
+    constexpr double sampleRate = 1000.0;
+    constexpr int sourceLength = 1000; // duration 1.0s; loop region sits comfortably inside it
+    constexpr int blockSize = 20;
+
+    auto exercise = [&](bool repeat)
+    {
+        djapp::BufferPlaybackSource source;
+        source.prepareToPlay(blockSize, sampleRate);
+        source.load(makeRampAudio(sourceLength, sampleRate));
+        source.setGain(1.0f);
+        source.setPlaybackRate(1.0f);
+        source.setLoop(djapp::LoopPoints{0.1, 0.13}); // sample range [100, 130)
+        source.setRepeat(repeat);
+        source.setPlaying(true);
+
+        source.requestSeek(0.129); // sample index 129, just before outSeconds
+        renderBlock(source, 2, blockSize); // applies the seek
+
+        float maxSample = -1.0f;
+        float minSample = 1.0e9f;
+        bool sawWrap = false;
+        float previous = -1.0f;
+
+        // Comfortably more output samples than the track's own length: if
+        // repeat's whole-track wrap were ever observed instead of the
+        // loop's, either the position would run far past the loop region
+        // or the buffer would already have self-stopped.
+        for (int b = 0; b < 60; ++b)
+        {
+            auto block = renderBlock(source, 2, blockSize);
+            for (int i = 0; i < blockSize; ++i)
+            {
+                const float value = block.getSample(0, i);
+                maxSample = std::max(maxSample, value);
+                minSample = std::min(minSample, value);
+                if (value < previous - 1.0f)
+                    sawWrap = true;
+                previous = value;
+            }
+        }
+
+        CHECK(source.isPlaying());
+        CHECK(sawWrap);
+        CHECK(maxSample < 130.0f);
+        CHECK(minSample >= 99.0f);
+        CHECK(source.getCurrentPositionSeconds() < 0.13 + kPositionMargin);
+    };
+
+    SECTION("repeat true")
+    {
+        exercise(true);
+    }
+
+    SECTION("repeat false")
+    {
+        exercise(false);
+    }
+}
+
+// --- White-box: setLoop's duration clamp, gated on messageThreadCurrentBuffer_ ---
+
+TEST_CASE("BufferPlaybackSource setLoop clamps outSeconds to the loaded buffer's last renderable "
+          "frame once a track is loaded, instead of storing a value that runs off the end",
+          "[engine][BufferPlaybackSource][whitebox]")
+{
+    constexpr double sampleRate = 1000.0;
+    constexpr int sourceLength = 100; // duration 0.1s; valid interpolation positions 0..98
+    constexpr int blockSize = 20;
+
+    djapp::BufferPlaybackSource source;
+    source.prepareToPlay(blockSize, sampleRate);
+    source.load(makeRampAudio(sourceLength, sampleRate));
+    source.setGain(1.0f);
+    source.setPlaybackRate(1.0f);
+    source.setRepeat(false); // isolate the loop clamp from the separate whole-track repeat wrap
+
+    // outSeconds = 5.0 -> 5000 samples, far beyond the 100-sample buffer. Without the
+    // clamp in BufferPlaybackSource::setLoop (guarded on messageThreadCurrentBuffer_ !=
+    // nullptr), wrapPositionWithinRange's rangeEnd would sit at sample 5000, which the
+    // render head can never reach inside a 100-sample buffer: the loop would never
+    // engage, and playback would run to the natural end-of-track stop instead.
+    source.setLoop(djapp::LoopPoints{0.05, 5.0}); // requested sample range [50, 5000)
+    source.setPlaying(true);
+
+    source.requestSeek(0.09); // sample index 90, close to the buffer's true end
+    renderBlock(source, 2, blockSize); // applies the seek
+
+    bool sawWrapBackBelow60 = false;
+    float previous = -1.0f;
+    for (int b = 0; b < 5; ++b)
+    {
+        auto block = renderBlock(source, 2, blockSize);
+        for (int i = 0; i < blockSize; ++i)
+        {
+            const float value = block.getSample(0, i);
+            if (value < previous - 1.0f && value < 60.0f)
+                sawWrapBackBelow60 = true;
+            previous = value;
+        }
+    }
+
+    // If the clamp did not apply, the source would self-stop at the buffer's natural
+    // end (repeat is off) well before ever wrapping back toward sample 50; isPlaying()
+    // would go false and no wrap-back below 60 would ever be observed.
+    CHECK(source.isPlaying());
+    CHECK(sawWrapBackBelow60);
+}
+
+TEST_CASE("BufferPlaybackSource setLoop issued before any load stores the loop inactive rather than "
+          "clamping against a not-yet-existent buffer",
+          "[engine][BufferPlaybackSource][whitebox]")
+{
+    // Companion to the clamp test above: pins the other side of the
+    // messageThreadCurrentBuffer_ guard in setLoop. With no buffer loaded,
+    // messageThreadSampleRate_ is still its initial 0.0, so the seconds-to-samples
+    // conversion (and the clamp that would follow it) never runs at all; the loop is
+    // stored fully inactive, not clamped to some zero-sized range.
+    constexpr double sampleRate = 1000.0;
+    constexpr int blockSize = 20;
+
+    djapp::BufferPlaybackSource source;
+    source.prepareToPlay(blockSize, sampleRate);
+
+    source.setLoop(djapp::LoopPoints{0.05, 5.0}); // same out-of-range request as above, no buffer yet
+    source.setPlaying(true);
+
+    // No buffer at all: hasValidAudio is false, so every render is silent and
+    // isPlaying() is forced false by getNextAudioBlock's own early guard -- this must
+    // not crash regardless of what setLoop stored internally.
+    auto block = renderBlock(source, 2, blockSize);
+    for (int i = 0; i < blockSize; ++i)
+        CHECK(block.getSample(0, i) == Catch::Approx(0.0f).margin(kSilenceMargin));
+    CHECK_FALSE(source.isPlaying());
 }

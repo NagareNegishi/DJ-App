@@ -48,6 +48,9 @@ class BufferPlaybackSource : public juce::AudioSource
     void setGain(float linearGain);
     void setPlaybackRate(float rate);
     void setLoop(std::optional<LoopPoints> loop); // see AudioEngine.h: outSeconds <= inSeconds is a silent no-op
+    // Unlike loop points, repeat carries no per-track units, so load() intentionally leaves
+    // this untouched (see BufferPlaybackSource.cpp's load()).
+    void setRepeat(bool repeat);
     void requestSeek(double seconds);
 
     double getCurrentPositionSeconds() const;
@@ -73,6 +76,7 @@ class BufferPlaybackSource : public juce::AudioSource
     std::atomic<bool> playing_{false};
     std::atomic<float> gain_{1.0f};
     std::atomic<float> rate_{1.0f};
+    std::atomic<bool> repeat_{true};
     std::atomic<double> deviceSampleRate_{0.0};
 
     // --- position: audio thread is the sole writer; message thread only

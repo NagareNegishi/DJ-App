@@ -28,6 +28,7 @@ class JuceAudioEngine : public AudioEngine
     void setGain(float linearGain) override;
     void setPlaybackRate(float rate) override;
     void setLoop(std::optional<LoopPoints> loop) override;
+    void setRepeat(bool repeat) override;
     double getCurrentPosition() const override;
     bool isPlaying() const override;
 
