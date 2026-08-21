@@ -226,10 +226,13 @@ void DeckComponent::refreshWidgets(const PlaybackState& state)
 
     gainSlider_.setValue(state.gain, juce::dontSendNotification);
     rateSlider_.setValue(state.playbackRate, juce::dontSendNotification);
-    repeatButton_.setToggleState(state.repeat, juce::dontSendNotification);
 
+    // setToggleState() no-ops while disabled, so enable before setting it.
     const bool hasTrack = !state.trackId.isEmpty();
     const bool controlEnabled = deckControlEnabled(hasTrack, rolePermitsControl_);
+    repeatButton_.setEnabled(controlEnabled);
+    repeatButton_.setToggleState(state.repeat, juce::dontSendNotification);
+
     playPauseButton_.setEnabled(controlEnabled);
     positionSlider_.setEnabled(controlEnabled);
     loopInButton_.setEnabled(controlEnabled);
@@ -237,7 +240,6 @@ void DeckComponent::refreshWidgets(const PlaybackState& state)
     loopOutButton_.setEnabled(controlEnabled && pendingLoopInSeconds_.has_value());
     gainSlider_.setEnabled(controlEnabled);
     rateSlider_.setEnabled(controlEnabled);
-    repeatButton_.setEnabled(controlEnabled);
 }
 
 void DeckComponent::timerCallback()
