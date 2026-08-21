@@ -432,6 +432,93 @@ test('an accepted delta reaches every client except its source', async (t) => {
   assert.equal(next.decks.A.gain, 0.5);
 });
 
+// ---------------------------------------------------------------------------
+// deck B
+// ---------------------------------------------------------------------------
+
+test('a fresh room\'s welcome snapshot has no deck B key, only deck A matching defaults', async (t) => {
+  const { server, port } = await startServer();
+  const client = connect(port);
+  t.after(async () => {
+    client.dispose();
+    await server.close();
+  });
+
+  const welcome = await handshake(client, 'nagare');
+  assert.deepEqual(Object.keys(welcome.snapshot.decks), ['A']);
+  assert.deepEqual(welcome.snapshot.decks.A, DECK_DEFAULTS);
+});
+
+test('a delta targeting deck B reaches an observer with deck B, the same changes, and the controller as source', async (t) => {
+  const { server, port } = await startServer();
+  const controller = connect(port);
+  const observer = connect(port);
+  t.after(async () => {
+    controller.dispose();
+    observer.dispose();
+    await server.close();
+  });
+
+  const controllerWelcome = await handshake(controller, 'aki');
+  await handshake(observer, 'nagare');
+
+  controller.send({ type: 'claimControl' });
+  await nextOfType(controller, 'roleChanged');
+  await nextOfType(observer, 'roleChanged');
+
+  controller.send({ type: 'delta', deck: 'B', changes: { playbackRate: 1.5 } });
+
+  const delta = await observer.next();
+  assert.equal(delta.type, 'delta');
+  assert.equal(delta.sourceClientId, controllerWelcome.clientId);
+  assert.equal(delta.deck, 'B');
+  assert.deepEqual(delta.changes, { playbackRate: 1.5 });
+  assert.ok(Number.isInteger(delta.serverSeq));
+});
+
+test('after a deck B delta, a snapshot shows deck B updated and deck A left exactly at defaults', async (t) => {
+  const { server, port } = await startServer();
+  const controller = connect(port);
+  t.after(async () => {
+    controller.dispose();
+    await server.close();
+  });
+
+  await handshake(controller, 'nagare');
+  controller.send({ type: 'claimControl' });
+  await nextOfType(controller, 'roleChanged');
+
+  controller.send({ type: 'delta', deck: 'B', changes: { playbackRate: 1.5 } });
+
+  controller.send({ type: 'requestSnapshot' });
+  const snapshot = await controller.next();
+  assert.equal(snapshot.type, 'snapshot');
+  assert.deepEqual(snapshot.decks.B, { ...DECK_DEFAULTS, playbackRate: 1.5 });
+  assert.deepEqual(snapshot.decks.A, DECK_DEFAULTS);
+});
+
+test('a delta with an invalid deck id draws a bad-message error and keeps the connection open', async (t) => {
+  const { server, port } = await startServer();
+  const controller = connect(port);
+  t.after(async () => {
+    controller.dispose();
+    await server.close();
+  });
+
+  await handshake(controller, 'nagare');
+  controller.send({ type: 'claimControl' });
+  await nextOfType(controller, 'roleChanged');
+
+  controller.send({ type: 'delta', deck: 'C', changes: { gain: 0.5 } });
+
+  const error = await controller.next();
+  assert.equal(error.type, 'error');
+  assert.equal(error.code, 'bad-message');
+
+  controller.send({ type: 'requestSnapshot' });
+  assert.equal((await controller.next()).type, 'snapshot');
+});
+
 test('the server closes live connections with 1001 on close()', async (t) => {
   const { server, port } = await startServer();
   const client = connect(port);
