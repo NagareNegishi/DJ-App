@@ -777,22 +777,14 @@ TEST_CASE("EngineAdapter checkForSelfStop's corrective playing:false delta does 
     CHECK(engine.lastGain == gainAfterSet); // untouched by the correction
 }
 
-TEST_CASE("EngineAdapter attachCrossfader called twice (by mistake) on the same crossfader leaves "
-          "two live listener registrations instead of replacing the first, so a single later "
-          "crossfader move pushes gain twice instead of once",
-          "[engine][EngineAdapter][whitebox][finding]")
+TEST_CASE("EngineAdapter attachCrossfader called twice (by mistake) on the same crossfader replaces "
+          "the first listener registration instead of leaking it, so a single later crossfader "
+          "move pushes gain exactly once",
+          "[engine][EngineAdapter][whitebox]")
 {
-    // Finding (see EngineAdapter.cpp attachCrossfader/~EngineAdapter): attachCrossfader
-    // unconditionally does crossfaderListenerToken_ = crossfader_->addListener(...)
-    // without first removing any previous registration under crossfaderListenerToken_.
-    // A second attachCrossfader call on the same crossfader therefore leaves the first
-    // listener registration live and un-tracked (crossfaderListenerToken_ is
-    // overwritten), so ~EngineAdapter later removes only the second one -- the first
-    // listener (capturing `this`) stays registered on the crossfader for as long as
-    // the crossfader outlives the adapter, a latent use-after-free. This test proves
-    // the double-registration itself via an observable, safe side effect (two setGain
-    // calls for one crossfader move) rather than by exercising the dangling-`this`
-    // path, which would be undefined behaviour to execute in a test.
+    // attachCrossfader removes any existing crossfader listener registration before
+    // installing the new one, so a second attachCrossfader call on the same crossfader
+    // leaves exactly one live registration (see EngineAdapter.cpp attachCrossfader).
     StateManager manager;
     FakeAudioEngine engine;
     FakeAudioRepository repository;
@@ -810,10 +802,7 @@ TEST_CASE("EngineAdapter attachCrossfader called twice (by mistake) on the same 
         if (engine.calls[i] == "setGain")
             ++setGainCallsFromThisMove;
 
-    // A correct single-subscription implementation would push exactly once per
-    // move; two attaches instead push twice, evidencing the leaked first
-    // registration described above.
-    CHECK(setGainCallsFromThisMove == 2);
+    CHECK(setGainCallsFromThisMove == 1);
 }
 
 } // namespace djapp

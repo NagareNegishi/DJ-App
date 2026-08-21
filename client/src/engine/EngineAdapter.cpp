@@ -25,6 +25,9 @@ void EngineAdapter::attachCrossfader(CrossfaderState& crossfader)
 {
     JUCE_ASSERT_MESSAGE_THREAD
 
+    if (crossfader_ != nullptr)
+        crossfader_->removeListener(crossfaderListenerToken_);
+
     crossfader_ = &crossfader;
     crossfaderListenerToken_ =
         crossfader_->addListener([this](float) { pushEffectiveGain(stateManager_.getState(deck_).gain); });
