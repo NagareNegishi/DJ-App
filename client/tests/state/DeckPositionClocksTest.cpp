@@ -53,8 +53,7 @@ StateDelta playingDelta(DeckId deck, bool playing)
 
 } // namespace
 
-TEST_CASE("DeckPositionClocks::setRole(controller) makes both decks eligible to resync",
-          "[state][DeckPositionClocks]")
+TEST_CASE("DeckPositionClocks::setRole(controller) makes both decks eligible to resync", "[state][DeckPositionClocks]")
 {
     StateManager stateManager;
     FakeAudioEngine engineA;
@@ -134,8 +133,7 @@ TEST_CASE("a single DeckPositionClocks::setRole call reaches deck B specifically
     REQUIRE(stateManager.getState(DeckId::B).positionSeconds == Catch::Approx(55.5));
 }
 
-TEST_CASE("constructing a DeckPositionClocks does not itself change either clock's role",
-          "[state][DeckPositionClocks]")
+TEST_CASE("constructing a DeckPositionClocks does not itself change either clock's role", "[state][DeckPositionClocks]")
 {
     // The wrapper only forwards on an explicit setRole call; it must not claim
     // control (or otherwise touch role_) as a side effect of construction.

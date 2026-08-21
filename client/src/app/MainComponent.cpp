@@ -77,10 +77,9 @@ MainComponent::MainComponent()
     : repository_(tracksRootDir()), engineAdapterA_(stateManager_, DeckId::A, engineA_, repository_),
       engineAdapterB_(stateManager_, DeckId::B, engineB_, repository_),
       positionClock_(stateManager_, engineA_, DeckId::A), positionClockB_(stateManager_, engineB_, DeckId::B),
-      deckPositionClocks_(positionClock_, positionClockB_),
-      transport_(std::make_unique<WebSocketTransport>()), syncPublisher_(stateManager_, *transport_),
-      deckA_(stateManager_, DeckId::A, repository_,
-             [this] { return computeResumePositionSeconds(engineA_, DeckId::A); }),
+      deckPositionClocks_(positionClock_, positionClockB_), transport_(std::make_unique<WebSocketTransport>()),
+      syncPublisher_(stateManager_, *transport_), deckA_(stateManager_, DeckId::A, repository_, [this]
+                                                         { return computeResumePositionSeconds(engineA_, DeckId::A); }),
       deckB_(stateManager_, DeckId::B, repository_,
              [this] { return computeResumePositionSeconds(engineB_, DeckId::B); }),
       mixer_(crossfaderState_)

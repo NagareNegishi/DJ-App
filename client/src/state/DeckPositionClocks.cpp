@@ -3,8 +3,7 @@
 namespace djapp
 {
 
-DeckPositionClocks::DeckPositionClocks(PositionClock& clockA, PositionClock& clockB)
-    : clockA_(clockA), clockB_(clockB)
+DeckPositionClocks::DeckPositionClocks(PositionClock& clockA, PositionClock& clockB) : clockA_(clockA), clockB_(clockB)
 {
 }
 

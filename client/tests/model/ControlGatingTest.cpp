@@ -28,8 +28,7 @@ TEST_CASE("ControlGating: connected as the controller is always enabled", "[cont
     REQUIRE(djapp::controlsEnabledLocally(true, true, true));
 }
 
-TEST_CASE("ControlGating: connected, not controller, no one else controls is enabled",
-          "[controlgating]")
+TEST_CASE("ControlGating: connected, not controller, no one else controls is enabled", "[controlgating]")
 {
     REQUIRE(djapp::controlsEnabledLocally(true, false, false));
 }

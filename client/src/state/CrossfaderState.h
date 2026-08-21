@@ -21,7 +21,7 @@ class CrossfaderState
     using Listener = std::function<void(float position)>;
 
     void setPosition(float position); // clamps to [0,1]; notifies listeners only if
-                                       // the clamped value actually changed
+                                      // the clamped value actually changed
     float getPosition() const;        // default 0.5 (center)
 
     // Token starts at 0, increases monotonically, never reused.

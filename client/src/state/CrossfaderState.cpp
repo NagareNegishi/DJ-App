@@ -22,7 +22,7 @@ void CrossfaderState::setPosition(float position)
     // walk to stop rather than resuming and re-notifying listeners the
     // nested walk already covered.
     listeners_.notify([&](const Listener& listenerCopy) { listenerCopy(position_); },
-                       [&] { return position_ != targetPosition; });
+                      [&] { return position_ != targetPosition; });
 }
 
 float CrossfaderState::getPosition() const

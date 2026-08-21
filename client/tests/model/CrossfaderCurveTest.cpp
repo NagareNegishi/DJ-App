@@ -39,7 +39,7 @@ TEST_CASE("equal power property holds across the range of positions", "[Crossfad
 
 TEST_CASE("gainA never increases and gainB never decreases as position increases", "[CrossfaderCurve]")
 {
-    const float positions[] = { 0.0f, 0.2f, 0.4f, 0.6f, 0.8f, 1.0f };
+    const float positions[] = {0.0f, 0.2f, 0.4f, 0.6f, 0.8f, 1.0f};
     CrossfaderGains previous = equalPowerCrossfade(positions[0]);
 
     for (size_t i = 1; i < std::size(positions); ++i)

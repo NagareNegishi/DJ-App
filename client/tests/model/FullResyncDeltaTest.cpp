@@ -9,8 +9,7 @@
 
 #include "model/FullResyncDelta.h"
 
-TEST_CASE("FullResyncDelta: every field is present, carrying the source state's values",
-          "[fullresyncdelta]")
+TEST_CASE("FullResyncDelta: every field is present, carrying the source state's values", "[fullresyncdelta]")
 {
     djapp::PlaybackState state;
     state.trackId = "demo1";
@@ -42,8 +41,7 @@ TEST_CASE("FullResyncDelta: every field is present, carrying the source state's 
     REQUIRE((*delta.loop)->outSeconds == 6.0);
 }
 
-TEST_CASE("FullResyncDelta: no track loaded carries an explicit-null trackId and loop, not absent",
-          "[fullresyncdelta]")
+TEST_CASE("FullResyncDelta: no track loaded carries an explicit-null trackId and loop, not absent", "[fullresyncdelta]")
 {
     djapp::PlaybackState state; // defaults: empty trackId, no loop
 

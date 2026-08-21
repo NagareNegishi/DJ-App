@@ -42,10 +42,12 @@ TEST_CASE("a listener is notified exactly once when setPosition changes the valu
     int callCount = 0;
     float lastValue = -1.0f;
 
-    state.addListener([&](float position) {
-        ++callCount;
-        lastValue = position;
-    });
+    state.addListener(
+        [&](float position)
+        {
+            ++callCount;
+            lastValue = position;
+        });
 
     state.setPosition(0.3f);
 
@@ -74,14 +76,18 @@ TEST_CASE("multiple listeners all fire exactly once with the same new value", "[
     float firstValue = -1.0f;
     float secondValue = -1.0f;
 
-    state.addListener([&](float position) {
-        ++firstCallCount;
-        firstValue = position;
-    });
-    state.addListener([&](float position) {
-        ++secondCallCount;
-        secondValue = position;
-    });
+    state.addListener(
+        [&](float position)
+        {
+            ++firstCallCount;
+            firstValue = position;
+        });
+    state.addListener(
+        [&](float position)
+        {
+            ++secondCallCount;
+            secondValue = position;
+        });
 
     state.setPosition(0.7f);
 

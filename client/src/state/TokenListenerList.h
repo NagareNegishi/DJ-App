@@ -14,8 +14,7 @@
 namespace djapp
 {
 
-template <typename Listener>
-class TokenListenerList
+template <typename Listener> class TokenListenerList
 {
   public:
     // Token starts at 0, increases monotonically, never reused.
@@ -39,8 +38,7 @@ class TokenListenerList
     // without visiting the remaining listeners - this is what lets a caller
     // like CrossfaderState abandon an outer walk once a re-entrant nested
     // call has already superseded it and covered the rest itself.
-    template <typename Invoke, typename ShouldStop>
-    void notify(Invoke&& invoke, ShouldStop&& shouldStop)
+    template <typename Invoke, typename ShouldStop> void notify(Invoke&& invoke, ShouldStop&& shouldStop)
     {
         if (listeners_.empty())
             return;

@@ -687,8 +687,7 @@ TEST_CASE("EngineAdapter attachCrossfader pushes the effective gain for the cros
     CHECK(engine.lastGain == 2.0f); // 2.0 * gainA(0.0) == 2.0 * 1.0
 }
 
-TEST_CASE("EngineAdapter maps DeckId::B to the crossfader's gainB, not gainA",
-          "[engine][EngineAdapter][whitebox]")
+TEST_CASE("EngineAdapter maps DeckId::B to the crossfader's gainB, not gainA", "[engine][EngineAdapter][whitebox]")
 {
     StateManager manager;
     FakeAudioEngine engine;
