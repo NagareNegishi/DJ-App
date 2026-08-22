@@ -437,3 +437,39 @@ Each entry: date, what the plan said, what was done instead, why.
   verification step: the design doc's mandated allocation-interposing test (still outstanding,
   planned for the whitebox pass) must confirm zero allocations against `configure()`'s real
   pre-sizing, not against a `Linear::reserve()` call that turns out not to exist on this path.
+
+## 2026-08-22 - qm-dsp pinned to an exact commit SHA on `master` (M10, no tagged release)
+
+- **Plan said**: `docs/plan/10-beatsync-design.md` ("BeatDetector") and `docs/decisions.md`
+  Section 6.1 both anticipate this: qm-dsp ships no tagged release for its DSP core, so
+  integration pins an exact commit SHA on `c4dm/qm-dsp` `master` instead of a tag, a
+  documented deviation from `06-security.md`'s "pin everything, never a floating branch"
+  convention, accepted in advance at the M10 design gate.
+- **Actual**: pinned `client/CMakeLists.txt`'s `qmdsp` `FetchContent_Declare` to
+  `e34a3cc188332ed7c33cd9257ef164de5b587191` - `c4dm/qm-dsp`'s `master` HEAD at
+  implementation time (2026-08-22).
+- **Why**: recorded here per the design doc's own instruction to record the exact SHA
+  chosen, alongside the already-made decision in `docs/decisions.md` Section 6.1.
+
+## 2026-08-22 - qm-dsp-core needs `-Dkiss_fft_scalar=double`, not documented in any qm-dsp header
+
+- **Plan said**: `docs/plan/10-beatsync-design.md` describes qm-dsp's FFT path as needing
+  only qm-dsp's own FFT wrapper backed by the bundled `kissfft`, with no other build-flag
+  requirement called out.
+- **Actual**: `dsp/transforms/FFT.cpp` calls `kiss_fftr()`/`kiss_fftri()` with `double*`
+  buffers throughout, but kissfft's own `kiss_fft.h` defaults `kiss_fft_scalar` to `float`
+  unless a definition already exists before it's included - nothing in qm-dsp's own headers
+  or `#include` chain sets this; only its (unused, Makefile/MSVC-project) build files do,
+  confirmed by reading `build/general/Makefile.inc`'s `KISSFFT_CFLAGS :=
+  -Iext/kissfft -Iext/kissfft/tools -Dkiss_fft_scalar=double`. Without it,
+  `qm-dsp-core`'s `FFT.cpp` failed to compile (`no matching function for call to
+  'kiss_fftr'` - `const double*` vs. the header's `const float*` parameter).
+- **Change**: `client/CMakeLists.txt`'s `qm-dsp-core` target gets
+  `target_compile_definitions(qm-dsp-core PRIVATE kiss_fft_scalar=double)`, matching
+  qm-dsp's own (non-CMake) build exactly.
+- **Why**: not a design decision, a straightforward correctness fix - qm-dsp's FFT
+  wrapper simply requires this to compile as qm-dsp itself intends it to be built, and
+  the requirement is invisible from reading the headers alone since it's a build-file-only
+  convention. Recorded here since `10-beatsync-design.md`'s file-set description undersold
+  the dependency's real build requirements, per this doc's own instruction to confirm the
+  exact file set and flags against the real source rather than the design doc's summary.
