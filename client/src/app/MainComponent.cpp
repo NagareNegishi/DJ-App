@@ -89,6 +89,8 @@ MainComponent::MainComponent()
 {
     engineAdapterA_.attachCrossfader(crossfaderState_);
     engineAdapterB_.attachCrossfader(crossfaderState_);
+    engineAdapterA_.attachBeatDetector(beatDetector_);
+    engineAdapterB_.attachBeatDetector(beatDetector_);
 
     addAndMakeVisible(trackList_);
     trackList_.setTracks(repository_.listAvailableTracks());

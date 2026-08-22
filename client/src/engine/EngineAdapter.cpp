@@ -35,6 +35,13 @@ void EngineAdapter::attachCrossfader(CrossfaderState& crossfader)
     pushEffectiveGain(stateManager_.getState(deck_).gain);
 }
 
+void EngineAdapter::attachBeatDetector(BeatDetector& detector)
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+
+    beatDetector_ = &detector;
+}
+
 void EngineAdapter::pushEffectiveGain(float gain)
 {
     float multiplier = 1.0f;
@@ -59,6 +66,8 @@ void EngineAdapter::handleDelta(const StateDelta& applied, const PlaybackState& 
             juce::Logger::writeToLog("EngineAdapter: track cleared on deck " + toString(deck_) +
                                      "; unload not supported, ignoring");
             engine_.load(nullptr);
+            cachedBeatGrid_ = BeatGrid{};
+            lastAnalyzedBuffer_ = nullptr;
         }
         else
         {
@@ -69,9 +78,18 @@ void EngineAdapter::handleDelta(const StateDelta& applied, const PlaybackState& 
                 // Don't leave the previously loaded track audible at the new position -
                 // protocol requires clients missing this track to go silent.
                 engine_.load(nullptr);
+                cachedBeatGrid_ = BeatGrid{};
+                lastAnalyzedBuffer_ = nullptr;
             }
             else
+            {
                 engine_.load(buffer);
+                if (beatDetector_ != nullptr && buffer.get() != lastAnalyzedBuffer_)
+                {
+                    cachedBeatGrid_ = beatDetector_->analyze(*buffer);
+                    lastAnalyzedBuffer_ = buffer.get();
+                }
+            }
         }
     }
 

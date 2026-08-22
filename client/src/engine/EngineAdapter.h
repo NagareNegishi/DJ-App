@@ -19,6 +19,7 @@
 // Timer callback, independent of any notification.
 
 #include "AudioEngine.h"
+#include "engine/BeatDetector.h"
 #include "model/Types.h"
 #include "repository/AudioRepository.h"
 #include "state/CrossfaderState.h"
@@ -46,6 +47,19 @@ class EngineAdapter : private juce::Timer
     // with the on-screen fader before the user ever touches it.
     void attachCrossfader(CrossfaderState& crossfader);
 
+    // Optional post-construction attachment (same reasoning as attachCrossfader:
+    // a constructor parameter would force every existing call site, including
+    // tests, to change). Once attached, a successful trackId load analyzes the
+    // resolved buffer and caches the result; currentBeatGrid() returns
+    // BeatGrid{} (bpm == 0, "detection failed") until this has been called and
+    // a track has successfully loaded since.
+    void attachBeatDetector(BeatDetector& detector);
+
+    // The current cached BeatGrid for whatever track is currently loaded on
+    // this deck (BeatGrid{} if no BeatDetector is attached, no track has
+    // loaded, or the last load failed/was cleared).
+    const BeatGrid& currentBeatGrid() const { return cachedBeatGrid_; }
+
   private:
     void handleDelta(const StateDelta& applied, const PlaybackState& newState, DeltaSource source);
     void timerCallback() override; // calls checkForSelfStop() at low frequency; see there
@@ -64,6 +78,17 @@ class EngineAdapter : private juce::Timer
 
     CrossfaderState* crossfader_ = nullptr;
     int crossfaderListenerToken_ = 0;
+
+    BeatDetector* beatDetector_ = nullptr;
+    BeatGrid cachedBeatGrid_;
+    // Identity-only: compared against the freshly resolved buffer pointer to
+    // skip re-analysis when reselecting an already-loaded track. Never
+    // dereferenced - AudioRepository (e.g. LocalFileRepository) caches decoded
+    // buffers and returns the same shared_ptr for a given track id, so pointer
+    // identity is a safe, cheap "have I already analyzed this exact buffer"
+    // check. May dangle once the buffer that produced it is released
+    // elsewhere; that's fine because it is only ever compared, never read.
+    const LoadedAudio* lastAnalyzedBuffer_ = nullptr;
 };
 
 } // namespace djapp
