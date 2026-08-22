@@ -473,3 +473,77 @@ Each entry: date, what the plan said, what was done instead, why.
   convention. Recorded here since `10-beatsync-design.md`'s file-set description undersold
   the dependency's real build requirements, per this doc's own instruction to confirm the
   exact file set and flags against the real source rather than the design doc's summary.
+
+## 2026-08-22 - `BufferPlaybackSource`'s pull stage resamples to device rate before the stretcher, not after
+
+- **Plan said**: `docs/plan/10-beatsync-design.md`'s `TimeStretcher` section describes the
+  pull stage as pulling `numInput` **source-rate** frames per block ("feed numInput
+  source-rate frames, request numOutput stretched frames").
+- **Actual**: the pull stage instead resamples source audio to the **device** sample rate
+  (via the same fractional linear interpolation the pre-M10 code already did, using
+  `sourceSampleRate / deviceSampleRate` as the increment) before any frame reaches the
+  stretcher; the stretcher's `numInput`/`numOutput` pair expresses the tempo ratio only
+  (`rate`), never the sample-rate ratio.
+- **Why**: a pitch-preserving time-stretcher only changes duration, not pitch. Folding
+  `sourceSampleRate/deviceSampleRate` into the stretcher's tempo ratio (the design doc's
+  literal reading) would have asked the stretcher to change *duration* by that ratio while
+  leaving pitch untouched - which is exactly wrong for sample-rate conversion, which must
+  change pitch and duration together. Any track whose file rate doesn't match the device
+  rate would play detuned under the literal design-doc reading. Found and corrected during
+  M10 Unit C's design-review pass (two rounds) before implementation; recorded here per
+  `CLAUDE.md`'s "protocol/plan changes get recorded" convention extended to this design-gate
+  doc's own text. `stretcher_->prepare()` is called once with the **device** sample rate
+  (from `BufferPlaybackSource::prepareToPlay`, not `load()`), which is truthful precisely
+  because of this correction - the stretcher never sees a frame that isn't already at its
+  configured rate.
+
+## 2026-08-22 - `BufferPlaybackSource` startup/seek latency: pre-roll deferred, position tracking is a reconstructed value
+
+- **Plan said**: `docs/plan/10-beatsync-design.md`'s "Startup latency" note recommends a
+  pre-roll at `load()` time to eliminate the near-silent gap after an STFT-based stretcher's
+  reset, but explicitly calls this a build-time detail rather than a blocking design
+  question, naming a brief startup gap as the accepted fallback either way.
+- **Actual**: M10 Unit C takes the fallback, not the recommendation - no pre-roll is
+  implemented. After every stretcher reset (a real seek or track load; small corrective
+  writes such as `PositionClock`'s periodic drift resync or the sync-button's phase nudge
+  are deliberately excluded, see below), the first `outputLatencyFrames()`-worth of output
+  is the stretcher's own warm-up response to real audio, not silence outright, but not
+  representative of steady-state output either.
+- **A second, related correction found during implementation, beyond the signed-off
+  design and beyond Unit C's own spec**: `positionSamples_` reports a latency-compensated
+  "audible" position (subtracting the not-yet-emitted warm-up backlog, converted through the
+  tempo and sample-rate ratios), so it doesn't run permanently ahead of what's actually
+  audible - this compensation was itself signed off as part of Unit C's design. What wasn't
+  caught until implementation: since `positionSamples_` is the *only* stored position field,
+  and the pull stage reads it back at the start of every block to know where to keep pulling
+  from, storing the already-compensated value there means the *next* block's pull would
+  start from an artificially-behind position, then subtract compensation from *that* again -
+  compounding every block into unbounded drift and, in practice, playback halting within a
+  handful of blocks once a real (nonzero-latency) stretcher is involved. The implementation
+  reconstructs the true pull-head position at the start of each block's pull stage by
+  algebraically adding back the previous block's compensation (using the same
+  `producedOutputFrames_`/`outputLatencyFrames_`/`rate`/sample-rate-ratio quantities already
+  tracked for the subtraction) rather than storing a second raw-position field. Confirmed a
+  no-op for `IdentityTimeStretcher` (`outputLatencyFrames_` is always 0 there) by the full
+  pre-existing `BufferPlaybackSourceTest.cpp`/`JuceAudioEngineTest.cpp` suites passing
+  unmodified, and confirmed correct for a real stretcher by new regression tests
+  (`BufferPlaybackSourceStretchTest.cpp`) checking position tracks real elapsed time at both
+  `rate=1.0` and a tempo-changed rate.
+- **Also**: the stretcher-reset trigger (raised by `load()` unconditionally, and by
+  `requestSeek()` only when the target differs from the current position by more than 200ms)
+  is deliberately a separate flag from `seekPending_`, which continues to gate only the
+  position write. Reusing `seekPending_` alone would have reset the stretcher - and cost its
+  full warm-up latency - on every routine small position write, including `PositionClock`'s
+  5-second drift resync during ordinary playback and the M10 sync-button's own phase-nudge
+  seek, i.e. an audible glitch roughly every 5 seconds on every playing deck, and one on
+  every press of the feature this milestone exists to ship. Found during design review before
+  implementation.
+- **Why**: all four points are recorded together because they're one coherent story about
+  the same root cause (an STFT-based stretcher's inherent processing latency) surfacing in
+  three different places (startup gap, position accuracy, reset frequency) that the original
+  design doc's "Startup latency" note didn't fully anticipate. The startup-gap fallback is a
+  deliberate, accepted scope decision (matching the design doc's own named alternative); the
+  other three are correctness fixes, not scope decisions - each one is required for the
+  system to work at all once a real stretcher is wired in, not a nice-to-have. Confirm the
+  startup gap is acceptable in practice via the M10 host checklist (not yet written);
+  revisit pre-roll only if it audibly bothers a real listener.
