@@ -13,12 +13,14 @@
 // currentDisplayPositionSeconds — since state/PositionClock doesn't exist
 // until M7.
 
+#include "model/BeatGrid.h"
 #include "model/Types.h"
 #include "repository/AudioRepository.h"
 #include "state/StateManager.h"
 #include <functional>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <optional>
+#include <utility>
 
 namespace djapp
 {
@@ -27,7 +29,8 @@ class DeckComponent : public juce::Component, private juce::Timer
 {
   public:
     DeckComponent(StateManager& stateManager, DeckId deck, AudioRepository& repository,
-                  std::function<double()> resumePositionProvider);
+                  std::function<double()> resumePositionProvider, std::function<BeatGrid()> beatGridProvider,
+                  std::function<std::pair<BeatGrid, double>()> otherDeckSyncInfoProvider);
     ~DeckComponent() override;
 
     void setControlsEnabled(bool enabled); // role-based gate — combines with the existing
@@ -46,6 +49,7 @@ class DeckComponent : public juce::Component, private juce::Timer
     void onLoopOutClicked();
     void onLoopClearClicked();
     void onRepeatToggled();
+    void onSyncClicked();
     void resetPendingLoopIn();
     void cancelPendingLoopIn();
 
@@ -53,6 +57,8 @@ class DeckComponent : public juce::Component, private juce::Timer
     DeckId deck_;
     AudioRepository& repository_;
     std::function<double()> resumePositionProvider_;
+    std::function<BeatGrid()> beatGridProvider_;
+    std::function<std::pair<BeatGrid, double>()> otherDeckSyncInfoProvider_;
 
     int listenerToken_ = 0;
 
@@ -87,6 +93,8 @@ class DeckComponent : public juce::Component, private juce::Timer
     juce::Label timeLabel_;
     juce::Slider gainSlider_;
     juce::Slider rateSlider_;
+    juce::Slider pitchSlider_;
+    juce::TextButton syncButton_{"Sync"};
     juce::TextButton loopInButton_{"Loop In"};
     juce::TextButton loopOutButton_{"Loop Out"};
     juce::TextButton loopClearButton_{"Clear Loop"};

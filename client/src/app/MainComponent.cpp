@@ -81,10 +81,21 @@ MainComponent::MainComponent()
       engineAdapterB_(stateManager_, DeckId::B, engineB_, repository_),
       positionClock_(stateManager_, engineA_, DeckId::A), positionClockB_(stateManager_, engineB_, DeckId::B),
       deckPositionClocks_(positionClock_, positionClockB_), transport_(std::make_unique<WebSocketTransport>()),
-      syncPublisher_(stateManager_, *transport_), deckA_(stateManager_, DeckId::A, repository_, [this]
-                                                         { return computeResumePositionSeconds(engineA_, DeckId::A); }),
-      deckB_(stateManager_, DeckId::B, repository_,
-             [this] { return computeResumePositionSeconds(engineB_, DeckId::B); }),
+      syncPublisher_(stateManager_, *transport_),
+      deckA_(
+          stateManager_, DeckId::A, repository_,
+          [this] { return computeResumePositionSeconds(engineA_, DeckId::A); },
+          [this] { return engineAdapterA_.currentBeatGrid(); },
+          [this] {
+              return std::make_pair(engineAdapterB_.currentBeatGrid(), computeResumePositionSeconds(engineB_, DeckId::B));
+          }),
+      deckB_(
+          stateManager_, DeckId::B, repository_,
+          [this] { return computeResumePositionSeconds(engineB_, DeckId::B); },
+          [this] { return engineAdapterB_.currentBeatGrid(); },
+          [this] {
+              return std::make_pair(engineAdapterA_.currentBeatGrid(), computeResumePositionSeconds(engineA_, DeckId::A));
+          }),
       mixer_(crossfaderState_)
 {
     engineAdapterA_.attachCrossfader(crossfaderState_);
