@@ -408,3 +408,32 @@ Each entry: date, what the plan said, what was done instead, why.
 - **Why**: confirmed with the user, matching the same `ui/`-is-host-checklist-only precedent as
   the M7 claim-control and M9 loop-clamp deviations above. M9 Step 12 already exercises this
   path and will catch a regression.
+
+## 2026-08-22 — Signalsmith Stretch v1.1.0 does not depend on Signalsmith Linear
+
+- **Plan said**: `docs/plan/10-beatsync-design.md`'s RT-safety section (and
+  `docs/decisions.md` §6.1) describe `SignalsmithTimeStretcher`'s allocation-free `process()`
+  as resting on Signalsmith Linear's documented `reserve()` pre-sizing API, called once from
+  `prepare()` — with `signalsmith-linear` pinned to tag `0.6.0` specifically so this call has
+  something real to target.
+- **Actual**: at the pinned `signalsmith-stretch` commit (`44c8f865af9da8c29cc4a70a2d5a3ec83639c711`,
+  tag `v1.1.0`), `signalsmith-stretch.h` does not include or otherwise depend on Signalsmith
+  Linear at all. It bundles its own separate, self-contained `dsp/*.h` headers (an older,
+  distinct "signalsmith-dsp" library) and achieves the same allocation-free-after-`prepare()`
+  goal through its own internal `configure()` (invoked by `presetDefault()`), which does its
+  own `std::vector::reserve()`/`resize()` up front — not through any `Linear::reserve()` call.
+  There is no `LinearImplBase`/`LinearImpl` ambiguity to resolve either, since the type is
+  simply never used on this call path.
+- **Change**: `SignalsmithTimeStretcher` is implemented against the real vendored header —
+  no `signalsmith-linear` API call anywhere in it. The `signalsmith_linear` `FetchContent`
+  block stays in `client/CMakeLists.txt` exactly as specced (fetched, pinned to `0.6.0`,
+  include dir wired up) even though nothing currently includes its headers, since the M10
+  design doc's future-facing rationale for pinning it explicitly and separately (its own
+  transitively-fetched default is much older) is still sound if a later unit ever needs it
+  directly — removing an already-reviewed pin isn't this unit's call to make unilaterally.
+- **Why**: the *goal* the design doc cared about — allocation-free `process()`/
+  `setPitchSemitones()` once `prepare()` has run — still holds, just via a different,
+  already-built-in mechanism than the one described. This does not weaken the required
+  verification step: the design doc's mandated allocation-interposing test (still outstanding,
+  planned for the whitebox pass) must confirm zero allocations against `configure()`'s real
+  pre-sizing, not against a `Linear::reserve()` call that turns out not to exist on this path.
