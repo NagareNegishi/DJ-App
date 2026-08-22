@@ -29,7 +29,10 @@ SignalsmithTimeStretcher::~SignalsmithTimeStretcher() = default;
 void SignalsmithTimeStretcher::prepare(int numChannels, double sampleRate)
 {
     impl_->stretch.presetDefault(numChannels, static_cast<float>(sampleRate));
-    outputLatencyFrames_ = impl_->stretch.outputLatency();
+    // Without a priming seek() call, the delay before the first genuine output
+    // sample is the combined input + output latency (see the vendored
+    // library's README, "Latency" section), not outputLatency() alone.
+    outputLatencyFrames_ = impl_->stretch.inputLatency() + impl_->stretch.outputLatency();
 }
 
 void SignalsmithTimeStretcher::reset()
