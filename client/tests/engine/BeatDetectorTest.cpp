@@ -73,7 +73,13 @@ TEST_CASE("QmDspBeatDetector recovers BPM and first-beat position from a mono 12
     constexpr double sampleRate = 44100.0;
     constexpr double trueBpm = 120.0;
     constexpr double trueFirstBeatSeconds = 0.3;
-    constexpr int numBeats = 12;
+    // qm-dsp's TempoTrackV2 needs at least ~641 detection-function frames
+    // (winlen=512, step=128 in its own beat-period loop) to produce more than
+    // one rcfmat column; below that, viterbi_decode bails out early and
+    // calculateBeats degenerates to a single beat, which this class then
+    // reports as a failed detection. 12 beats (6.3s) fell just short of that;
+    // 18 beats (9.3s) clears it with a comfortable margin.
+    constexpr int numBeats = 18;
 
     djapp::LoadedAudio audio = makeClickTrack(sampleRate, trueBpm, trueFirstBeatSeconds, numBeats, /*numChannels*/ 1);
 
@@ -94,7 +100,8 @@ TEST_CASE("QmDspBeatDetector recovers BPM from a stereo 120 BPM click track (mon
     constexpr double sampleRate = 44100.0;
     constexpr double trueBpm = 120.0;
     constexpr double trueFirstBeatSeconds = 0.3;
-    constexpr int numBeats = 12;
+    // Same qm-dsp minimum-length requirement as the mono 120 BPM case above.
+    constexpr int numBeats = 18;
 
     djapp::LoadedAudio audio = makeClickTrack(sampleRate, trueBpm, trueFirstBeatSeconds, numBeats, /*numChannels*/ 2);
 
