@@ -46,6 +46,8 @@ add_library(dj-app-core STATIC
     src/engine/BufferPlaybackSource.cpp
     src/engine/JuceAudioEngine.cpp
     src/engine/EngineAdapter.cpp
+    src/engine/IdentityTimeStretcher.cpp
+    src/engine/SignalsmithTimeStretcher.cpp
     src/state/StateManager.cpp
     src/state/CrossfaderState.cpp
     src/state/PositionClock.cpp
@@ -93,6 +95,39 @@ FetchContent_Declare(
     GIT_TAG 2efe037c9cc96fd536774f17bdb5215161ee5087
 )
 FetchContent_MakeAvailable(ixwebsocket)
+
+# Signalsmith Stretch (MIT) + its dependency Signalsmith Linear (MIT): the real
+# time/pitch stretch engine behind SignalsmithTimeStretcher (10-beatsync-design.md).
+# Header-only, so FetchContent + an include dir is all that's needed - no
+# add_subdirectory, no library target to link. Pinned by commit hash on each repo's
+# own tag (06-security.md Supply-chain drift), same pattern as IXWebSocket above.
+FetchContent_Declare(
+    signalsmith_stretch
+    GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-stretch.git
+    GIT_TAG 44c8f865af9da8c29cc4a70a2d5a3ec83639c711 # v1.1.0
+)
+FetchContent_MakeAvailable(signalsmith_stretch)
+
+# Pinned explicitly and separately: signalsmith-stretch's own CMakeLists.txt
+# would otherwise transitively fetch the older 0.3.1.
+FetchContent_Declare(
+    signalsmith_linear
+    GIT_REPOSITORY https://github.com/Signalsmith-Audio/linear.git
+    GIT_TAG 8be69c57b7064822076c2cfc55a522e5f5867cc1 # v0.6.0
+)
+FetchContent_MakeAvailable(signalsmith_linear)
+
+# PRIVATE, not PUBLIC: SignalsmithTimeStretcher.cpp is the only translation unit
+# that may include a Signalsmith header (it's a pimpl, see SignalsmithTimeStretcher.h) -
+# same vendored-header containment as IXWebSocket via WebSocketTransport's pimpl.
+# SYSTEM: these are vendored headers compiled under our own strict warning flags
+# (juce_recommended_warning_flags) since they're #included directly rather than
+# built as a separate target (unlike IXWebSocket above) - SYSTEM keeps their own
+# internal warnings out of our build output without touching vendored source.
+target_include_directories(dj-app-core SYSTEM PRIVATE
+    ${signalsmith_stretch_SOURCE_DIR}
+    ${signalsmith_linear_SOURCE_DIR}/include
+)
 
 # Define the GUI app target.
 # juce_add_gui_app wires up a normal CMake executable target plus JUCE-specific
