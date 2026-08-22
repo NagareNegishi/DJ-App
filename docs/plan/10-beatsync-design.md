@@ -55,13 +55,17 @@ What's *not* independently verified: whether `reserve()`'s no-growth guarantee h
 
 **Required implementation-time task, not optional polish:** before this ships, add a test (allocation-interposing allocator, or an ASan/valgrind-style hook around `process()`) confirming zero allocations after `prepare()`/`reserve()` have run, at the app's actual block sizes. If that test fails, fall back to Option B (worker-thread + lock-free ring buffer ahead of the playhead) rather than shipping an unverified violation of the no-allocation rule. Record the outcome (pass, or the fallback taken) in `docs/decisions.md` under M10 either way.
 
+### Test impact
+
+The existing offline-render suite (`05-testing.md`: "rate 2.0 consumes the buffer in half the blocks") currently pins the *naive* resample behavior — once `TimeStretcher` lands, rate 2.0 no longer means "consume twice as fast with pitch shifted," it means "twice as fast, pitch preserved unless `pitchOffsetSemitones` says otherwise." That test needs updating to assert against `IdentityTimeStretcher` (preserves today's exact behavior, so existing assertions stay valid there) plus new tests against the real stretcher's contract (tempo changes speed only, pitch changes pitch only, independently). Belongs in the implementation milestone's task list, not this doc — noted here so it isn't lost.
+
 ## `BeatDetector`
 
 ```cpp
 // engine/BeatDetector.h
 struct BeatGrid
 {
-    double bpm = 0;              // 0 = detection failed / silence / too short
+    double bpm = 0;              // 0 = detection failed / silence / too short; derived, not a library output (see below)
     double firstBeatSeconds = 0; // position of the first detected beat, seconds from track start
 };
 
@@ -73,30 +77,51 @@ class BeatDetector
 };
 ```
 
+### Chosen implementation: `QmDspBeatDetector`, wrapping qm-dsp
+
+Backed by Queen Mary University of London's `qm-dsp` (`github.com/c4dm/qm-dsp`), verified against its actual source — the same real DJ-software precedent Mixxx uses for this exact job (Mixxx's `AnalyzerQueenMaryBeats` calls the identical class pair below), confirmed by reading Mixxx's analyzer source directly, not by assumption.
+
+Two qm-dsp classes, not one: `DetectionFunction` (`dsp/onsets/DetectionFunction.h`) is fed one analysis window at a time — `analyze()` loops it across the whole decoded buffer, accumulating one detection-function value per window into a vector, the same "loop windows, accumulate a vector" shape as any windowed offline analysis. Once the whole track's detection function is built, a single batch call to `TempoTrackV2::calculateBeatPeriod(...)` then `calculateBeats(...)` (`dsp/tempotracking/TempoTrackV2.h`) turns that vector into an array of beat-frame indices in one shot.
+
+That array is the real output — **not a single BPM value**. qm-dsp's beat tracker returns where every beat lands, which is a better fit for our needs than a bare scalar: `firstBeatSeconds` is directly `beats[0]` converted from frame index to seconds, and `bpm` is derived ourselves from the beat grid — `60 / median(inter-beat-interval in seconds)` — which is also more robust than a single global autocorrelation peak, since it comes from the actual detected grid rather than one estimate. This derivation is our own code, a few lines, not a qm-dsp API call.
+
+Dependency footprint for exactly this path is minimal and self-contained, confirmed by reading the actual includes and build flags: `DetectionFunction`/`TempoTrackV2` need only qm-dsp's own FFT wrapper (backed by the bundled `kissfft`, BSD-3) — no FFTW, no Vamp SDK, no Boost (Boost is qm-dsp's test-only dependency). The exact minimal `.cpp` file set (expected: `DetectionFunction.cpp`, `TempoTrackV2.cpp`, the FFT/PhaseVocoder wrapper, and the bundled `kissfft` sources) needs confirming against the real `#include` chain at implementation time — not asserted as final here, since qm-dsp ships no CMake target of its own to consult (Makefile/MSVC-project only; we hand-write a small CMake target, the same thing Mixxx itself does).
+
+**Pin and license, to be recorded in `docs/decisions.md` alongside this design:**
+- qm-dsp has no tagged release for the DSP core (only two old tags belonging to a sibling Vamp-plugin project). Pin an exact commit SHA on `c4dm/qm-dsp` `master` (select the specific SHA at implementation time; document it as a deviation from the project's "pin to a tag" convention, same shape as any other untagged-upstream dependency) — this is a small, academically mature, slow-moving DSP library, not an actively-churning platform, so a SHA pin here is a materially safer bet than the same deviation would have been for Essentia.
+- License is GPL-2.0-or-later (confirmed via qm-dsp's own `COPYING`), with a few internal files separately permissive (bundled `kissfft` BSD-3, one allocator header MIT-style) that don't weaken the governing GPL. This is the `CLAUDE.md`-mandated "GPL beyond JUCE needs a recorded decision" case — the decision is: proceed, on the strength of the Mixxx production precedent and the lean, self-contained dependency footprint for the specific classes used.
+
+**Correction to the plan's own stated assumption**, found during this research and worth recording: `docs/stack.md` and `07-milestones.md` both describe aubio as "the de facto open-source choice, used by Mixxx." That's stale — Mixxx does not use aubio; it uses qm-dsp (primary) and SoundTouch's `BPMDetect` (legacy fallback, BPM-only, no beat-phase output). aubio itself has had no tagged release since 2019 and is waf-built (real integration friction); it was dropped from consideration on that basis.
+
+### Documented future swap: hand-rolled autocorrelation detector
+
+`BeatDetector` is an interface specifically so this doesn't need to be the permanent answer. If the GPL dependency or the untagged-commit pin ever becomes a real maintenance cost, the intended replacement is a hand-rolled autocorrelation-based detector — same algorithm family qm-dsp itself and SoundTouch's `BPMDetect` both use (onset-strength envelope → autocorrelation for tempo → peak-picking for phase), a well-established, non-research-grade technique (see librosa's documented `beat_track` pipeline, citing Ellis 2007). Swapping the concrete implementation behind `BeatDetector` is a contained change — nothing else in the codebase touches which implementation is wired in, the same pattern already used for `IdentityTimeStretcher` vs `SignalsmithTimeStretcher`.
+
+### Threading and caching
+
 Runs once per track load, alongside `AudioRepository::getAudioBuffer` — which, despite the aspirational "(async)" comment in `AudioRepository.h`, is currently synchronous on the message thread (blocking decode). M10 keeps that same posture for beat analysis rather than introducing new async infrastructure: synchronous, on load, accepted latency. This is a "decide by effort" call in the M8/M9 style — flagging it rather than silently picking it, since a slow analysis on a long track would be a visible load-time stall. If the host checklist finds it's actually a problem, moving it off the message thread is a contained follow-up, not a redesign (same shape as the repository's own noted async gap).
 
 `TrackMetadata::bpm` (manifest-declared, currently unused beyond storage) stays purely informational/display — the sync button always uses `BeatDetector`'s live analysis of the loaded buffer, not the manifest value, so there's no reconciliation logic needed between the two possibly-disagreeing numbers.
 
 Result is cached per loaded buffer (deck-keyed, next to where `EngineAdapter` already resolves `trackId` → buffer) so reselecting an already-loaded track doesn't re-analyze.
 
+### Test impact
+
+Unit tests should feed synthetic click-track buffers (regular impulses at a known BPM, same "small synthetic buffers" testing style `05-testing.md` already uses for `BufferPlaybackSource`) through the real `QmDspBeatDetector` and assert the recovered BPM and beat spacing land within tolerance — a meaningful correctness test, not just a build check. A trivial `NullBeatDetector` (always returns `BeatGrid{}`) covers tests that exercise the sync-button/`EngineAdapter` wiring without needing real detection.
+
 ## Library choices
 
 Per `docs/stack.md`'s decision triggers, both fire now that beat alignment work begins.
 
-**Time-stretch: Signalsmith Stretch — overrides `docs/stack.md`'s SoundTouch default.** `docs/stack.md` named SoundTouch as the placeholder default back when this was a future concern; this design gate is exactly where that gets revisited, and it doesn't hold up against the alternative surfaced here. Signalsmith Stretch (MIT) and its one dependency Signalsmith Linear (MIT) are both fully permissive — no LGPL dynamic-link obligation to manage, no `CLAUDE.md` recorded-decision overhead at all — and header-only, so integration is plain `FetchContent` with no build-system risk (contrast the waf/CMake friction flagged for aubio below). On top of the license and integration wins, it's the better dependency on quality/reliability grounds too: see the OpenMPT/KVR evidence in the RT-safety section above. This substitution should be recorded in `docs/decisions.md` under M10 as a design-gate override of the stack doc's original default.
+**Time-stretch: Signalsmith Stretch — overrides `docs/stack.md`'s SoundTouch default.** `docs/stack.md` named SoundTouch as the placeholder default back when this was a future concern; this design gate is exactly where that gets revisited, and it doesn't hold up against the alternative surfaced here. Signalsmith Stretch (MIT) and its one dependency Signalsmith Linear (MIT) are both fully permissive — no LGPL dynamic-link obligation to manage, no `CLAUDE.md` recorded-decision overhead at all — and header-only, so integration is plain `FetchContent` with no build-system risk (contrast the waf/CMake friction flagged for aubio in the `BeatDetector` section above). On top of the license and integration wins, it's the better dependency on quality/reliability grounds too: see the OpenMPT/KVR evidence in the RT-safety section above. This substitution should be recorded in `docs/decisions.md` under M10 as a design-gate override of the stack doc's original default.
 
 Pin both explicitly, matching this project's "pin everything, never a floating branch" convention (`06-security.md`, same pattern as IXWebSocket's tag pin):
 - `signalsmith-stretch` @ tag `1.1.0` (commit `44c8f865af9da8c29cc4a70a2d5a3ec83639c711`) — its own `main` has moved past this with no newer tag cut, so `1.1.0` is the latest stable point to pin to.
 - `signalsmith-linear` @ tag `0.6.0` (commit `8be69c57b7064822076c2cfc55a522e5f5867cc1`) — pinned **explicitly and separately** in our `CMakeLists.txt`, not left to whatever `signalsmith-stretch`'s own `CMakeLists.txt` transitively fetches (its default is the much older `0.3.1`).
 
-**Beat detection: still needs your decision — unchanged by this update.** The milestone's stated default is aubio, but it's GPL — `CLAUDE.md`'s rule ("anything GPL beyond JUCE needs a recorded decision first") and `06-security.md` both require this recorded before integrating, not assumed. Two real options:
+**Beat detection: qm-dsp — overrides `docs/stack.md`'s aubio default.** Full rationale, dependency/pin details, and the documented future swap are in the `BeatDetector` section above; summary here for parallel structure with the time-stretch pin above. `docs/stack.md` and `07-milestones.md` named aubio as the default, describing it as "used by Mixxx" — verified stale (Mixxx uses qm-dsp, not aubio; see above), and aubio is separately disqualified by having no tagged release since 2019 and a `waf` build.
 
-| Option | License fit | Integration cost | Accuracy |
-|---|---|---|---|
-| **aubio** | GPLv3. Combining with this project's AGPL-3.0 client is legally sound (GPLv3 §13 grants explicit permission for combination with AGPL-licensed work; the combined work as distributed must be treated as AGPL) — but it *is* a copyleft dependency this project didn't have before, and needs the recorded decision either way. | Real friction: aubio's native build is `waf`, not CMake — FetchContent won't "just work" like SoundTouch/IXWebSocket did; likely needs a hand-written CMake wrapper around its sources or a vendored prebuilt. | Purpose-built beat/onset detector, better accuracy, used by Mixxx |
-| **Hand-rolled minimal detector** (e.g. autocorrelation over an onset-strength envelope) | No new dependency, no license question at all | Some implementation effort, but it's ours — no foreign build system to integrate | Lower accuracy than aubio, but for "match BPM + nudge to nearest beat" between two tracks a DJ already chose as compatible, autocorrelation BPM estimation is a well-understood, tractable amount of DSP |
-
-I lean toward the hand-rolled detector: it sidesteps both the GPL recorded-decision overhead and the waf/CMake integration risk in one move, and the accuracy bar for "nudge phase to the nearest beat" is lower than full beat-tracking software needs. But this is exactly the kind of call the milestone text flags as needing your sign-off, not mine to make silently.
+Pin: `c4dm/qm-dsp` at an exact commit SHA on `master` (no tagged release exists for the DSP core — select the specific SHA at implementation time, recorded as a documented deviation from the tag-pinning convention, same as noted above). License: GPL-2.0-or-later, recorded in `docs/decisions.md` §6.1 per `CLAUDE.md`'s GPL rule.
 
 ## Sync-button semantics
 
@@ -114,12 +139,10 @@ Both steps produce one `StateDelta` (deck X, `playbackRate` + `positionSeconds` 
 
 Wired straight to `TimeStretcher::setPitchSemitones`, independent of tempo. M10 also exposes it in the UI for the first time (`02-protocol.md`: "UI does not expose it before then") — a slider on `DeckComponent` alongside gain/rate, same enablement gating (`deckControlEnabled`), same clamp range already in `Ranges.h` (`[-12, 12]`). No protocol change; the field and its range have existed since M1.
 
-## Test impact (flagging, not deciding)
-
-The existing offline-render suite (`05-testing.md`: "rate 2.0 consumes the buffer in half the blocks") currently pins the *naive* resample behavior — once `TimeStretcher` lands, rate 2.0 no longer means "consume twice as fast with pitch shifted," it means "twice as fast, pitch preserved unless `pitchOffsetSemitones` says otherwise." That test needs updating to assert against `IdentityTimeStretcher` (preserves today's exact behavior, so existing assertions stay valid there) plus new tests against the real stretcher's contract (tempo changes speed only, pitch changes pitch only, independently). Belongs in the implementation milestone's task list, not this doc — noted here so it isn't lost.
-
 ## Open decisions requiring sign-off
 
 1. ~~Real-time-safety posture for `TimeStretcher::process()`~~ — **resolved**: Signalsmith Stretch, Option A (call directly from the audio thread, backed by `Linear::reserve()`'s documented pre-sizing contract plus OpenMPT/KVR production evidence), gated on a required implementation-time allocation test with Option B as the named fallback if that test fails.
-2. **Beat detection library — still open.** aubio (GPL, recorded decision + waf/CMake integration risk) vs. a hand-rolled autocorrelation-based detector (no new dependency, lower accuracy). Leaning hand-rolled; this is the one call left before the design is fully signed off.
-3. Everything else above (no protocol bump, sync-button one-shot/per-deck semantics, synchronous on-load analysis, Signalsmith Stretch + Linear pinned versions, the STFT-latency pre-roll note) is a design call already made in this doc — flag here if any of those should be reopened instead of accepted as written.
+2. ~~Beat detection library~~ — **resolved**: qm-dsp (`QmDspBeatDetector`) now — same classes Mixxx uses, verified minimal dependency footprint, GPL-2.0-or-later accepted and recorded — with a hand-rolled autocorrelation detector documented as the intended future swap behind the same `BeatDetector` interface if the GPL dependency or untagged-commit pin ever becomes a real cost.
+3. Everything else above (no protocol bump, sync-button one-shot/per-deck semantics, synchronous on-load analysis, Signalsmith Stretch + Linear pinned versions, qm-dsp pin/license, the STFT-latency pre-roll note) is a design call already made in this doc.
+
+**All open decisions resolved — this design is ready for sign-off.**
