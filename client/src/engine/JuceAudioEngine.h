@@ -18,7 +18,12 @@ namespace djapp
 class JuceAudioEngine : public AudioEngine
 {
   public:
+    // TEST-ONLY: constructs with IdentityTimeStretcher (no real tempo/pitch
+    // change - see BufferPlaybackSource's own default). Production playback
+    // must use the constructor below; nothing enforces that at the type level,
+    // so any new call site needs a deliberate choice, not this default.
     JuceAudioEngine();
+    explicit JuceAudioEngine(std::unique_ptr<TimeStretcher> stretcher);
     ~JuceAudioEngine() override = default;
 
     void load(std::shared_ptr<const LoadedAudio> audio) override;
@@ -27,6 +32,7 @@ class JuceAudioEngine : public AudioEngine
     void seek(double seconds) override;
     void setGain(float linearGain) override;
     void setPlaybackRate(float rate) override;
+    void setPitchOffsetSemitones(float semitones) override;
     void setLoop(std::optional<LoopPoints> loop) override;
     void setRepeat(bool repeat) override;
     double getCurrentPosition() const override;

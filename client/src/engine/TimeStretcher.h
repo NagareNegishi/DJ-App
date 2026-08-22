@@ -9,11 +9,20 @@ class TimeStretcher
   public:
     virtual ~TimeStretcher() = default;
 
-    // Message-thread-only; may allocate/reserve. sampleRate is this
-    // stretcher's one input/output sample rate (see spec: callers own any
-    // source/device rate conversion, this class never sees two rates).
+    // May allocate/reserve. Must be called from a context provably not
+    // concurrent with any in-flight process() call - the owning render driver
+    // decides where that point is (never assume it's literally "the message
+    // thread" - only that it's serialized against process()). sampleRate is
+    // this stretcher's one input/output sample rate; the caller must ensure
+    // every process() call's frames are already at this rate before reaching
+    // this class - it never performs sample-rate conversion itself.
     virtual void prepare(int numChannels, double sampleRate) = 0;
-    // Message-thread-only; flushes internal state (e.g. on seek).
+    // Audio-thread-safe once prepare() has run (no locks, no allocation) - same
+    // safety class as process()/setPitchSemitones(). The caller must still never
+    // call this concurrently with an in-flight process() call from a DIFFERENT
+    // thread; the safe pattern is to have whichever single thread drives
+    // rendering call reset() itself (gated by its own pending-state check)
+    // rather than have a separate thread call it directly.
     virtual void reset() = 0;
 
     // Audio-thread-safe once prepare() has run (no locks, no allocation).

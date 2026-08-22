@@ -1,5 +1,6 @@
 #include "MainComponent.h"
 
+#include "engine/SignalsmithTimeStretcher.h"
 #include "model/ControlGating.h"
 #include "model/FullResyncDelta.h"
 #include "model/Ranges.h"
@@ -74,7 +75,9 @@ void addOrUpdatePeer(std::vector<ConnectPanel::PeerInfo>& peers, ConnectPanel::P
 } // namespace
 
 MainComponent::MainComponent()
-    : repository_(tracksRootDir()), engineAdapterA_(stateManager_, DeckId::A, engineA_, repository_),
+    : repository_(tracksRootDir()), engineA_(std::make_unique<SignalsmithTimeStretcher>()),
+      engineB_(std::make_unique<SignalsmithTimeStretcher>()),
+      engineAdapterA_(stateManager_, DeckId::A, engineA_, repository_),
       engineAdapterB_(stateManager_, DeckId::B, engineB_, repository_),
       positionClock_(stateManager_, engineA_, DeckId::A), positionClockB_(stateManager_, engineB_, DeckId::B),
       deckPositionClocks_(positionClock_, positionClockB_), transport_(std::make_unique<WebSocketTransport>()),

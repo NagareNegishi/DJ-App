@@ -22,6 +22,7 @@ class AudioEngine
     virtual void seek(double seconds) = 0;
     virtual void setGain(float linearGain) = 0;
     virtual void setPlaybackRate(float rate) = 0;
+    virtual void setPitchOffsetSemitones(float semitones) = 0; // [-12, 12], independent of playback rate
     // A loop with outSeconds <= inSeconds is accepted but never triggers a
     // wrap (silent no-op) — not clamped, rejected, or asserted.
     virtual void setLoop(std::optional<LoopPoints> loop) = 0;

@@ -84,6 +84,9 @@ void EngineAdapter::handleDelta(const StateDelta& applied, const PlaybackState& 
     if (applied.playbackRate.has_value())
         engine_.setPlaybackRate(*applied.playbackRate);
 
+    if (applied.pitchOffsetSemitones.has_value())
+        engine_.setPitchOffsetSemitones(*applied.pitchOffsetSemitones);
+
     if (applied.loop.has_value())
         engine_.setLoop(*applied.loop);
 

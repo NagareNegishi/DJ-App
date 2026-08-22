@@ -30,6 +30,7 @@ class FakeAudioEngine : public AudioEngine
     void seek(double) override {}
     void setGain(float) override {}
     void setPlaybackRate(float) override {}
+    void setPitchOffsetSemitones(float) override {}
     void setLoop(std::optional<LoopPoints>) override {}
     void setRepeat(bool) override {}
     bool isPlaying() const override { return false; }

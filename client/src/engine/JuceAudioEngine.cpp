@@ -6,6 +6,8 @@ namespace djapp
 
 JuceAudioEngine::JuceAudioEngine() = default;
 
+JuceAudioEngine::JuceAudioEngine(std::unique_ptr<TimeStretcher> stretcher) : playbackSource_(std::move(stretcher)) {}
+
 void JuceAudioEngine::load(std::shared_ptr<const LoadedAudio> audio)
 {
     JUCE_ASSERT_MESSAGE_THREAD
@@ -46,6 +48,13 @@ void JuceAudioEngine::setPlaybackRate(float rate)
     JUCE_ASSERT_MESSAGE_THREAD
 
     playbackSource_.setPlaybackRate(rate);
+}
+
+void JuceAudioEngine::setPitchOffsetSemitones(float semitones)
+{
+    JUCE_ASSERT_MESSAGE_THREAD
+
+    playbackSource_.setPitchOffsetSemitones(semitones);
 }
 
 void JuceAudioEngine::setLoop(std::optional<LoopPoints> loop)
