@@ -547,3 +547,27 @@ Each entry: date, what the plan said, what was done instead, why.
   system to work at all once a real stretcher is wired in, not a nice-to-have. Confirm the
   startup gap is acceptable in practice via the M10 host checklist (not yet written);
   revisit pre-roll only if it audibly bothers a real listener.
+
+## 2026-08-24 - the 200ms stretcher-reset threshold did not actually exclude the sync button's phase nudge
+
+- **Plan said**: the 2026-08-22 "`BufferPlaybackSource` startup/seek latency"
+  entry above claims the stretcher-reset threshold (200ms) "deliberately
+  excludes" `PositionClock`'s drift resync and the M10 sync button's phase
+  nudge from resetting the stretcher.
+- **Actual**: that claim was written before the sync button existed (M10 Unit
+  F landed after it) and turned out to be wrong once checked against the
+  sync button's real behavior: `computeBeatSync`'s phase nudge can be up to
+  half a beat interval, which at a low but realistic BPM (50-60) is up to
+  ~0.6s - above the 200ms threshold. So a sync-button press at a low BPM was
+  silently paying a full stretcher-reset warm-up glitch, the exact failure
+  mode the threshold was supposed to prevent.
+- **Fix**: raised the threshold from 200ms to 1.0s in
+  `BufferPlaybackSource::requestSeek`, comfortably clearing the ~0.6s worst
+  case with margin while staying far below any real user-initiated seek.
+- **Why**: recorded separately from the original entry (rather than edited in
+  place) to keep this file's history honest about what was believed at each
+  point in time; found during M10's post-implementation review layer
+  (`correctness-adviser`), not caught at design time because the sync
+  button's concrete phase-nudge magnitude wasn't yet known when the original
+  claim was written.
+

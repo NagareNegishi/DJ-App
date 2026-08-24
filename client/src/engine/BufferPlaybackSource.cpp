@@ -138,11 +138,14 @@ void BufferPlaybackSource::requestSeek(double seconds)
 
     // A small corrective write (the 5 s drift-correction resync PositionClock emits while
     // playing, or the positionSeconds StateManager injects on a local play()) must not reset
-    // the stretcher - only a real discontinuity should. 200ms is generously above any drift
-    // correction or sync-button phase nudge, comfortably below a real user-initiated seek.
+    // the stretcher - only a real discontinuity should. The threshold must also clear the sync
+    // button's own phase nudge (BeatSync.h), whose maximum magnitude is half a beat interval -
+    // at a low but realistic BPM (50-60), that's up to ~0.6s, above the old 200ms threshold (a
+    // bug: it was documented as excluding the sync nudge but didn't). 1.0s comfortably clears
+    // that worst case while staying far below any real user-initiated seek.
     // forceStretcherReset_ is deliberately its own flag, independent of seekPending_ below
     // (which continues to gate only the position write) - see class header / TimeStretcher.h.
-    if (std::abs(samples - positionSamples_.load(std::memory_order_relaxed)) > messageThreadSampleRate_ * 0.2)
+    if (std::abs(samples - positionSamples_.load(std::memory_order_relaxed)) > messageThreadSampleRate_ * 1.0)
         forceStretcherReset_.store(true, std::memory_order_relaxed);
 
     // Order matters: value first (relaxed), flag second (release) — see class header.
