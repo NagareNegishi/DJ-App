@@ -1,6 +1,6 @@
+#include "engine/TimeStretcher.h"
 #include "engine/IdentityTimeStretcher.h"
 #include "engine/SignalsmithTimeStretcher.h"
-#include "engine/TimeStretcher.h"
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -70,8 +70,8 @@ TEST_CASE("IdentityTimeStretcher numInput == numOutput reproduces the input exac
             in[i] = (float)(call * 100 + i); // distinct content each call, unrelated to any previous call
 
         float out[blockSize];
-        const float* inCh[1] = { in };
-        float* outCh[1] = { out };
+        const float* inCh[1] = {in};
+        float* outCh[1] = {out};
         stretcher.process(inCh, blockSize, outCh, blockSize);
 
         // step == 1.0 exactly (7/7), so readPos's fractional part stays
@@ -95,8 +95,8 @@ TEST_CASE("IdentityTimeStretcher matches the documented per-sample interpolation
     // At least a dozen calls, mixing upsampling, downsampling, and 1:1
     // ratios, so a wrong (e.g. block-local) implementation would show
     // growing disagreement with the oracle rather than passing by accident.
-    const std::vector<std::pair<int, int>> calls = { { 4, 4 }, { 6, 3 }, { 3, 6 }, { 5, 4 }, { 4, 5 }, { 7, 2 },
-                                                       { 2, 7 }, { 5, 5 }, { 9, 4 }, { 4, 9 }, { 6, 6 }, { 3, 4 } };
+    const std::vector<std::pair<int, int>> calls = {{4, 4}, {6, 3}, {3, 6}, {5, 4}, {4, 5}, {7, 2},
+                                                    {2, 7}, {5, 5}, {9, 4}, {4, 9}, {6, 6}, {3, 4}};
 
     int totalInput = 0;
     for (const auto& [numInput, numOutput] : calls)
@@ -113,8 +113,8 @@ TEST_CASE("IdentityTimeStretcher matches the documented per-sample interpolation
         const std::vector<float> expected = oracle.process(inSlice, numOutput);
 
         std::vector<float> actual((size_t)numOutput, -999.0f);
-        const float* inCh[1] = { inSlice.data() };
-        float* outCh[1] = { actual.data() };
+        const float* inCh[1] = {inSlice.data()};
+        float* outCh[1] = {actual.data()};
         stretcher.process(inCh, numInput, outCh, numOutput);
 
         for (int o = 0; o < numOutput; ++o)
@@ -131,10 +131,10 @@ TEST_CASE("IdentityTimeStretcher numInput != numOutput produces the documented l
     djapp::IdentityTimeStretcher stretcher;
     stretcher.prepare(1, 44100.0);
 
-    float in[2] = { 10.0f, 20.0f };
-    float out[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-    const float* inCh[1] = { in };
-    float* outCh[1] = { out };
+    float in[2] = {10.0f, 20.0f};
+    float out[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    const float* inCh[1] = {in};
+    float* outCh[1] = {out};
     stretcher.process(inCh, 2, outCh, 4);
 
     // step = numInput / numOutput = 0.5, readPos sequence 0, 0.5, 1.0, 1.5.
@@ -155,7 +155,7 @@ TEST_CASE("IdentityTimeStretcher setPitchSemitones is a no-op regardless of valu
 {
     constexpr int numInput = 6;
     constexpr int numOutput = 4;
-    float in[numInput] = { 0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f };
+    float in[numInput] = {0.0f, 1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
 
     auto runWithPitch = [&](float semitones)
     {
@@ -164,14 +164,14 @@ TEST_CASE("IdentityTimeStretcher setPitchSemitones is a no-op regardless of valu
         stretcher.setPitchSemitones(semitones);
 
         std::vector<float> out((size_t)numOutput, 0.0f);
-        const float* inCh[1] = { in };
-        float* outCh[1] = { out.data() };
+        const float* inCh[1] = {in};
+        float* outCh[1] = {out.data()};
         stretcher.process(inCh, numInput, outCh, numOutput);
         return out;
     };
 
     const std::vector<float> baseline = runWithPitch(0.0f);
-    for (float semis : { -12.0f, -5.5f, 3.3f, 12.0f })
+    for (float semis : {-12.0f, -5.5f, 3.3f, 12.0f})
     {
         const std::vector<float> out = runWithPitch(semis);
         for (int o = 0; o < numOutput; ++o)
@@ -188,10 +188,10 @@ TEST_CASE("IdentityTimeStretcher process() with numInput == 0 or numOutput == 0 
 
     SECTION("numInput == 0 leaves the output buffer untouched")
     {
-        const float dummyIn[1] = { 0.0f };
-        float sentinel[3] = { 111.0f, 111.0f, 111.0f };
-        const float* inCh[1] = { dummyIn };
-        float* outCh[1] = { sentinel };
+        const float dummyIn[1] = {0.0f};
+        float sentinel[3] = {111.0f, 111.0f, 111.0f};
+        const float* inCh[1] = {dummyIn};
+        float* outCh[1] = {sentinel};
 
         stretcher.process(inCh, 0, outCh, 3);
 
@@ -202,10 +202,10 @@ TEST_CASE("IdentityTimeStretcher process() with numInput == 0 or numOutput == 0 
 
     SECTION("numOutput == 0 leaves the output buffer untouched and does not crash")
     {
-        const float dummyIn[4] = { 1.0f, 2.0f, 3.0f, 4.0f };
-        float sentinel[1] = { 222.0f };
-        const float* inCh[1] = { dummyIn };
-        float* outCh[1] = { sentinel };
+        const float dummyIn[4] = {1.0f, 2.0f, 3.0f, 4.0f};
+        float sentinel[1] = {222.0f};
+        const float* inCh[1] = {dummyIn};
+        float* outCh[1] = {sentinel};
 
         stretcher.process(inCh, 4, outCh, 0);
 
@@ -233,8 +233,8 @@ TEST_CASE("IdentityTimeStretcher no-op calls (numInput == 0 or numOutput == 0) d
         const std::vector<float> expected = oracle.process(inSlice, numOutput);
 
         std::vector<float> actual((size_t)numOutput, -999.0f);
-        const float* inCh[1] = { inSlice.data() };
-        float* outCh[1] = { actual.data() };
+        const float* inCh[1] = {inSlice.data()};
+        float* outCh[1] = {actual.data()};
         stretcher.process(inCh, numInput, outCh, numOutput);
 
         for (int o = 0; o < numOutput; ++o)
@@ -247,10 +247,10 @@ TEST_CASE("IdentityTimeStretcher no-op calls (numInput == 0 or numOutput == 0) d
 
     // numInput == 0: defined no-op, must not perturb continuity for the calls around it.
     {
-        const float dummyIn[1] = { 0.0f };
-        float sentinel[3] = { 111.0f, 111.0f, 111.0f };
-        const float* inCh[1] = { dummyIn };
-        float* outCh[1] = { sentinel };
+        const float dummyIn[1] = {0.0f};
+        float sentinel[3] = {111.0f, 111.0f, 111.0f};
+        const float* inCh[1] = {dummyIn};
+        float* outCh[1] = {sentinel};
         stretcher.process(inCh, 0, outCh, 3);
         CHECK(sentinel[0] == 111.0f);
         CHECK(sentinel[1] == 111.0f);
@@ -261,10 +261,10 @@ TEST_CASE("IdentityTimeStretcher no-op calls (numInput == 0 or numOutput == 0) d
 
     // numOutput == 0: defined no-op, must not crash and must not perturb continuity.
     {
-        const float dummyIn[4] = { 0.0f, 0.0f, 0.0f, 0.0f };
-        float sentinel[1] = { 222.0f };
-        const float* inCh[1] = { dummyIn };
-        float* outCh[1] = { sentinel };
+        const float dummyIn[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        float sentinel[1] = {222.0f};
+        const float* inCh[1] = {dummyIn};
+        float* outCh[1] = {sentinel};
         stretcher.process(inCh, 4, outCh, 0);
         CHECK(sentinel[0] == 222.0f);
     }
@@ -287,10 +287,10 @@ TEST_CASE("IdentityTimeStretcher processes each channel independently for 1 and 
         djapp::IdentityTimeStretcher stretcher;
         stretcher.prepare(1, 44100.0);
 
-        float in[3] = { 1.0f, 2.0f, 3.0f };
+        float in[3] = {1.0f, 2.0f, 3.0f};
         float out[3];
-        const float* inCh[1] = { in };
-        float* outCh[1] = { out };
+        const float* inCh[1] = {in};
+        float* outCh[1] = {out};
         stretcher.process(inCh, 3, outCh, 3);
 
         for (int i = 0; i < 3; ++i)
@@ -302,12 +302,12 @@ TEST_CASE("IdentityTimeStretcher processes each channel independently for 1 and 
         djapp::IdentityTimeStretcher stretcher;
         stretcher.prepare(2, 44100.0);
 
-        float inL[3] = { 1.0f, 2.0f, 3.0f };
-        float inR[3] = { 10.0f, 20.0f, 30.0f };
+        float inL[3] = {1.0f, 2.0f, 3.0f};
+        float inR[3] = {10.0f, 20.0f, 30.0f};
         float outL[3];
         float outR[3];
-        const float* inCh[2] = { inL, inR };
-        float* outCh[2] = { outL, outR };
+        const float* inCh[2] = {inL, inR};
+        float* outCh[2] = {outL, outR};
         stretcher.process(inCh, 3, outCh, 3);
 
         for (int i = 0; i < 3; ++i)
@@ -325,20 +325,20 @@ TEST_CASE("IdentityTimeStretcher re-preparing with a different channel count and
     djapp::IdentityTimeStretcher stretcher;
     stretcher.prepare(1, 44100.0);
 
-    float in1[4] = { 1.0f, 2.0f, 3.0f, 4.0f };
+    float in1[4] = {1.0f, 2.0f, 3.0f, 4.0f};
     float out1[4];
-    const float* inCh1[1] = { in1 };
-    float* outCh1[1] = { out1 };
+    const float* inCh1[1] = {in1};
+    float* outCh1[1] = {out1};
     stretcher.process(inCh1, 4, outCh1, 4);
 
     stretcher.prepare(2, 48000.0); // simulated track change: different channel count and sample rate
 
-    float inL[5] = { 1.0f, 2.0f, 3.0f, 4.0f, 5.0f };
-    float inR[5] = { 5.0f, 4.0f, 3.0f, 2.0f, 1.0f };
+    float inL[5] = {1.0f, 2.0f, 3.0f, 4.0f, 5.0f};
+    float inR[5] = {5.0f, 4.0f, 3.0f, 2.0f, 1.0f};
     float outL[5];
     float outR[5];
-    const float* inCh2[2] = { inL, inR };
-    float* outCh2[2] = { outL, outR };
+    const float* inCh2[2] = {inL, inR};
+    float* outCh2[2] = {outL, outR};
     stretcher.process(inCh2, 5, outCh2, 5);
 
     for (int i = 0; i < 5; ++i)
@@ -380,8 +380,8 @@ TEST_CASE("SignalsmithTimeStretcher at rate 1.0 and pitch 0 approximately reprod
         }
 
         std::vector<float> out((size_t)blockSize, 0.0f);
-        const float* inCh[1] = { in.data() };
-        float* outCh[1] = { out.data() };
+        const float* inCh[1] = {in.data()};
+        float* outCh[1] = {out.data()};
         stretcher.process(inCh, blockSize, outCh, blockSize);
 
         for (int i = 0; i < blockSize; ++i)
@@ -448,8 +448,8 @@ TEST_CASE("SignalsmithTimeStretcher a nonzero pitch shift makes the output diver
         }
 
         std::vector<float> out((size_t)blockSize, 0.0f);
-        const float* inCh[1] = { in.data() };
-        float* outCh[1] = { out.data() };
+        const float* inCh[1] = {in.data()};
+        float* outCh[1] = {out.data()};
         stretcher.process(inCh, blockSize, outCh, blockSize);
 
         for (int i = 0; i < blockSize; ++i)
@@ -501,8 +501,8 @@ TEST_CASE("SignalsmithTimeStretcher reset() followed by fresh near-silent input 
             in[(size_t)i] = std::sin(2.0f * kPi * frequency * (float)(b * blockSize + i) / (float)sampleRate);
 
         std::vector<float> out((size_t)blockSize, 0.0f);
-        const float* inCh[1] = { in.data() };
-        float* outCh[1] = { out.data() };
+        const float* inCh[1] = {in.data()};
+        float* outCh[1] = {out.data()};
         stretcher.process(inCh, blockSize, outCh, blockSize);
     }
 
@@ -519,8 +519,8 @@ TEST_CASE("SignalsmithTimeStretcher reset() followed by fresh near-silent input 
         quietIn[(size_t)i] = 1.0e-4f * std::sin(2.0f * kPi * frequency * (float)i / (float)sampleRate);
 
     std::vector<float> quietOut((size_t)blockSize, 0.0f);
-    const float* inCh2[1] = { quietIn.data() };
-    float* outCh2[1] = { quietOut.data() };
+    const float* inCh2[1] = {quietIn.data()};
+    float* outCh2[1] = {quietOut.data()};
     stretcher.process(inCh2, blockSize, outCh2, blockSize);
 
     for (float v : quietOut)
@@ -549,8 +549,8 @@ TEST_CASE("SignalsmithTimeStretcher processes without crashing and produces fini
 
         std::vector<float> in((size_t)blockSize, 0.1f);
         std::vector<float> out((size_t)blockSize, 0.0f);
-        const float* inCh[1] = { in.data() };
-        float* outCh[1] = { out.data() };
+        const float* inCh[1] = {in.data()};
+        float* outCh[1] = {out.data()};
         stretcher.process(inCh, blockSize, outCh, blockSize);
 
         for (float v : out)
@@ -566,8 +566,8 @@ TEST_CASE("SignalsmithTimeStretcher processes without crashing and produces fini
         std::vector<float> inR((size_t)blockSize, -0.1f);
         std::vector<float> outL((size_t)blockSize, 0.0f);
         std::vector<float> outR((size_t)blockSize, 0.0f);
-        const float* inCh[2] = { inL.data(), inR.data() };
-        float* outCh[2] = { outL.data(), outR.data() };
+        const float* inCh[2] = {inL.data(), inR.data()};
+        float* outCh[2] = {outL.data(), outR.data()};
         stretcher.process(inCh, blockSize, outCh, blockSize);
 
         for (float v : outL)
@@ -588,8 +588,8 @@ TEST_CASE("SignalsmithTimeStretcher re-preparing with a different channel count 
 
     std::vector<float> in1((size_t)blockSize, 0.2f);
     std::vector<float> out1((size_t)blockSize, 0.0f);
-    const float* inCh1[1] = { in1.data() };
-    float* outCh1[1] = { out1.data() };
+    const float* inCh1[1] = {in1.data()};
+    float* outCh1[1] = {out1.data()};
     stretcher.process(inCh1, blockSize, outCh1, blockSize);
 
     stretcher.prepare(2, 48000.0); // simulated track change: different channel count and sample rate
@@ -598,8 +598,8 @@ TEST_CASE("SignalsmithTimeStretcher re-preparing with a different channel count 
     std::vector<float> inR((size_t)blockSize, -0.3f);
     std::vector<float> outL((size_t)blockSize, 0.0f);
     std::vector<float> outR((size_t)blockSize, 0.0f);
-    const float* inCh2[2] = { inL.data(), inR.data() };
-    float* outCh2[2] = { outL.data(), outR.data() };
+    const float* inCh2[2] = {inL.data(), inR.data()};
+    float* outCh2[2] = {outL.data(), outR.data()};
     stretcher.process(inCh2, blockSize, outCh2, blockSize);
 
     for (float v : outL)

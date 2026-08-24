@@ -84,26 +84,28 @@ MainComponent::MainComponent()
       deckPositionClocks_(positionClock_, positionClockB_), transport_(std::make_unique<WebSocketTransport>()),
       syncPublisher_(stateManager_, *transport_),
       deckA_(
-          stateManager_, DeckId::A, repository_,
-          [this] { return computeResumePositionSeconds(engineA_, DeckId::A); },
-          [this] {
+          stateManager_, DeckId::A, repository_, [this] { return computeResumePositionSeconds(engineA_, DeckId::A); },
+          [this]
+          {
               return DeckSyncInfo{engineAdapterA_.currentBeatGrid(), engineA_.getCurrentPosition(),
-                                   stateManager_.getState(DeckId::A).playbackRate};
+                                  stateManager_.getState(DeckId::A).playbackRate};
           },
-          [this] {
+          [this]
+          {
               return DeckSyncInfo{engineAdapterB_.currentBeatGrid(), engineB_.getCurrentPosition(),
-                                   stateManager_.getState(DeckId::B).playbackRate};
+                                  stateManager_.getState(DeckId::B).playbackRate};
           }),
       deckB_(
-          stateManager_, DeckId::B, repository_,
-          [this] { return computeResumePositionSeconds(engineB_, DeckId::B); },
-          [this] {
+          stateManager_, DeckId::B, repository_, [this] { return computeResumePositionSeconds(engineB_, DeckId::B); },
+          [this]
+          {
               return DeckSyncInfo{engineAdapterB_.currentBeatGrid(), engineB_.getCurrentPosition(),
-                                   stateManager_.getState(DeckId::B).playbackRate};
+                                  stateManager_.getState(DeckId::B).playbackRate};
           },
-          [this] {
+          [this]
+          {
               return DeckSyncInfo{engineAdapterA_.currentBeatGrid(), engineA_.getCurrentPosition(),
-                                   stateManager_.getState(DeckId::A).playbackRate};
+                                  stateManager_.getState(DeckId::A).playbackRate};
           }),
       mixer_(crossfaderState_)
 {

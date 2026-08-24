@@ -60,7 +60,7 @@ TEST_CASE("QmDspBeatDetector returns BeatGrid{} via the guard clause for a buffe
     djapp::LoadedAudio audio;
     audio.sampleRate = 44100.0;
     audio.buffer.setSize(1, 0); // zero-length, but not default-constructed (exercises getNumSamples() <= 0
-                                 // specifically, independent of getNumChannels())
+                                // specifically, independent of getNumChannels())
     djapp::QmDspBeatDetector detector;
     djapp::BeatGrid grid = detector.analyze(audio);
 

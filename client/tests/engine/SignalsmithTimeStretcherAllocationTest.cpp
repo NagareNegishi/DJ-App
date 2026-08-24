@@ -75,8 +75,14 @@ void* operator new(std::size_t size)
     return ptr;
 }
 
-void operator delete(void* ptr) noexcept { std::free(ptr); }
-void operator delete(void* ptr, std::size_t) noexcept { std::free(ptr); }
+void operator delete(void* ptr) noexcept
+{
+    std::free(ptr);
+}
+void operator delete(void* ptr, std::size_t) noexcept
+{
+    std::free(ptr);
+}
 
 void* operator new[](std::size_t size)
 {
@@ -88,8 +94,14 @@ void* operator new[](std::size_t size)
     return ptr;
 }
 
-void operator delete[](void* ptr) noexcept { std::free(ptr); }
-void operator delete[](void* ptr, std::size_t) noexcept { std::free(ptr); }
+void operator delete[](void* ptr) noexcept
+{
+    std::free(ptr);
+}
+void operator delete[](void* ptr, std::size_t) noexcept
+{
+    std::free(ptr);
+}
 
 namespace
 {
@@ -155,7 +167,8 @@ TEST_CASE("SignalsmithTimeStretcher::process() performs zero heap allocations on
     {
         for (double rateMultiplier : rateMultipliers)
         {
-            const int numInput = std::max(1, static_cast<int>(std::lround(static_cast<double>(numOutput) * rateMultiplier)));
+            const int numInput =
+                std::max(1, static_cast<int>(std::lround(static_cast<double>(numOutput) * rateMultiplier)));
             REQUIRE(numInput <= maxFrames);
             REQUIRE(numOutput <= maxFrames);
 

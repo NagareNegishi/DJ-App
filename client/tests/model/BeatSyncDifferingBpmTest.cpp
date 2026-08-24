@@ -76,8 +76,7 @@ TEST_CASE("computeBeatSync aligns phase using each deck's own beat interval when
         const float expectedRate = std::clamp(130.0f / 120.0f, ranges::playbackRateMin, ranges::playbackRateMax);
         CHECK(result->playbackRate == Catch::Approx(expectedRate).margin(1e-5));
 
-        const double expectedPosition =
-            std::clamp(59.0 / 6.0, ranges::positionSecondsMin, ranges::positionSecondsMax);
+        const double expectedPosition = std::clamp(59.0 / 6.0, ranges::positionSecondsMin, ranges::positionSecondsMax);
         CHECK(result->positionSeconds == Catch::Approx(expectedPosition).margin(1e-6));
     }
 
@@ -166,8 +165,7 @@ TEST_CASE("computeBeatSync folds the other deck's own playbackRate into the temp
         const float expectedRate = std::clamp(105.0f / 120.0f, ranges::playbackRateMin, ranges::playbackRateMax);
         CHECK(result->playbackRate == Catch::Approx(expectedRate).margin(1e-5));
 
-        const double expectedPosition =
-            std::clamp(13.0 / 6.0, ranges::positionSecondsMin, ranges::positionSecondsMax);
+        const double expectedPosition = std::clamp(13.0 / 6.0, ranges::positionSecondsMin, ranges::positionSecondsMax);
         CHECK(result->positionSeconds == Catch::Approx(expectedPosition).margin(1e-6));
     }
 
@@ -197,8 +195,7 @@ TEST_CASE("computeBeatSync folds the other deck's own playbackRate into the temp
         const float expectedRate = std::clamp(133.0f / 128.0f, ranges::playbackRateMin, ranges::playbackRateMax);
         CHECK(result->playbackRate == Catch::Approx(expectedRate).margin(1e-5));
 
-        const double expectedPosition =
-            std::clamp(1.09375, ranges::positionSecondsMin, ranges::positionSecondsMax);
+        const double expectedPosition = std::clamp(1.09375, ranges::positionSecondsMin, ranges::positionSecondsMax);
         CHECK(result->positionSeconds == Catch::Approx(expectedPosition).margin(1e-6));
     }
 }

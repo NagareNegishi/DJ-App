@@ -35,7 +35,7 @@ namespace
 {
 
 std::shared_ptr<const djapp::LoadedAudio> makeSineAudio(int numSamples, double sampleRate, double freqHz,
-                                                          int numChannels = 1, float amplitude = 0.8f)
+                                                        int numChannels = 1, float amplitude = 0.8f)
 {
     juce::AudioBuffer<float> buffer(numChannels, numSamples);
     const double phaseIncrement = 2.0 * juce::MathConstants<double>::pi * freqHz / sampleRate;
@@ -93,8 +93,8 @@ TEST_CASE("BufferPlaybackSource getNextAudioBlock() before prepareToPlay() has e
           "[engine][BufferPlaybackSource][whitebox]")
 {
     djapp::BufferPlaybackSource source; // default (IdentityTimeStretcher) constructor - not exercising this
-                                         // guard's interaction with a real stretcher is fine, since the guard
-                                         // itself fires before the stretcher is ever touched.
+                                        // guard's interaction with a real stretcher is fine, since the guard
+                                        // itself fires before the stretcher is ever touched.
     source.load(makeSineAudio(4096, 44100.0, 440.0));
     source.setPlaying(true);
 

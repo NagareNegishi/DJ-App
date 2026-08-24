@@ -46,7 +46,7 @@ void SignalsmithTimeStretcher::setPitchSemitones(float semitones)
 }
 
 void SignalsmithTimeStretcher::process(const float* const* inChannels, int numInput, float* const* outChannels,
-                                        int numOutput)
+                                       int numOutput)
 {
     if (numInput == 0 || numOutput == 0)
         return; // defined no-op (see TimeStretcher.h) - handled here rather than relied on

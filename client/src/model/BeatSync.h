@@ -43,9 +43,8 @@ struct BeatSyncResult
 // also a legitimate successful-sync value, so it cannot double as a failure
 // flag).
 inline std::optional<BeatSyncResult> computeBeatSync(const BeatGrid& thisGrid, double thisCurrentPositionSeconds,
-                                                      const BeatGrid& otherGrid, double otherCurrentPositionSeconds,
-                                                      float otherPlaybackRate = 1.0f,
-                                                      double thisDurationSeconds = 0.0)
+                                                     const BeatGrid& otherGrid, double otherCurrentPositionSeconds,
+                                                     float otherPlaybackRate = 1.0f, double thisDurationSeconds = 0.0)
 {
     if (thisGrid.bpm <= 0.0 || otherGrid.bpm <= 0.0)
         return std::nullopt;

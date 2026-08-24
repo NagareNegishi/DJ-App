@@ -31,7 +31,7 @@ namespace
 // channel. Everything else is silence. This is the "small synthetic buffer,
 // e.g. click-track signal" style called out by docs/plan/05-testing.md.
 djapp::LoadedAudio makeClickTrack(double sampleRate, double bpm, double firstBeatSeconds, int numBeats,
-                                   int numChannels = 1, double tailSeconds = 0.5)
+                                  int numChannels = 1, double tailSeconds = 0.5)
 {
     const double beatIntervalSeconds = 60.0 / bpm;
     const double totalDurationSeconds = firstBeatSeconds + (double)(numBeats - 1) * beatIntervalSeconds + tailSeconds;
@@ -135,7 +135,7 @@ TEST_CASE("QmDspBeatDetector returns BeatGrid{} (bpm == 0) for a buffer too shor
     // inter-beat interval exists to derive a BPM from.
     constexpr double sampleRate = 44100.0;
     djapp::LoadedAudio audio = makeClickTrack(sampleRate, /*bpm*/ 120.0, /*firstBeatSeconds*/ 0.1, /*numBeats*/ 1,
-                                               /*numChannels*/ 1, /*tailSeconds*/ 0.3);
+                                              /*numChannels*/ 1, /*tailSeconds*/ 0.3);
 
     djapp::QmDspBeatDetector detector;
     djapp::BeatGrid grid = detector.analyze(audio);
@@ -186,8 +186,7 @@ TEST_CASE("NullBeatDetector default-constructed returns BeatGrid{} regardless of
     CHECK(grid.firstBeatSeconds == 0.0);
 }
 
-TEST_CASE("NullBeatDetector constructed with a specific BeatGrid returns exactly that grid",
-          "[BeatDetector][null]")
+TEST_CASE("NullBeatDetector constructed with a specific BeatGrid returns exactly that grid", "[BeatDetector][null]")
 {
     djapp::BeatGrid expectedGrid;
     expectedGrid.bpm = 140.0;

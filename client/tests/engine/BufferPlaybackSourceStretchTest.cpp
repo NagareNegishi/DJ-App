@@ -40,7 +40,7 @@ namespace
 // cheaply, which a ramp signal cannot give us once real time-stretching is
 // involved.
 std::shared_ptr<const djapp::LoadedAudio> makeSineAudio(int numSamples, double sampleRate, double freqHz,
-                                                          int numChannels = 1, float amplitude = 0.8f)
+                                                        int numChannels = 1, float amplitude = 0.8f)
 {
     juce::AudioBuffer<float> buffer(numChannels, numSamples);
     const double phaseIncrement = 2.0 * juce::MathConstants<double>::pi * freqHz / sampleRate;
@@ -311,7 +311,8 @@ TEST_CASE("BufferPlaybackSource with a real stretcher: a small requestSeek well 
 
     auto makeAndPrime = [&]()
     {
-        auto source = std::make_unique<djapp::BufferPlaybackSource>(std::make_unique<djapp::SignalsmithTimeStretcher>());
+        auto source =
+            std::make_unique<djapp::BufferPlaybackSource>(std::make_unique<djapp::SignalsmithTimeStretcher>());
         source->prepareToPlay(blockSize, sampleRate);
         source->load(makeSineAudio(sourceLength, sampleRate, sourceFreqHz));
         source->setGain(1.0f);

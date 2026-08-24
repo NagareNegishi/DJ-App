@@ -385,7 +385,7 @@ void DeckComponent::onSyncClicked()
         thisDurationSeconds = meta->durationSeconds;
 
     const auto result = computeBeatSync(thisInfo.beatGrid, thisInfo.positionSeconds, otherInfo.beatGrid,
-                                         otherInfo.positionSeconds, otherInfo.playbackRate, thisDurationSeconds);
+                                        otherInfo.positionSeconds, otherInfo.playbackRate, thisDurationSeconds);
     if (!result.has_value())
     {
         juce::Logger::writeToLog("DeckComponent: sync clicked on deck " + toString(deck_) +

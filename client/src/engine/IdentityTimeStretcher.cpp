@@ -23,7 +23,7 @@ void IdentityTimeStretcher::setPitchSemitones(float /*semitones*/)
 }
 
 void IdentityTimeStretcher::process(const float* const* inChannels, int numInput, float* const* outChannels,
-                                     int numOutput)
+                                    int numOutput)
 {
     if (numInput == 0 || numOutput == 0)
         return; // defined no-op: writes nothing, leaves readPos_ unchanged

@@ -32,8 +32,7 @@ class TimeStretcher
     // Preconditions: inChannels/outChannels each have prepare()'s numChannels
     // entries; the two arrays never alias; numInput==0 or numOutput==0 is a
     // defined no-op.
-    virtual void process(const float* const* inChannels, int numInput,
-                          float* const* outChannels, int numOutput) = 0;
+    virtual void process(const float* const* inChannels, int numInput, float* const* outChannels, int numOutput) = 0;
 
     // Frames of output delay this implementation introduces before its first
     // real output sample is available (0 for a stretcher with no internal
