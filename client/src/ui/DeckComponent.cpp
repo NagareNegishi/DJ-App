@@ -53,10 +53,11 @@ juce::Path makeRepeatGlyph()
 
 DeckComponent::DeckComponent(StateManager& stateManager, DeckId deck, AudioRepository& repository,
                              std::function<double()> resumePositionProvider,
-                             std::function<BeatGrid()> beatGridProvider,
-                             std::function<std::pair<BeatGrid, double>()> otherDeckSyncInfoProvider)
+                             std::function<DeckSyncInfo()> thisDeckSyncInfoProvider,
+                             std::function<DeckSyncInfo()> otherDeckSyncInfoProvider)
     : stateManager_(stateManager), deck_(deck), repository_(repository),
-      resumePositionProvider_(std::move(resumePositionProvider)), beatGridProvider_(std::move(beatGridProvider)),
+      resumePositionProvider_(std::move(resumePositionProvider)),
+      thisDeckSyncInfoProvider_(std::move(thisDeckSyncInfoProvider)),
       otherDeckSyncInfoProvider_(std::move(otherDeckSyncInfoProvider))
 {
     addAndMakeVisible(titleLabel_);
@@ -375,16 +376,16 @@ void DeckComponent::onRepeatToggled()
 
 void DeckComponent::onSyncClicked()
 {
-    const BeatGrid thisGrid = beatGridProvider_();
-    const auto [otherGrid, otherPositionSeconds] = otherDeckSyncInfoProvider_();
-    const double thisPositionSeconds = resumePositionProvider_(); // true live position, same as togglePlayPause() uses
+    const DeckSyncInfo thisInfo = thisDeckSyncInfoProvider_();
+    const DeckSyncInfo otherInfo = otherDeckSyncInfoProvider_();
 
     double thisDurationSeconds = 0.0;
     const auto meta = repository_.getTrackMetadata(stateManager_.getState(deck_).trackId);
     if (meta.has_value())
         thisDurationSeconds = meta->durationSeconds;
 
-    const auto result = computeBeatSync(thisGrid, thisPositionSeconds, otherGrid, otherPositionSeconds, thisDurationSeconds);
+    const auto result = computeBeatSync(thisInfo.beatGrid, thisInfo.positionSeconds, otherInfo.beatGrid,
+                                         otherInfo.positionSeconds, otherInfo.playbackRate, thisDurationSeconds);
     if (!result.has_value())
     {
         juce::Logger::writeToLog("DeckComponent: sync clicked on deck " + toString(deck_) +

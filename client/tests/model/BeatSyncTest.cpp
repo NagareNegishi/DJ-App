@@ -2,25 +2,31 @@
 // from the spec handed to this agent (no implementation source was read).
 //
 // computeBeatSync(thisGrid, thisCurrentPositionSeconds, otherGrid,
-//                  otherCurrentPositionSeconds, thisDurationSeconds = 0.0)
+//                  otherCurrentPositionSeconds, otherPlaybackRate = 1.0f,
+//                  thisDurationSeconds = 0.0)
 //   -> std::optional<BeatSyncResult{playbackRate, positionSeconds}>
 //
 // Per the spec:
 // - nullopt iff either grid's bpm <= 0 (detection failed) - the only failure
 //   signal, no in-band value doubles for it.
-// - playbackRate = otherGrid.bpm / thisGrid.bpm, clamped to
-//   [ranges::playbackRateMin, ranges::playbackRateMax].
-// - The phase nudge is computed from BOTH decks' current positions and BOTH
-//   decks' firstBeatSeconds, wrapped into THIS deck's post-tempo-match beat
-//   interval (60 / thisGrid.bpm). It is the shortest signed correction that
-//   makes thisPhase == otherPhase, bounded to within half a beat interval.
-//   A prior, buggy draft of this spec only read thisGrid, i.e. it quantized
-//   "this" deck to its own grid instead of syncing to the "other" deck's
-//   actual phase - that bug must not reappear, see the dedicated regression
-//   test below.
-// - positionSeconds is clamped to [0, thisDurationSeconds] when
-//   thisDurationSeconds > 0, then always to the protocol-wide
-//   [ranges::positionSecondsMin, ranges::positionSecondsMax] range.
+// - playbackRate = (otherGrid.bpm * otherPlaybackRate) / thisGrid.bpm,
+//   clamped to [ranges::playbackRateMin, ranges::playbackRateMax].
+// - Each deck's phase is wrapped using ITS OWN beat interval (60 / bpm), then
+//   the other deck's phase is scaled into this deck's interval via the ratio
+//   otherGrid.bpm / thisGrid.bpm (otherPlaybackRate cancels out of this step
+//   completely - it's already folded into the tempo match above). The nudge
+//   is the shortest signed correction, bounded to within half a beat
+//   interval. A prior, buggy draft of this spec wrapped BOTH decks' phase
+//   using thisGrid's interval, i.e. it only matched phases correctly when
+//   the two BPMs happened to be equal - that bug must not reappear, see the
+//   dedicated regression test below.
+// - When thisDurationSeconds > 0 and the nudge would land outside
+//   [0, thisDurationSeconds], positionSeconds falls back to
+//   thisCurrentPositionSeconds UNCHANGED (not clamped to the boundary -
+//   clamping would immediately re-trigger the engine's own end-of-track
+//   self-stop). Either way, positionSeconds is then clamped to the
+//   protocol-wide [ranges::positionSecondsMin, ranges::positionSecondsMax]
+//   range.
 
 #include <catch2/catch_approx.hpp>
 #include <catch2/catch_test_macros.hpp>
@@ -202,7 +208,7 @@ TEST_CASE("computeBeatSync: the phase nudge never exceeds half a beat interval i
 }
 
 TEST_CASE("computeBeatSync: with thisDurationSeconds supplied, an overshoot past the end of a short "
-          "track is clamped to the track's duration",
+          "track leaves the position unchanged instead of clamping to the track's duration",
           "[BeatSync]")
 {
     BeatGrid thisGrid;
@@ -216,11 +222,14 @@ TEST_CASE("computeBeatSync: with thisDurationSeconds supplied, an overshoot past
     const double thisPos = 4.9;             // near the very end
     const double otherPos = 4.05;           // raw nudge pushes past 5.0 (target ~5.05) without clamping
 
-    auto result = computeBeatSync(thisGrid, thisPos, otherGrid, otherPos, thisDurationSeconds);
+    auto result = computeBeatSync(thisGrid, thisPos, otherGrid, otherPos, 1.0f, thisDurationSeconds);
 
     REQUIRE(result.has_value());
-    CHECK(result->positionSeconds == Catch::Approx(thisDurationSeconds).margin(1e-9));
-    CHECK(result->positionSeconds <= thisDurationSeconds);
+    // Falls back to the unchanged current position rather than clamping to the
+    // boundary - clamping would land on the last renderable frame and
+    // immediately re-trigger the engine's own end-of-track self-stop.
+    CHECK(result->positionSeconds == Catch::Approx(thisPos).margin(1e-9));
+    CHECK(result->positionSeconds < thisDurationSeconds);
 }
 
 TEST_CASE("computeBeatSync: without thisDurationSeconds supplied, the same raw nudge is left "

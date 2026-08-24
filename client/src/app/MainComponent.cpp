@@ -2,6 +2,7 @@
 
 #include "engine/SignalsmithTimeStretcher.h"
 #include "model/ControlGating.h"
+#include "model/DeckSyncInfo.h"
 #include "model/FullResyncDelta.h"
 #include "model/Ranges.h"
 #include "model/Serialization.h"
@@ -85,16 +86,24 @@ MainComponent::MainComponent()
       deckA_(
           stateManager_, DeckId::A, repository_,
           [this] { return computeResumePositionSeconds(engineA_, DeckId::A); },
-          [this] { return engineAdapterA_.currentBeatGrid(); },
           [this] {
-              return std::make_pair(engineAdapterB_.currentBeatGrid(), computeResumePositionSeconds(engineB_, DeckId::B));
+              return DeckSyncInfo{engineAdapterA_.currentBeatGrid(), engineA_.getCurrentPosition(),
+                                   stateManager_.getState(DeckId::A).playbackRate};
+          },
+          [this] {
+              return DeckSyncInfo{engineAdapterB_.currentBeatGrid(), engineB_.getCurrentPosition(),
+                                   stateManager_.getState(DeckId::B).playbackRate};
           }),
       deckB_(
           stateManager_, DeckId::B, repository_,
           [this] { return computeResumePositionSeconds(engineB_, DeckId::B); },
-          [this] { return engineAdapterB_.currentBeatGrid(); },
           [this] {
-              return std::make_pair(engineAdapterA_.currentBeatGrid(), computeResumePositionSeconds(engineA_, DeckId::A));
+              return DeckSyncInfo{engineAdapterB_.currentBeatGrid(), engineB_.getCurrentPosition(),
+                                   stateManager_.getState(DeckId::B).playbackRate};
+          },
+          [this] {
+              return DeckSyncInfo{engineAdapterA_.currentBeatGrid(), engineA_.getCurrentPosition(),
+                                   stateManager_.getState(DeckId::A).playbackRate};
           }),
       mixer_(crossfaderState_)
 {

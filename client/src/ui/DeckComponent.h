@@ -13,14 +13,13 @@
 // currentDisplayPositionSeconds — since state/PositionClock doesn't exist
 // until M7.
 
-#include "model/BeatGrid.h"
+#include "model/DeckSyncInfo.h"
 #include "model/Types.h"
 #include "repository/AudioRepository.h"
 #include "state/StateManager.h"
 #include <functional>
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <optional>
-#include <utility>
 
 namespace djapp
 {
@@ -29,8 +28,9 @@ class DeckComponent : public juce::Component, private juce::Timer
 {
   public:
     DeckComponent(StateManager& stateManager, DeckId deck, AudioRepository& repository,
-                  std::function<double()> resumePositionProvider, std::function<BeatGrid()> beatGridProvider,
-                  std::function<std::pair<BeatGrid, double>()> otherDeckSyncInfoProvider);
+                  std::function<double()> resumePositionProvider,
+                  std::function<DeckSyncInfo()> thisDeckSyncInfoProvider,
+                  std::function<DeckSyncInfo()> otherDeckSyncInfoProvider);
     ~DeckComponent() override;
 
     void setControlsEnabled(bool enabled); // role-based gate — combines with the existing
@@ -57,8 +57,8 @@ class DeckComponent : public juce::Component, private juce::Timer
     DeckId deck_;
     AudioRepository& repository_;
     std::function<double()> resumePositionProvider_;
-    std::function<BeatGrid()> beatGridProvider_;
-    std::function<std::pair<BeatGrid, double>()> otherDeckSyncInfoProvider_;
+    std::function<DeckSyncInfo()> thisDeckSyncInfoProvider_;
+    std::function<DeckSyncInfo()> otherDeckSyncInfoProvider_;
 
     int listenerToken_ = 0;
 
