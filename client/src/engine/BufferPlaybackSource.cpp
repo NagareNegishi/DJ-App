@@ -235,6 +235,8 @@ void BufferPlaybackSource::getNextAudioBlock(const juce::AudioSourceChannelInfo&
     // function returns" a real invariant rather than something derived from scratch-buffer
     // sizing the reader can't see.
     const int numOutput = bufferToFill.numSamples;
+    if (numOutput == 0)
+        return; // nothing to render; do not perturb pullAccumulator_/pos/the stretcher for a no-op call
     if (pullScratch_[0].size() == 0 || static_cast<size_t>(numOutput) > stretchOutScratch_[0].size())
     {
         outBuffer->clear(bufferToFill.startSample, bufferToFill.numSamples);
