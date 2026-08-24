@@ -67,7 +67,7 @@ void EngineAdapter::handleDelta(const StateDelta& applied, const PlaybackState& 
                                      "; unload not supported, ignoring");
             engine_.load(nullptr);
             cachedBeatGrid_ = BeatGrid{};
-            lastAnalyzedBuffer_ = nullptr;
+            lastAnalyzedTrackId_.clear();
         }
         else
         {
@@ -79,15 +79,15 @@ void EngineAdapter::handleDelta(const StateDelta& applied, const PlaybackState& 
                 // protocol requires clients missing this track to go silent.
                 engine_.load(nullptr);
                 cachedBeatGrid_ = BeatGrid{};
-                lastAnalyzedBuffer_ = nullptr;
+                lastAnalyzedTrackId_.clear();
             }
             else
             {
                 engine_.load(buffer);
-                if (beatDetector_ != nullptr && buffer.get() != lastAnalyzedBuffer_)
+                if (beatDetector_ != nullptr && *applied.trackId != lastAnalyzedTrackId_)
                 {
                     cachedBeatGrid_ = beatDetector_->analyze(*buffer);
-                    lastAnalyzedBuffer_ = buffer.get();
+                    lastAnalyzedTrackId_ = *applied.trackId;
                 }
             }
         }

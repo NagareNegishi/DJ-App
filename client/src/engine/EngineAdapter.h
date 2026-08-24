@@ -81,14 +81,13 @@ class EngineAdapter : private juce::Timer
 
     BeatDetector* beatDetector_ = nullptr;
     BeatGrid cachedBeatGrid_;
-    // Identity-only: compared against the freshly resolved buffer pointer to
-    // skip re-analysis when reselecting an already-loaded track. Never
-    // dereferenced - AudioRepository (e.g. LocalFileRepository) caches decoded
-    // buffers and returns the same shared_ptr for a given track id, so pointer
-    // identity is a safe, cheap "have I already analyzed this exact buffer"
-    // check. May dangle once the buffer that produced it is released
-    // elsewhere; that's fine because it is only ever compared, never read.
-    const LoadedAudio* lastAnalyzedBuffer_ = nullptr;
+    // Identity-only: compared against the freshly resolved track's trackId to
+    // skip re-analysis when reselecting an already-loaded track. Keyed on
+    // trackId identity (a juce::String, owning its own data), not
+    // buffer-pointer identity - a stable identity that doesn't depend on
+    // AudioRepository's caching behavior continuing to return the same
+    // pointer for a given track.
+    juce::String lastAnalyzedTrackId_;
 };
 
 } // namespace djapp
