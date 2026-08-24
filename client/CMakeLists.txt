@@ -97,26 +97,19 @@ FetchContent_Declare(
 )
 FetchContent_MakeAvailable(ixwebsocket)
 
-# Signalsmith Stretch (MIT) + its dependency Signalsmith Linear (MIT): the real
-# time/pitch stretch engine behind SignalsmithTimeStretcher (10-beatsync-design.md).
-# Header-only, so FetchContent + an include dir is all that's needed - no
-# add_subdirectory, no library target to link. Pinned by commit hash on each repo's
-# own tag (06-security.md Supply-chain drift), same pattern as IXWebSocket above.
+# Signalsmith Stretch (MIT): the real time/pitch stretch engine behind
+# SignalsmithTimeStretcher (10-beatsync-design.md). Header-only, so FetchContent +
+# an include dir is all that's needed - no add_subdirectory, no library target to
+# link. Pinned by commit hash on the repo's own tag (06-security.md Supply-chain
+# drift), same pattern as IXWebSocket above. (Signalsmith Stretch v1.1.0 does not
+# depend on Signalsmith Linear, despite an earlier assumption here that it did -
+# see docs/plan/DEVIATIONS.md 2026-08-22 and its 2026-08-24 correction.)
 FetchContent_Declare(
     signalsmith_stretch
     GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-stretch.git
     GIT_TAG 44c8f865af9da8c29cc4a70a2d5a3ec83639c711 # v1.1.0
 )
 FetchContent_MakeAvailable(signalsmith_stretch)
-
-# Pinned explicitly and separately: signalsmith-stretch's own CMakeLists.txt
-# would otherwise transitively fetch the older 0.3.1.
-FetchContent_Declare(
-    signalsmith_linear
-    GIT_REPOSITORY https://github.com/Signalsmith-Audio/linear.git
-    GIT_TAG 8be69c57b7064822076c2cfc55a522e5f5867cc1 # v0.6.0
-)
-FetchContent_MakeAvailable(signalsmith_linear)
 
 # PRIVATE, not PUBLIC: SignalsmithTimeStretcher.cpp is the only translation unit
 # that may include a Signalsmith header (it's a pimpl, see SignalsmithTimeStretcher.h) -
@@ -127,7 +120,6 @@ FetchContent_MakeAvailable(signalsmith_linear)
 # internal warnings out of our build output without touching vendored source.
 target_include_directories(dj-app-core SYSTEM PRIVATE
     ${signalsmith_stretch_SOURCE_DIR}
-    ${signalsmith_linear_SOURCE_DIR}/include
 )
 
 # qm-dsp (GPL-2.0-or-later): DetectionFunction + TempoTrackV2 beat detection,
