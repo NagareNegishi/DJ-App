@@ -571,3 +571,27 @@ Each entry: date, what the plan said, what was done instead, why.
   button's concrete phase-nudge magnitude wasn't yet known when the original
   claim was written.
 
+## 2026-08-24 - the sync button ships with no UX affordance beyond the button itself, deliberately deferred
+
+- **Plan said**: `docs/plan/10-beatsync-design.md`'s sync-button section
+  specifies the correction math and the "no ongoing beat-lock loop" behavior,
+  but does not specify any UI feedback beyond the button existing.
+- **Actual**: M10 Unit F ships exactly that minimal surface, and a design
+  review this session named three real gaps left open by it: (1) no BPM
+  readout anywhere on a deck, so a user has no way to see either deck's
+  detected tempo before or after syncing; (2) when beat detection has failed
+  on one side, `computeBeatSync` returns `nullopt` and the button is a silent
+  no-op (a log line only, per `DeckComponent::onSyncClicked`) - indistinguishable
+  from the button simply doing nothing for any other reason; (3) relatedly,
+  there is no visible difference between "no beat grid available," "already
+  phase-aligned, nothing to correct," and "pressed but nothing happened for
+  an unrelated reason" - all three look identical to the user.
+- **Why deferred rather than fixed now**: raised during this session's review
+  layer, after Unit F had already landed and passed its own spec. The
+  decision (this session, user call): defer all three to a future milestone
+  rather than expand M10's scope after sign-off - "we can deal with UI
+  improvement in next milestone." Recorded here specifically so it isn't
+  lost between now and whichever milestone picks it up (the same reason M6's
+  and M8's `PROGRESS.md` entries carry forward their own known gaps) - a
+  future milestone's design phase should read this entry before scoping any
+  sync-button UI work.
