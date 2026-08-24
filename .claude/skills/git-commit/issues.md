@@ -9,4 +9,4 @@ One row per issue. Keep the description to one concise line.
 
 | # | Title | Description |
 |---|-------|-------------|
-| _(none yet)_ | | |
+| 4 | (branch default) | Default `Refs` target for commits on the `claude` branch per this skill's own instructions; `gh` unavailable in this container to confirm the real title. |
