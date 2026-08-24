@@ -208,6 +208,7 @@ void BufferPlaybackSource::getNextAudioBlock(const juce::AudioSourceChannelInfo&
         outputLatencyFrames_ = stretcher_->outputLatencyFrames();
         pullAccumulator_ = 0.0;
         producedOutputFrames_ = 0;
+        lastLaggedSourceFrames_ = 0.0;
         drainFramesRemaining_ = 0; // cancel any in-progress drain from a prior track/seek
     }
 
@@ -284,18 +285,14 @@ void BufferPlaybackSource::getNextAudioBlock(const juce::AudioSourceChannelInfo&
     pullFrames = std::min(pullFrames, static_cast<int>(pullScratch_[0].size()));
 
     // Reconstruct the true raw pull position from the latency-compensated value step 9 last
-    // published: producedOutputFrames_ here still reflects the cumulative total as of the end
-    // of the previous block (this block's own step 6 hasn't run yet), so this exactly undoes
-    // the subtraction step 9 applied last time, using the same rate/srcToDeviceRatio as an
-    // approximation for the previous block's (a further instance of the "known approximation,
-    // not exact" already inherent in step 9 - see its own comment below). Without this, the
-    // pull stage would silently re-seed from the already-lag-compensated position every block
-    // and the raw read head would drift further behind real audio each block, compounding
+    // published: this exactly undoes the subtraction step 9 applied last block, using the same
+    // cached value that was actually subtracted then - not a fresh recomputation with this
+    // block's rate/srcToDeviceRatio, which could differ from last block's if rate_ changed
+    // between blocks and would then under- or over-shoot the true compensation. Without this,
+    // the pull stage would silently re-seed from the already-lag-compensated position every
+    // block and the raw read head would drift further behind real audio each block, compounding
     // without bound whenever outputLatencyFrames_ is nonzero (any real stretcher).
-    const double laggedOutputFramesAtBlockStart =
-        std::min(static_cast<double>(producedOutputFrames_), static_cast<double>(outputLatencyFrames_));
-    double pos = positionSamples_.load(std::memory_order_relaxed) +
-                 laggedOutputFramesAtBlockStart * static_cast<double>(rate) * srcToDeviceRatio;
+    double pos = positionSamples_.load(std::memory_order_relaxed) + lastLaggedSourceFrames_;
 
     // -1: linear interpolation below reads src[index0] and src[index0 + 1], so the last
     // renderable head position is numSourceFrames - 2 ... i.e. this is the exclusive upper
@@ -411,6 +408,7 @@ void BufferPlaybackSource::getNextAudioBlock(const juce::AudioSourceChannelInfo&
     const double laggedOutputFrames =
         std::min(static_cast<double>(producedOutputFrames_), static_cast<double>(outputLatencyFrames_));
     const double laggedSourceFrames = laggedOutputFrames * static_cast<double>(rate) * srcToDeviceRatio;
+    lastLaggedSourceFrames_ = laggedSourceFrames;
     positionSamples_.store(pos - laggedSourceFrames, std::memory_order_relaxed);
 }
 

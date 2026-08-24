@@ -123,6 +123,16 @@ class BufferPlaybackSource : public juce::AudioSource
     // "position" - it counts blocks rendered, not source position.
     int64_t producedOutputFrames_ = 0;
 
+    // Audio-thread-only: caches the exact laggedSourceFrames value subtracted
+    // from `pos` at the end of the previous block's step 9, so this block's
+    // pull-head reconstruction (step 5) can add back precisely what was taken
+    // away - not a fresh recomputation using this block's rate/srcToDeviceRatio,
+    // which could differ from last block's (rate_ can change between blocks) and
+    // would then under- or over-shoot the true previous-block compensation.
+    // Reset to 0.0 alongside pullAccumulator_/producedOutputFrames_ on every
+    // stretcher reset - there is no backlog to reconstruct right after one.
+    double lastLaggedSourceFrames_ = 0.0;
+
     // Audio-thread-cached copy of stretcher_->outputLatencyFrames(), refreshed
     // once per reset rather than called every block.
     int outputLatencyFrames_ = 0;
