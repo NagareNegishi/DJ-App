@@ -408,3 +408,190 @@ Each entry: date, what the plan said, what was done instead, why.
 - **Why**: confirmed with the user, matching the same `ui/`-is-host-checklist-only precedent as
   the M7 claim-control and M9 loop-clamp deviations above. M9 Step 12 already exercises this
   path and will catch a regression.
+
+## 2026-08-22 — Signalsmith Stretch v1.1.0 does not depend on Signalsmith Linear
+
+- **Plan said**: `docs/plan/10-beatsync-design.md`'s RT-safety section (and
+  `docs/decisions.md` §6.1) describe `SignalsmithTimeStretcher`'s allocation-free `process()`
+  as resting on Signalsmith Linear's documented `reserve()` pre-sizing API, called once from
+  `prepare()` — with `signalsmith-linear` pinned to tag `0.6.0` specifically so this call has
+  something real to target.
+- **Actual**: at the pinned `signalsmith-stretch` commit (`44c8f865af9da8c29cc4a70a2d5a3ec83639c711`,
+  tag `v1.1.0`), `signalsmith-stretch.h` does not include or otherwise depend on Signalsmith
+  Linear at all. It bundles its own separate, self-contained `dsp/*.h` headers (an older,
+  distinct "signalsmith-dsp" library) and achieves the same allocation-free-after-`prepare()`
+  goal through its own internal `configure()` (invoked by `presetDefault()`), which does its
+  own `std::vector::reserve()`/`resize()` up front — not through any `Linear::reserve()` call.
+  There is no `LinearImplBase`/`LinearImpl` ambiguity to resolve either, since the type is
+  simply never used on this call path.
+- **Change**: `SignalsmithTimeStretcher` is implemented against the real vendored header —
+  no `signalsmith-linear` API call anywhere in it. The `signalsmith_linear` `FetchContent`
+  block stays in `client/CMakeLists.txt` exactly as specced (fetched, pinned to `0.6.0`,
+  include dir wired up) even though nothing currently includes its headers, since the M10
+  design doc's future-facing rationale for pinning it explicitly and separately (its own
+  transitively-fetched default is much older) is still sound if a later unit ever needs it
+  directly — removing an already-reviewed pin isn't this unit's call to make unilaterally.
+- **Why**: the *goal* the design doc cared about — allocation-free `process()`/
+  `setPitchSemitones()` once `prepare()` has run — still holds, just via a different,
+  already-built-in mechanism than the one described. This does not weaken the required
+  verification step: the design doc's mandated allocation-interposing test (still outstanding,
+  planned for the whitebox pass) must confirm zero allocations against `configure()`'s real
+  pre-sizing, not against a `Linear::reserve()` call that turns out not to exist on this path.
+
+## 2026-08-22 - qm-dsp pinned to an exact commit SHA on `master` (M10, no tagged release)
+
+- **Plan said**: `docs/plan/10-beatsync-design.md` ("BeatDetector") and `docs/decisions.md`
+  Section 6.1 both anticipate this: qm-dsp ships no tagged release for its DSP core, so
+  integration pins an exact commit SHA on `c4dm/qm-dsp` `master` instead of a tag, a
+  documented deviation from `06-security.md`'s "pin everything, never a floating branch"
+  convention, accepted in advance at the M10 design gate.
+- **Actual**: pinned `client/CMakeLists.txt`'s `qmdsp` `FetchContent_Declare` to
+  `e34a3cc188332ed7c33cd9257ef164de5b587191` - `c4dm/qm-dsp`'s `master` HEAD at
+  implementation time (2026-08-22).
+- **Why**: recorded here per the design doc's own instruction to record the exact SHA
+  chosen, alongside the already-made decision in `docs/decisions.md` Section 6.1.
+
+## 2026-08-22 - qm-dsp-core needs `-Dkiss_fft_scalar=double`, not documented in any qm-dsp header
+
+- **Plan said**: `docs/plan/10-beatsync-design.md` describes qm-dsp's FFT path as needing
+  only qm-dsp's own FFT wrapper backed by the bundled `kissfft`, with no other build-flag
+  requirement called out.
+- **Actual**: `dsp/transforms/FFT.cpp` calls `kiss_fftr()`/`kiss_fftri()` with `double*`
+  buffers throughout, but kissfft's own `kiss_fft.h` defaults `kiss_fft_scalar` to `float`
+  unless a definition already exists before it's included - nothing in qm-dsp's own headers
+  or `#include` chain sets this; only its (unused, Makefile/MSVC-project) build files do,
+  confirmed by reading `build/general/Makefile.inc`'s `KISSFFT_CFLAGS :=
+  -Iext/kissfft -Iext/kissfft/tools -Dkiss_fft_scalar=double`. Without it,
+  `qm-dsp-core`'s `FFT.cpp` failed to compile (`no matching function for call to
+  'kiss_fftr'` - `const double*` vs. the header's `const float*` parameter).
+- **Change**: `client/CMakeLists.txt`'s `qm-dsp-core` target gets
+  `target_compile_definitions(qm-dsp-core PRIVATE kiss_fft_scalar=double)`, matching
+  qm-dsp's own (non-CMake) build exactly.
+- **Why**: not a design decision, a straightforward correctness fix - qm-dsp's FFT
+  wrapper simply requires this to compile as qm-dsp itself intends it to be built, and
+  the requirement is invisible from reading the headers alone since it's a build-file-only
+  convention. Recorded here since `10-beatsync-design.md`'s file-set description undersold
+  the dependency's real build requirements, per this doc's own instruction to confirm the
+  exact file set and flags against the real source rather than the design doc's summary.
+
+## 2026-08-22 - `BufferPlaybackSource`'s pull stage resamples to device rate before the stretcher, not after
+
+- **Plan said**: `docs/plan/10-beatsync-design.md`'s `TimeStretcher` section describes the
+  pull stage as pulling `numInput` **source-rate** frames per block ("feed numInput
+  source-rate frames, request numOutput stretched frames").
+- **Actual**: the pull stage instead resamples source audio to the **device** sample rate
+  (via the same fractional linear interpolation the pre-M10 code already did, using
+  `sourceSampleRate / deviceSampleRate` as the increment) before any frame reaches the
+  stretcher; the stretcher's `numInput`/`numOutput` pair expresses the tempo ratio only
+  (`rate`), never the sample-rate ratio.
+- **Why**: a pitch-preserving time-stretcher only changes duration, not pitch. Folding
+  `sourceSampleRate/deviceSampleRate` into the stretcher's tempo ratio (the design doc's
+  literal reading) would have asked the stretcher to change *duration* by that ratio while
+  leaving pitch untouched - which is exactly wrong for sample-rate conversion, which must
+  change pitch and duration together. Any track whose file rate doesn't match the device
+  rate would play detuned under the literal design-doc reading. Found and corrected during
+  M10 Unit C's design-review pass (two rounds) before implementation; recorded here per
+  `CLAUDE.md`'s "protocol/plan changes get recorded" convention extended to this design-gate
+  doc's own text. `stretcher_->prepare()` is called once with the **device** sample rate
+  (from `BufferPlaybackSource::prepareToPlay`, not `load()`), which is truthful precisely
+  because of this correction - the stretcher never sees a frame that isn't already at its
+  configured rate.
+
+## 2026-08-22 - `BufferPlaybackSource` startup/seek latency: pre-roll deferred, position tracking is a reconstructed value
+
+- **Plan said**: `docs/plan/10-beatsync-design.md`'s "Startup latency" note recommends a
+  pre-roll at `load()` time to eliminate the near-silent gap after an STFT-based stretcher's
+  reset, but explicitly calls this a build-time detail rather than a blocking design
+  question, naming a brief startup gap as the accepted fallback either way.
+- **Actual**: M10 Unit C takes the fallback, not the recommendation - no pre-roll is
+  implemented. After every stretcher reset (a real seek or track load; small corrective
+  writes such as `PositionClock`'s periodic drift resync or the sync-button's phase nudge
+  are deliberately excluded, see below), the first `outputLatencyFrames()`-worth of output
+  is the stretcher's own warm-up response to real audio, not silence outright, but not
+  representative of steady-state output either.
+- **A second, related correction found during implementation, beyond the signed-off
+  design and beyond Unit C's own spec**: `positionSamples_` reports a latency-compensated
+  "audible" position (subtracting the not-yet-emitted warm-up backlog, converted through the
+  tempo and sample-rate ratios), so it doesn't run permanently ahead of what's actually
+  audible - this compensation was itself signed off as part of Unit C's design. What wasn't
+  caught until implementation: since `positionSamples_` is the *only* stored position field,
+  and the pull stage reads it back at the start of every block to know where to keep pulling
+  from, storing the already-compensated value there means the *next* block's pull would
+  start from an artificially-behind position, then subtract compensation from *that* again -
+  compounding every block into unbounded drift and, in practice, playback halting within a
+  handful of blocks once a real (nonzero-latency) stretcher is involved. The implementation
+  reconstructs the true pull-head position at the start of each block's pull stage by
+  algebraically adding back the previous block's compensation (using the same
+  `producedOutputFrames_`/`outputLatencyFrames_`/`rate`/sample-rate-ratio quantities already
+  tracked for the subtraction) rather than storing a second raw-position field. Confirmed a
+  no-op for `IdentityTimeStretcher` (`outputLatencyFrames_` is always 0 there) by the full
+  pre-existing `BufferPlaybackSourceTest.cpp`/`JuceAudioEngineTest.cpp` suites passing
+  unmodified, and confirmed correct for a real stretcher by new regression tests
+  (`BufferPlaybackSourceStretchTest.cpp`) checking position tracks real elapsed time at both
+  `rate=1.0` and a tempo-changed rate.
+- **Also**: the stretcher-reset trigger (raised by `load()` unconditionally, and by
+  `requestSeek()` only when the target differs from the current position by more than 200ms)
+  is deliberately a separate flag from `seekPending_`, which continues to gate only the
+  position write. Reusing `seekPending_` alone would have reset the stretcher - and cost its
+  full warm-up latency - on every routine small position write, including `PositionClock`'s
+  5-second drift resync during ordinary playback and the M10 sync-button's own phase-nudge
+  seek, i.e. an audible glitch roughly every 5 seconds on every playing deck, and one on
+  every press of the feature this milestone exists to ship. Found during design review before
+  implementation.
+- **Why**: all four points are recorded together because they're one coherent story about
+  the same root cause (an STFT-based stretcher's inherent processing latency) surfacing in
+  three different places (startup gap, position accuracy, reset frequency) that the original
+  design doc's "Startup latency" note didn't fully anticipate. The startup-gap fallback is a
+  deliberate, accepted scope decision (matching the design doc's own named alternative); the
+  other three are correctness fixes, not scope decisions - each one is required for the
+  system to work at all once a real stretcher is wired in, not a nice-to-have. Confirm the
+  startup gap is acceptable in practice via the M10 host checklist (not yet written);
+  revisit pre-roll only if it audibly bothers a real listener.
+
+## 2026-08-24 - the 200ms stretcher-reset threshold did not actually exclude the sync button's phase nudge
+
+- **Plan said**: the 2026-08-22 "`BufferPlaybackSource` startup/seek latency"
+  entry above claims the stretcher-reset threshold (200ms) "deliberately
+  excludes" `PositionClock`'s drift resync and the M10 sync button's phase
+  nudge from resetting the stretcher.
+- **Actual**: that claim was written before the sync button existed (M10 Unit
+  F landed after it) and turned out to be wrong once checked against the
+  sync button's real behavior: `computeBeatSync`'s phase nudge can be up to
+  half a beat interval, which at a low but realistic BPM (50-60) is up to
+  ~0.6s - above the 200ms threshold. So a sync-button press at a low BPM was
+  silently paying a full stretcher-reset warm-up glitch, the exact failure
+  mode the threshold was supposed to prevent.
+- **Fix**: raised the threshold from 200ms to 1.0s in
+  `BufferPlaybackSource::requestSeek`, comfortably clearing the ~0.6s worst
+  case with margin while staying far below any real user-initiated seek.
+- **Why**: recorded separately from the original entry (rather than edited in
+  place) to keep this file's history honest about what was believed at each
+  point in time; found during M10's post-implementation review layer
+  (`correctness-adviser`), not caught at design time because the sync
+  button's concrete phase-nudge magnitude wasn't yet known when the original
+  claim was written.
+
+## 2026-08-24 - the sync button ships with no UX affordance beyond the button itself, deliberately deferred
+
+- **Plan said**: `docs/plan/10-beatsync-design.md`'s sync-button section
+  specifies the correction math and the "no ongoing beat-lock loop" behavior,
+  but does not specify any UI feedback beyond the button existing.
+- **Actual**: M10 Unit F ships exactly that minimal surface, and a design
+  review this session named three real gaps left open by it: (1) no BPM
+  readout anywhere on a deck, so a user has no way to see either deck's
+  detected tempo before or after syncing; (2) when beat detection has failed
+  on one side, `computeBeatSync` returns `nullopt` and the button is a silent
+  no-op (a log line only, per `DeckComponent::onSyncClicked`) - indistinguishable
+  from the button simply doing nothing for any other reason; (3) relatedly,
+  there is no visible difference between "no beat grid available," "already
+  phase-aligned, nothing to correct," and "pressed but nothing happened for
+  an unrelated reason" - all three look identical to the user.
+- **Why deferred rather than fixed now**: raised during this session's review
+  layer, after Unit F had already landed and passed its own spec. The
+  decision (this session, user call): defer all three to a future milestone
+  rather than expand M10's scope after sign-off - "we can deal with UI
+  improvement in next milestone." Recorded here specifically so it isn't
+  lost between now and whichever milestone picks it up (the same reason M6's
+  and M8's `PROGRESS.md` entries carry forward their own known gaps) - a
+  future milestone's design phase should read this entry before scoping any
+  sync-button UI work.

@@ -1,4 +1,5 @@
 #include "DeckComponent.h"
+#include "model/BeatSync.h"
 #include "model/ControlGating.h"
 #include "model/LoopWrap.h"
 #include <cmath>
@@ -51,9 +52,13 @@ juce::Path makeRepeatGlyph()
 } // namespace
 
 DeckComponent::DeckComponent(StateManager& stateManager, DeckId deck, AudioRepository& repository,
-                             std::function<double()> resumePositionProvider)
+                             std::function<double()> resumePositionProvider,
+                             std::function<DeckSyncInfo()> thisDeckSyncInfoProvider,
+                             std::function<DeckSyncInfo()> otherDeckSyncInfoProvider)
     : stateManager_(stateManager), deck_(deck), repository_(repository),
-      resumePositionProvider_(std::move(resumePositionProvider))
+      resumePositionProvider_(std::move(resumePositionProvider)),
+      thisDeckSyncInfoProvider_(std::move(thisDeckSyncInfoProvider)),
+      otherDeckSyncInfoProvider_(std::move(otherDeckSyncInfoProvider))
 {
     addAndMakeVisible(titleLabel_);
     titleLabel_.setJustificationType(juce::Justification::centred);
@@ -99,6 +104,22 @@ DeckComponent::DeckComponent(StateManager& stateManager, DeckId deck, AudioRepos
         delta.playbackRate = (float)rateSlider_.getValue();
         stateManager_.applyDelta(delta, DeltaSource::local);
     };
+
+    addAndMakeVisible(pitchSlider_);
+    pitchSlider_.setRange(-12.0, 12.0);
+    pitchSlider_.setDoubleClickReturnValue(true, 0.0); // center-detent at 0 semitones (natural neutral value)
+    pitchSlider_.setSliderStyle(juce::Slider::LinearHorizontal);
+    pitchSlider_.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20);
+    pitchSlider_.onValueChange = [this]
+    {
+        StateDelta delta;
+        delta.deck = deck_;
+        delta.pitchOffsetSemitones = (float)pitchSlider_.getValue();
+        stateManager_.applyDelta(delta, DeltaSource::local);
+    };
+
+    addAndMakeVisible(syncButton_);
+    syncButton_.onClick = [this] { onSyncClicked(); };
 
     addAndMakeVisible(loopInButton_);
     loopInButton_.onClick = [this] { onLoopInClicked(); };
@@ -226,6 +247,7 @@ void DeckComponent::refreshWidgets(const PlaybackState& state)
 
     gainSlider_.setValue(state.gain, juce::dontSendNotification);
     rateSlider_.setValue(state.playbackRate, juce::dontSendNotification);
+    pitchSlider_.setValue(state.pitchOffsetSemitones, juce::dontSendNotification);
 
     // setToggleState() no-ops while disabled, so force-enable around the call.
     const bool hasTrack = !state.trackId.isEmpty();
@@ -241,6 +263,8 @@ void DeckComponent::refreshWidgets(const PlaybackState& state)
     loopOutButton_.setEnabled(controlEnabled && pendingLoopInSeconds_.has_value());
     gainSlider_.setEnabled(controlEnabled);
     rateSlider_.setEnabled(controlEnabled);
+    pitchSlider_.setEnabled(controlEnabled);
+    syncButton_.setEnabled(controlEnabled);
 }
 
 void DeckComponent::timerCallback()
@@ -350,6 +374,32 @@ void DeckComponent::onRepeatToggled()
     stateManager_.applyDelta(delta, DeltaSource::local);
 }
 
+void DeckComponent::onSyncClicked()
+{
+    const DeckSyncInfo thisInfo = thisDeckSyncInfoProvider_();
+    const DeckSyncInfo otherInfo = otherDeckSyncInfoProvider_();
+
+    double thisDurationSeconds = 0.0;
+    const auto meta = repository_.getTrackMetadata(stateManager_.getState(deck_).trackId);
+    if (meta.has_value())
+        thisDurationSeconds = meta->durationSeconds;
+
+    const auto result = computeBeatSync(thisInfo.beatGrid, thisInfo.positionSeconds, otherInfo.beatGrid,
+                                        otherInfo.positionSeconds, otherInfo.playbackRate, thisDurationSeconds);
+    if (!result.has_value())
+    {
+        juce::Logger::writeToLog("DeckComponent: sync clicked on deck " + toString(deck_) +
+                                 " but beat detection hasn't succeeded on one side, ignoring");
+        return;
+    }
+
+    StateDelta delta;
+    delta.deck = deck_;
+    delta.playbackRate = result->playbackRate;
+    delta.positionSeconds = result->positionSeconds;
+    stateManager_.applyDelta(delta, DeltaSource::local);
+}
+
 void DeckComponent::resetPendingLoopIn()
 {
     pendingLoopInSeconds_.reset();
@@ -387,6 +437,12 @@ void DeckComponent::resized()
     gainSlider_.setBounds(bounds.removeFromTop(24));
     bounds.removeFromTop(8);
     rateSlider_.setBounds(bounds.removeFromTop(24));
+    bounds.removeFromTop(8);
+
+    auto pitchRow = bounds.removeFromTop(24);
+    syncButton_.setBounds(pitchRow.removeFromRight(60));
+    pitchRow.removeFromRight(4);
+    pitchSlider_.setBounds(pitchRow);
     bounds.removeFromTop(16);
 
     auto loopRow = bounds.removeFromTop(24);

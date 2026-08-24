@@ -46,6 +46,9 @@ add_library(dj-app-core STATIC
     src/engine/BufferPlaybackSource.cpp
     src/engine/JuceAudioEngine.cpp
     src/engine/EngineAdapter.cpp
+    src/engine/IdentityTimeStretcher.cpp
+    src/engine/SignalsmithTimeStretcher.cpp
+    src/engine/QmDspBeatDetector.cpp
     src/state/StateManager.cpp
     src/state/CrossfaderState.cpp
     src/state/PositionClock.cpp
@@ -93,6 +96,95 @@ FetchContent_Declare(
     GIT_TAG 2efe037c9cc96fd536774f17bdb5215161ee5087
 )
 FetchContent_MakeAvailable(ixwebsocket)
+
+# Signalsmith Stretch (MIT): the real time/pitch stretch engine behind
+# SignalsmithTimeStretcher (10-beatsync-design.md). Header-only, so FetchContent +
+# an include dir is all that's needed - no add_subdirectory, no library target to
+# link. Pinned by commit hash on the repo's own tag (06-security.md Supply-chain
+# drift), same pattern as IXWebSocket above. (Signalsmith Stretch v1.1.0 does not
+# depend on Signalsmith Linear, despite an earlier assumption here that it did -
+# see docs/plan/DEVIATIONS.md 2026-08-22 and its 2026-08-24 correction.)
+FetchContent_Declare(
+    signalsmith_stretch
+    GIT_REPOSITORY https://github.com/Signalsmith-Audio/signalsmith-stretch.git
+    GIT_TAG 44c8f865af9da8c29cc4a70a2d5a3ec83639c711 # v1.1.0
+)
+FetchContent_MakeAvailable(signalsmith_stretch)
+
+# PRIVATE, not PUBLIC: SignalsmithTimeStretcher.cpp is the only translation unit
+# that may include a Signalsmith header (it's a pimpl, see SignalsmithTimeStretcher.h) -
+# same vendored-header containment as IXWebSocket via WebSocketTransport's pimpl.
+# SYSTEM: these are vendored headers compiled under our own strict warning flags
+# (juce_recommended_warning_flags) since they're #included directly rather than
+# built as a separate target (unlike IXWebSocket above) - SYSTEM keeps their own
+# internal warnings out of our build output without touching vendored source.
+target_include_directories(dj-app-core SYSTEM PRIVATE
+    ${signalsmith_stretch_SOURCE_DIR}
+)
+
+# qm-dsp (GPL-2.0-or-later): DetectionFunction + TempoTrackV2 beat detection,
+# vendored for QmDspBeatDetector only (engine/QmDspBeatDetector.h/.cpp) - see
+# docs/decisions.md Section 6.1 for the recorded GPL decision and
+# docs/plan/10-beatsync-design.md ("BeatDetector") for the two-class analysis
+# pipeline this wraps. qm-dsp ships no tagged release for its DSP core and no
+# CMake target of its own (Makefile/MSVC-project only, same as Mixxx's own
+# integration) - pinned to an exact commit SHA on master instead of a tag, a
+# documented deviation from this project's tag-pinning convention
+# (docs/plan/DEVIATIONS.md).
+FetchContent_Declare(
+    qmdsp
+    GIT_REPOSITORY https://github.com/c4dm/qm-dsp.git
+    GIT_TAG e34a3cc188332ed7c33cd9257ef164de5b587191
+)
+FetchContent_MakeAvailable(qmdsp)
+
+# Minimal file set for DetectionFunction + TempoTrackV2 only, confirmed by
+# reading the real #include chain (no FFTW/Vamp SDK/Boost - those are
+# qm-dsp's own optional/test-only dependencies, not needed for this path):
+# the two analysis classes, the PhaseVocoder + FFT wrapper DetectionFunction
+# transitively needs, MathUtilities (both use it), and the bundled kissfft
+# sources FFT.cpp calls into. base/Window.h, maths/MathAliases.h, and
+# maths/nan-inf.h are template/header-only and need no .cpp. Its own static
+# library, not folded directly into dj-app-core's sources, so the
+# GPL-licensed object files stay clearly delineated from the rest of
+# dj-app-core's (permissive) code.
+add_library(qm-dsp-core STATIC
+    ${qmdsp_SOURCE_DIR}/dsp/onsets/DetectionFunction.cpp
+    ${qmdsp_SOURCE_DIR}/dsp/tempotracking/TempoTrackV2.cpp
+    ${qmdsp_SOURCE_DIR}/dsp/phasevocoder/PhaseVocoder.cpp
+    ${qmdsp_SOURCE_DIR}/dsp/transforms/FFT.cpp
+    ${qmdsp_SOURCE_DIR}/maths/MathUtilities.cpp
+    ${qmdsp_SOURCE_DIR}/ext/kissfft/kiss_fft.c
+    ${qmdsp_SOURCE_DIR}/ext/kissfft/tools/kiss_fftr.c
+)
+
+# qm-dsp's own headers use repo-root-relative includes (e.g.
+# "dsp/phasevocoder/PhaseVocoder.h"), so the fetched source root itself is
+# the include path; kissfft's own .c files use unqualified includes
+# ("kiss_fft.h"/"_kiss_fft_guts.h"), so its own directory (and the tools/
+# subdirectory kiss_fftr.h lives in) also need to be on the path. PUBLIC on
+# the source root only: QmDspBeatDetector.cpp (the sole consumer) needs it to
+# resolve its own #includes; kissfft's paths stay PRIVATE since nothing
+# outside FFT.cpp/PhaseVocoder.cpp ever needs to see kissfft directly.
+target_include_directories(qm-dsp-core
+    PUBLIC ${qmdsp_SOURCE_DIR}
+    PRIVATE ${qmdsp_SOURCE_DIR}/ext/kissfft ${qmdsp_SOURCE_DIR}/ext/kissfft/tools
+)
+
+# qm-dsp's own build (build/general/Makefile.inc's KISSFFT_CFLAGS) always
+# builds kissfft with scalar samples redefined to double instead of kissfft's
+# own default (float) - FFT.cpp calls kiss_fftr()/kiss_fftri() with double*
+# arrays throughout, so this isn't optional. PRIVATE: an internal kissfft
+# build choice, invisible outside qm-dsp-core's own three kissfft-touching
+# sources.
+target_compile_definitions(qm-dsp-core PRIVATE kiss_fft_scalar=double)
+
+# Privately linked: dj-app-core's own consumers (dj-app-client, dj-app-tests)
+# get qm-dsp-core's object code on their link line automatically (CMake's
+# standard static-library private-dependency propagation) without inheriting
+# its headers, keeping qm-dsp's own headers confined to
+# QmDspBeatDetector.h/.cpp - the one file in dj-app-core that includes them.
+target_link_libraries(dj-app-core PRIVATE qm-dsp-core)
 
 # Define the GUI app target.
 # juce_add_gui_app wires up a normal CMake executable target plus JUCE-specific

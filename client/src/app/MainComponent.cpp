@@ -1,6 +1,8 @@
 #include "MainComponent.h"
 
+#include "engine/SignalsmithTimeStretcher.h"
 #include "model/ControlGating.h"
+#include "model/DeckSyncInfo.h"
 #include "model/FullResyncDelta.h"
 #include "model/Ranges.h"
 #include "model/Serialization.h"
@@ -74,18 +76,43 @@ void addOrUpdatePeer(std::vector<ConnectPanel::PeerInfo>& peers, ConnectPanel::P
 } // namespace
 
 MainComponent::MainComponent()
-    : repository_(tracksRootDir()), engineAdapterA_(stateManager_, DeckId::A, engineA_, repository_),
+    : repository_(tracksRootDir()), engineA_(std::make_unique<SignalsmithTimeStretcher>()),
+      engineB_(std::make_unique<SignalsmithTimeStretcher>()),
+      engineAdapterA_(stateManager_, DeckId::A, engineA_, repository_),
       engineAdapterB_(stateManager_, DeckId::B, engineB_, repository_),
       positionClock_(stateManager_, engineA_, DeckId::A), positionClockB_(stateManager_, engineB_, DeckId::B),
       deckPositionClocks_(positionClock_, positionClockB_), transport_(std::make_unique<WebSocketTransport>()),
-      syncPublisher_(stateManager_, *transport_), deckA_(stateManager_, DeckId::A, repository_, [this]
-                                                         { return computeResumePositionSeconds(engineA_, DeckId::A); }),
-      deckB_(stateManager_, DeckId::B, repository_,
-             [this] { return computeResumePositionSeconds(engineB_, DeckId::B); }),
+      syncPublisher_(stateManager_, *transport_),
+      deckA_(
+          stateManager_, DeckId::A, repository_, [this] { return computeResumePositionSeconds(engineA_, DeckId::A); },
+          [this]
+          {
+              return DeckSyncInfo{engineAdapterA_.currentBeatGrid(), engineA_.getCurrentPosition(),
+                                  stateManager_.getState(DeckId::A).playbackRate};
+          },
+          [this]
+          {
+              return DeckSyncInfo{engineAdapterB_.currentBeatGrid(), engineB_.getCurrentPosition(),
+                                  stateManager_.getState(DeckId::B).playbackRate};
+          }),
+      deckB_(
+          stateManager_, DeckId::B, repository_, [this] { return computeResumePositionSeconds(engineB_, DeckId::B); },
+          [this]
+          {
+              return DeckSyncInfo{engineAdapterB_.currentBeatGrid(), engineB_.getCurrentPosition(),
+                                  stateManager_.getState(DeckId::B).playbackRate};
+          },
+          [this]
+          {
+              return DeckSyncInfo{engineAdapterA_.currentBeatGrid(), engineA_.getCurrentPosition(),
+                                  stateManager_.getState(DeckId::A).playbackRate};
+          }),
       mixer_(crossfaderState_)
 {
     engineAdapterA_.attachCrossfader(crossfaderState_);
     engineAdapterB_.attachCrossfader(crossfaderState_);
+    engineAdapterA_.attachBeatDetector(beatDetector_);
+    engineAdapterB_.attachBeatDetector(beatDetector_);
 
     addAndMakeVisible(trackList_);
     trackList_.setTracks(repository_.listAvailableTracks());
@@ -128,7 +155,11 @@ double MainComponent::computeResumePositionSeconds(AudioEngine& engine, DeckId d
     const double duration = meta.has_value() ? meta->durationSeconds : 0.0;
     // AudioEngine can stop itself at end-of-track without telling StateManager, so
     // resuming at the same stale position would immediately stop again — reset to 0 instead.
-    if (duration > 0.0 && !engine.isPlaying() && resumePosition >= duration - 0.05)
+    // 0.5s epsilon (not 0.05s): a real time-stretcher's ~120ms+ output latency means the
+    // engine's own reported position can still be meaningfully short of `duration` when it
+    // self-stops, so a narrow epsilon misses the self-stop case for any track using a real
+    // stretcher.
+    if (duration > 0.0 && !engine.isPlaying() && resumePosition >= duration - 0.5)
         resumePosition = 0.0;
     return resumePosition;
 }

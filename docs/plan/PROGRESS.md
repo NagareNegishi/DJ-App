@@ -145,3 +145,38 @@ that adds the line (see `git log`).
   call (`DEVIATIONS.md`, 2026-08-21). No automated test for that last one - `dj-app-tests`
   excludes `juce_gui_basics` by design, and widget behavior stays host-checklist-only per
   `05-testing.md`.
+- 2026-08-24 · **M10 — Beat alignment (time-stretch, pitch, beat detection, sync)** ·
+  container green: `client/build/linux` builds clean, `ctest` 360/360 (up from 294).
+  No server-side changes this milestone - `server` suite unchanged at 682/682. Six units
+  (A-F: `SignalsmithTimeStretcher`/`TimeStretcher` interface, `QmDspBeatDetector`/
+  `BeatDetector` interface, `EngineAdapter` beat-grid caching, `BufferPlaybackSource`
+  real time-stretch wiring, and the sync button + pitch slider UI) landed a real
+  time-stretcher (rate now changes speed without pitch), a pitch slider, real
+  per-track beat detection, and a per-deck sync button. qm-dsp (GPL-2.0-or-later) is
+  the one GPL dependency beyond JUCE, recorded per `CLAUDE.md`'s license rule
+  (`decisions.md` Section 6.1). A post-implementation review layer
+  (`correctness-adviser`, `design-adviser`, `simplicity-adviser`, `legal-adviser`)
+  found two real bugs in the sync button: `computeBeatSync` wrapped both decks'
+  phase using the calling deck's own beat interval instead of each deck's own, wrong
+  whenever the two BPMs differ (the sync button's entire purpose); and the other
+  deck's position came from a Play-button resume heuristic that substitutes 0.0 at
+  end-of-track, wrong for a phase reference. Both fixed together (the phase fix needs
+  the other deck's live rate as a new input, the position fix needed the same
+  provider redesign), plus a batch of five smaller review findings (`EngineAdapter`'s
+  cache keyed on a dangling-prone buffer pointer instead of `trackId`, a stretcher
+  pull-head reconstruction that recomputed rather than cached the previous block's
+  latency compensation, an unhandled zero-length render block, a stretcher-reset
+  threshold that didn't actually exclude the sync button's own phase nudge as
+  documented, and an end-of-track resume epsilon too narrow for a real stretcher's
+  latency) - all recorded in `DEVIATIONS.md`. The unused `signalsmith_linear`
+  dependency was also removed (never linked into anything, per the 2026-08-22
+  finding that Signalsmith Stretch doesn't need it), and `THIRD_PARTY_NOTICES.md`
+  gained qm-dsp and Signalsmith Stretch entries. Two known gaps deliberately
+  deferred to a future milestone, both recorded in `DEVIATIONS.md`: the sync
+  button's minimal UX (no BPM readout, silent no-op on failed detection, no visual
+  distinction between failure states), and whether `EngineAdapter::handleDelta`'s
+  synchronous beat analysis can stall the message thread on a long track - a new
+  host-checklist step exists to gather that evidence but has not been run yet.
+  **Host checklist (`checklists/M10-host.md`) has not been run on the Windows host
+  as of this entry** - milestone-discipline sign-off is still pending that manual
+  pass; this line records the container-side state only.

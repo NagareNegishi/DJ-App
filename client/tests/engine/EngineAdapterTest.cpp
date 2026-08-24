@@ -47,6 +47,12 @@ class FakeAudioEngine final : public AudioEngine
         lastPlaybackRate = rate;
     }
 
+    void setPitchOffsetSemitones(float semitones) override
+    {
+        calls.push_back("setPitchOffsetSemitones");
+        lastPitchOffsetSemitones = semitones;
+    }
+
     void setLoop(std::optional<LoopPoints> loop) override
     {
         calls.push_back("setLoop");
@@ -80,6 +86,7 @@ class FakeAudioEngine final : public AudioEngine
     double lastSeekPosition = 0.0;
     float lastGain = 0.0f;
     float lastPlaybackRate = 0.0f;
+    float lastPitchOffsetSemitones = 0.0f;
     bool setLoopCalled = false;
     std::optional<LoopPoints> lastLoop;
     bool setRepeatCalled = false;

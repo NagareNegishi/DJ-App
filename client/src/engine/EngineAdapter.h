@@ -19,6 +19,7 @@
 // Timer callback, independent of any notification.
 
 #include "AudioEngine.h"
+#include "engine/BeatDetector.h"
 #include "model/Types.h"
 #include "repository/AudioRepository.h"
 #include "state/CrossfaderState.h"
@@ -46,6 +47,19 @@ class EngineAdapter : private juce::Timer
     // with the on-screen fader before the user ever touches it.
     void attachCrossfader(CrossfaderState& crossfader);
 
+    // Optional post-construction attachment (same reasoning as attachCrossfader:
+    // a constructor parameter would force every existing call site, including
+    // tests, to change). Once attached, a successful trackId load analyzes the
+    // resolved buffer and caches the result; currentBeatGrid() returns
+    // BeatGrid{} (bpm == 0, "detection failed") until this has been called and
+    // a track has successfully loaded since.
+    void attachBeatDetector(BeatDetector& detector);
+
+    // The current cached BeatGrid for whatever track is currently loaded on
+    // this deck (BeatGrid{} if no BeatDetector is attached, no track has
+    // loaded, or the last load failed/was cleared).
+    const BeatGrid& currentBeatGrid() const { return cachedBeatGrid_; }
+
   private:
     void handleDelta(const StateDelta& applied, const PlaybackState& newState, DeltaSource source);
     void timerCallback() override; // calls checkForSelfStop() at low frequency; see there
@@ -64,6 +78,16 @@ class EngineAdapter : private juce::Timer
 
     CrossfaderState* crossfader_ = nullptr;
     int crossfaderListenerToken_ = 0;
+
+    BeatDetector* beatDetector_ = nullptr;
+    BeatGrid cachedBeatGrid_;
+    // Identity-only: compared against the freshly resolved track's trackId to
+    // skip re-analysis when reselecting an already-loaded track. Keyed on
+    // trackId identity (a juce::String, owning its own data), not
+    // buffer-pointer identity - a stable identity that doesn't depend on
+    // AudioRepository's caching behavior continuing to return the same
+    // pointer for a given track.
+    juce::String lastAnalyzedTrackId_;
 };
 
 } // namespace djapp

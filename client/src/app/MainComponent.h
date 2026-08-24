@@ -12,6 +12,7 @@
 #include "engine/AudioDeviceHub.h"
 #include "engine/EngineAdapter.h"
 #include "engine/JuceAudioEngine.h"
+#include "engine/QmDspBeatDetector.h"
 #include "repository/LocalFileRepository.h"
 #include "state/CrossfaderState.h"
 #include "state/DeckPositionClocks.h"
@@ -65,6 +66,12 @@ class MainComponent : public juce::Component
     // crossfaderState_.getPosition() and the adapters get attached to it in the
     // constructor body, so this must exist first regardless of initializer list order.
     CrossfaderState crossfaderState_;
+    // Declared before engineAdapterA_/engineAdapterB_ for the same reason as
+    // crossfaderState_ above: the constructor body calls attachBeatDetector on
+    // both adapters, so the detector must already exist. Holds no per-deck
+    // state (analyze() is a pure function of the buffer passed to it), so one
+    // instance correctly serves both decks.
+    QmDspBeatDetector beatDetector_;
     EngineAdapter engineAdapterA_;
     EngineAdapter engineAdapterB_;
     PositionClock positionClock_;
