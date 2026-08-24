@@ -65,15 +65,29 @@ would make every sync-related step below untestable.
    - Expected: two files appear on the Desktop; each plays as a steady, clearly audible
      metronome-like click when opened directly (sanity-check at least one by ear before
      continuing).
-2. Copy both into the track folder and register them in `manifest.json` alongside the
+2. **Also generate one longer track**, reusing the same function, for Step 14's
+   message-thread-stall check below: `EngineAdapter::handleDelta` runs `BeatDetector::analyze()`
+   synchronously on the message thread (`docs/plan/DEVIATIONS.md`, deferred question - not yet
+   checked against real evidence), and analysis time scales with track length, so the 15s
+   tracks above analyze too fast for a stall to be visible even if one exists. 3 minutes is
+   long enough to make a real stall noticeable without the file being unwieldy to generate/copy:
+   ```powershell
+   New-ClickTrackWav -Path "$env:USERPROFILE\Desktop\demo-beat-long.wav" -Bpm 128 -DurationSeconds 180
+   ```
+   - Expected: one ~3-minute file appears, same click sound as the two above, just longer
+     (this one doesn't need a by-ear sanity check - Step 14 only cares about load/analysis
+     time, not correct BPM detection).
+3. Copy all three into the track folder and register them in `manifest.json` alongside the
    existing entries:
    ```
    copy "%USERPROFILE%\Desktop\demo-beat120.wav" "C:\Users\nagi\Desktop\DJ-App\client\assets\tracks\demo-beat120.wav"
    copy "%USERPROFILE%\Desktop\demo-beat90.wav" "C:\Users\nagi\Desktop\DJ-App\client\assets\tracks\demo-beat90.wav"
+   copy "%USERPROFILE%\Desktop\demo-beat-long.wav" "C:\Users\nagi\Desktop\DJ-App\client\assets\tracks\demo-beat-long.wav"
    ```
    ```json
    { "id": "demo-beat120", "title": "Demo Beat 120", "file": "demo-beat120.wav", "bpm": 120 },
-   { "id": "demo-beat90", "title": "Demo Beat 90", "file": "demo-beat90.wav", "bpm": 90 }
+   { "id": "demo-beat90", "title": "Demo Beat 90", "file": "demo-beat90.wav", "bpm": 90 },
+   { "id": "demo-beat-long", "title": "Demo Beat Long (3 min)", "file": "demo-beat-long.wav", "bpm": 128 }
    ```
 
 ## Steps
@@ -89,8 +103,8 @@ would make every sync-related step below untestable.
    cmake --build client/build/windows
    ```
    - Expected: `dj-app-client` and `dj-app-tests` both build clean (this milestone vendors
-     two new dependencies via `FetchContent` - `signalsmith-stretch`/`signalsmith-linear`
-     and `qm-dsp` - so the first configure will take noticeably longer while they download).
+     two new dependencies via `FetchContent` - `signalsmith-stretch` and `qm-dsp` - so the
+     first configure will take noticeably longer while they download).
 2. Run the test suite:
    ```
    ctest --test-dir client/build/windows --output-on-failure
@@ -162,21 +176,57 @@ would make every sync-related step below untestable.
     - Expected: both windows show matching track titles and playback state for both decks
       (window B stays silent - only local state/UI mirrors, never audio, same as every
       earlier multi-user checklist).
-14. In window A, drag deck A's pitch slider to a new value.
+14. **Message-thread stall check during beat analysis (deferred question, see
+    `docs/plan/DEVIATIONS.md`).** `EngineAdapter::handleDelta` runs `BeatDetector::analyze()`
+    synchronously on the message thread, and a remote delta takes the exact same code path
+    as a local one - so loading a long track could, in principle, freeze either window's UI
+    while analysis runs. The short 15s click tracks used in Steps 1-11 analyze fast enough
+    that a stall wouldn't be noticeable even if one exists; this step uses the ~3-minute
+    "Demo Beat Long" track from the Prerequisites specifically to make a real stall, if
+    present, actually visible. Check **both** windows, since the concern is different for
+    each:
+    - In window A (**controller**), load "Demo Beat Long (3 min)" onto deck B (deck A is
+      already busy with Steps 12-13's tracks). **Immediately** after clicking the track -
+      within the same second, don't wait for the load to visibly finish - try to interact
+      with something else in window A (drag deck A's gain slider, click deck A's Play
+      button).
+      - Fail criterion: if window A is unresponsive to that interaction for longer than a
+        fraction of a second (the whole app feels "frozen" rather than staying interactive
+        while the new track loads), that's a **fail** - the local, synchronous
+        `analyze()` call is blocking window A's own message thread long enough to be
+        user-visible. Note roughly how long the freeze lasts if one occurs.
+    - At the same time, watch window B (**observer**) during that same load - it receives
+      the track-load delta over the network and independently runs its own
+      `BeatDetector::analyze()` on its own copy of the file, via the same `handleDelta` path.
+      **Immediately** after window A's load starts, try to interact with window B (drag any
+      slider, click any button) without waiting for anything to finish first.
+      - Fail criterion: same as above, applied to window B - a stall here means the
+        *observer's* re-analysis (triggered purely by the incoming remote delta, not
+        anything window B's own user did) is blocking window B's message thread.
+    - Either way, this is real evidence for `docs/plan/DEVIATIONS.md`'s deferred decision on
+      `handleDelta`'s synchronous analysis call - **record the result there** (which
+      window(s), if any, stalled, and roughly how long) rather than leaving it just in this
+      checklist. A clean "no stall" result on both windows is also a valid, useful outcome
+      (it means the deferred risk didn't materialize in practice at this track length) -
+      log it either way, since the decision to defer explicitly promised revisiting this on
+      real evidence rather than staying an open question forever.
+15. In window A, drag deck A's pitch slider to a new value.
     - Expected: within ~100 ms, window B's deck A pitch slider mirrors the same value -
       same latency as every other synced control (gain, rate, loop, repeat).
-15. In window A, click deck A's Sync button.
+16. In window A, click deck A's Sync button.
     - Expected: within ~100 ms, window B's deck A rate slider **and** position both update
       to match what happened locally in window A (Sync produces one `StateDelta` setting
       both `playbackRate` and `positionSeconds`, and both fields already sync via the
       existing protocol - no protocol version change this milestone). Window B's Sync
       button and pitch slider for deck A should be disabled/greyed throughout (it's an
       observer), same gating as every other deck control.
-16. Close all windows via their close buttons (X).
+17. Close all windows via their close buttons (X).
     - Expected: clean exit, no hang, no leftover process in Task Manager. Stop the server
       in the container (Ctrl+C).
 
 Report back: pass/fail per step, and specifically flag anything in Steps 4-5 (speed/pitch
-independence - the actual audible change this milestone makes to existing rate behavior)
-and Step 6 (startup-latency gap) even if it technically passes, since both are the kind of
-thing that's easy to rate as "fine" on a quick listen but worth a second, careful pass.
+independence - the actual audible change this milestone makes to existing rate behavior),
+Step 6 (startup-latency gap), and Step 14 (message-thread stall) even if they technically
+pass, since all three are the kind of thing that's easy to rate as "fine" on a quick look
+but worth a second, careful pass - Step 14 in particular is a currently-open, deliberately
+deferred design question that this checklist is the first real chance to get evidence on.
