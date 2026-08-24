@@ -144,7 +144,11 @@ double MainComponent::computeResumePositionSeconds(AudioEngine& engine, DeckId d
     const double duration = meta.has_value() ? meta->durationSeconds : 0.0;
     // AudioEngine can stop itself at end-of-track without telling StateManager, so
     // resuming at the same stale position would immediately stop again — reset to 0 instead.
-    if (duration > 0.0 && !engine.isPlaying() && resumePosition >= duration - 0.05)
+    // 0.5s epsilon (not 0.05s): a real time-stretcher's ~120ms+ output latency means the
+    // engine's own reported position can still be meaningfully short of `duration` when it
+    // self-stops, so a narrow epsilon misses the self-stop case for any track using a real
+    // stretcher.
+    if (duration > 0.0 && !engine.isPlaying() && resumePosition >= duration - 0.5)
         resumePosition = 0.0;
     return resumePosition;
 }
