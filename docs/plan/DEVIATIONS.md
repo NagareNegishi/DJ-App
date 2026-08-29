@@ -595,3 +595,32 @@ Each entry: date, what the plan said, what was done instead, why.
   and M8's `PROGRESS.md` entries carry forward their own known gaps) - a
   future milestone's design phase should read this entry before scoping any
   sync-button UI work.
+
+## 2026-08-30 - the sync button doesn't no-op when one deck has no detectable beat
+
+- **Plan said**: `model/BeatSync.h::computeBeatSync` documents "beat detection failed" (returns
+  `std::nullopt`, no correction pushed) as the case where a deck's `BeatGrid.bpm <= 0`, and the
+  M10 host checklist's Step 11 states the expected observable behavior is a silent no-op when
+  Sync is pressed with one deck holding a track with no detectable beat.
+- **Actual**: found live on the M10 host checklist's Step 11 - loading a plain sine-tone track
+  (`demo1.wav`, no rhythmic content) onto one deck and a click track onto the other, then
+  pressing Sync on the sine-tone deck, produced an audible rate change (the rate slider jumped
+  to 2.0, the slider's own clamp ceiling) instead of a no-op. Root cause:
+  `QmDspBeatDetector::analyze` (`client/src/engine/QmDspBeatDetector.cpp`) only ever returns the
+  `BeatGrid{}` failure sentinel (`bpm == 0`) through one guard, `beats.size() < 2`, which
+  correctly catches true silence and too-short buffers (the only two failure cases
+  `BeatDetectorTest.cpp` actually exercises) but not a sustained tone: qm-dsp's `TempoTrackV2` is
+  a Viterbi-based dynamic-programming tempo tracker with no internal "no real periodicity, give
+  up" branch - fed any sufficiently long detection-function curve, it always outputs some
+  best-guess periodic beat sequence, real or spurious. A sine tone's continuous nonzero energy
+  produces enough detection-function frames to clear the `beats.size() < 2` guard, so it returns
+  a real-looking but meaningless BPM instead of the sentinel `computeBeatSync` depends on.
+- **Status**: not yet fixed. Found during the M10 host checklist's Step 11 (2026-08-30); the
+  checklist was paused here rather than continuing past a known-failing step. Planned direction:
+  reject a detection result when the input has negligible onset-energy variation (no real
+  transients for qm-dsp's detection function to lock onto) before ever running the tempo
+  tracker, plus a new regression test covering a sustained-tone buffer - the existing suite only
+  covers true silence and too-short buffers, never "continuous but arrhythmic" input.
+- **Why**: recorded immediately per `CLAUDE.md`'s bug-fix/regression-test rule - the M10 host
+  checklist cannot be marked done with Step 11 failing, and the fix needs its own container-side
+  build/test/commit before the checklist can safely resume.
