@@ -181,9 +181,12 @@ target_compile_definitions(qm-dsp-core PRIVATE kiss_fft_scalar=double)
 
 # MSVC's <cmath> only defines M_PI when _USE_MATH_DEFINES is set before the
 # include (GCC/Clang expose it unconditionally, which is why this only
-# surfaces on the Windows host build) - MathUtilities.cpp uses M_PI directly.
+# surfaces on the Windows host build) - MathUtilities.cpp uses M_PI directly,
+# and so does qm-dsp's header-only base/Window.h, pulled in by
+# QmDspBeatDetector.cpp (compiled as part of dj-app-core, not qm-dsp-core).
 if (MSVC)
     target_compile_definitions(qm-dsp-core PRIVATE _USE_MATH_DEFINES)
+    target_compile_definitions(dj-app-core PRIVATE _USE_MATH_DEFINES)
 endif()
 
 # Privately linked: dj-app-core's own consumers (dj-app-client, dj-app-tests)
