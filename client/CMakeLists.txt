@@ -179,6 +179,13 @@ target_include_directories(qm-dsp-core
 # sources.
 target_compile_definitions(qm-dsp-core PRIVATE kiss_fft_scalar=double)
 
+# MSVC's <cmath> only defines M_PI when _USE_MATH_DEFINES is set before the
+# include (GCC/Clang expose it unconditionally, which is why this only
+# surfaces on the Windows host build) - MathUtilities.cpp uses M_PI directly.
+if (MSVC)
+    target_compile_definitions(qm-dsp-core PRIVATE _USE_MATH_DEFINES)
+endif()
+
 # Privately linked: dj-app-core's own consumers (dj-app-client, dj-app-tests)
 # get qm-dsp-core's object code on their link line automatically (CMake's
 # standard static-library private-dependency propagation) without inheriting
